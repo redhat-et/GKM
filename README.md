@@ -1,8 +1,10 @@
 # triton-kernel-manager-operator
-// TODO(user): Add simple overview of use/purpose
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+Triton Kernel Manager is a software stack that aims to deploy, manage and
+monitor Triton Kernels whether on a single host, or in a Kubernetes
+cluster. It will use the utilities developed in
+[TKDK](https://github.com/redhat-et/TKDK) to accomplish these goals.
 
 ## Getting Started
 
