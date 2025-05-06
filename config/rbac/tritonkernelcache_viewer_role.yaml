@@ -8,7 +8,7 @@ metadata:
   name: tritonkernelcache-viewer-role
 rules:
 - apiGroups:
-  - tkm.tkm.io
+  - tkm.io
   resources:
   - tritonkernelcaches
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - tkm.tkm.io
+  - tkm.io
   resources:
   - tritonkernelcaches/status
   verbs:
