@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: tritonkernelcaches.tkm.tkm.io
+  name: tritonkernelcaches.tkm.io
 spec:
-  group: tkm.tkm.io
+  group: tkm.io
   names:
     kind: TritonKernelCache
     listKind: TritonKernelCacheList
@@ -77,6 +77,8 @@ spec:
                 type: object
               name:
                 type: string
+              validateSignature:
+                type: boolean
             required:
             - binaryImage
             - intermediateRepImage

@@ -8,7 +8,7 @@ metadata:
   name: tritonkernelcache-editor-role
 rules:
 - apiGroups:
-  - tkm.tkm.io
+  - tkm.io
   resources:
   - tritonkernelcaches
   verbs:
@@ -20,7 +20,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tkm.tkm.io
+  - tkm.io
   resources:
   - tritonkernelcaches/status
   verbs:

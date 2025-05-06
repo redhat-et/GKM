@@ -26,6 +26,7 @@ type TritonKernelCacheSpec struct {
 	BinaryImage          string           `json:"binaryImage"`
 	IntermediateRepImage string           `json:"intermediateRepImage"`
 	KernelProperties     KernelProperties `json:"kernelProperties"`
+	ValidateSignature    bool             `json:"validateSignature,omitempty"`
 }
 
 type KernelProperties struct {

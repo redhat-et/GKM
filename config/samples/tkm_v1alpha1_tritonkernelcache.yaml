@@ -1,4 +1,4 @@
-apiVersion: tkm.tkm.io/v1alpha1
+apiVersion: tkm.io/v1alpha1
 kind: TritonKernelCache
 metadata:
   labels:
