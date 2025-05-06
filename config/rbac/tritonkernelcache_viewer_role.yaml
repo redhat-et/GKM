@@ -1,0 +1,23 @@
+# permissions for end users to view tritonkernelcaches.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: tritonkernelcache-viewer-role
+rules:
+- apiGroups:
+  - tkm.tkm.io
+  resources:
+  - tritonkernelcaches
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - tkm.tkm.io
+  resources:
+  - tritonkernelcaches/status
+  verbs:
+  - get

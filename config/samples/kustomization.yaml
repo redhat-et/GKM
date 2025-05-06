@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- tkm_v1alpha1_tritonkernelcache.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
