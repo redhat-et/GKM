@@ -1,9 +1,22 @@
 # Build the manager binary
-FROM golang:1.22 AS builder
+FROM public.ecr.aws/docker/library/golang:1.24.3 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
+
+# Install required system packages for gpgme and NVML
+RUN apt-get update && \
+    apt-get install -y \
+        libgpgme-dev \
+        btrfs-progs \
+        libbtrfs-dev \
+        libgpgme11-dev \
+        libseccomp-dev \
+        pkg-config \
+        build-essential && \
+    apt-get clean
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -21,7 +34,7 @@ COPY internal/controller/ internal/controller/
 # was called. For example, if we call make docker-build in a local env which has the Apple Silicon M1 SO
 # the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
+RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
