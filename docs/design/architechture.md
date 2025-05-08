@@ -11,15 +11,15 @@ a CSI plugin to manage kernel images efficiently.
 
 ## Motivation
 
-The primary motivation of the Triton Kernel Manager Operator and CSI Plugin is
-to reduce the startup time of large language models (LLMs) that use Triton
-Kernels. By providing a pre-tuned kernel cache as a directory that can be
-consumed by Triton-lang at runtime, we aim to optimize model loading
+The primary motivation of the Triton Kernel Manager Operator, Agent and CSI
+Plugin is to reduce the startup time of large language models (LLMs) that use
+Triton Kernels. By providing a pre-tuned kernel cache as a directory that can
+be consumed by Triton-lang at runtime, we aim to optimize model loading
 performance and reduce latency. Additionally, managing kernel images and
 ensuring their validity before usage in containers is crucial for performance
 optimisation and security.
 
-The TKM operator focuses on:
+The TKM Operator focuses on:
 
 - Validating Triton kernel cache image signatures.
 - Supporting both cluster and namespace-scoped CRDs to improve security and
@@ -31,7 +31,7 @@ The TKM Agent focuses on:
 - Validating cache compatibility against the node's hardware.
 - Reporting status to the control plane via node-specific CRs.
 
-The CSI plugin focuses on:
+The CSI Plugin focuses on:
 
 - Facilitating seamless cache extraction and mounting via a CSI plugin
 
@@ -94,9 +94,10 @@ verification.
 
 #### Control Plane Components
 
-Operator/Controller (Control Plane): Validates Triton kernel images, inspects
-metadata, and updates CR status. Manages both cluster and namespace-scoped
-CRDs. Runs as a long-lived controller on the control plane.
+- TKM Operator/Controller (Control Plane): Validates Triton kernel images,
+  inspects metadata, and updates CR status. Manages both cluster and
+  namespace-scoped CRDs.
+  Runs as a long-lived controller on the control plane.
 
 #### Worker Node Components
 
@@ -104,40 +105,65 @@ CRDs. Runs as a long-lived controller on the control plane.
   verifies kernel cache compatibility, updates node-specific CRs, and reports
   status to the control plane. Runs as a DaemonSet on each worker node.
 
-- CSI Driver (Node-local Daemon): Mounts the validated kernel cache onto the
-  pod's volume if marked as `Ready` and `Compatible` on the node. Runs as a
-  DaemonSet on each worker node.
+- TKM CSI Driver (Node-local Daemon): Mounts the validated kernel cache onto
+  the pod's volume if marked as `Ready` and `Compatible` on the node.
+  Runs as a DaemonSet on each worker node.
 
-### CRDs
+### Custom Resource Definitions (CRDs)
 
-#### Namespaced CRDs
+TKM will support the following CRDs:
 
-To increase security, the Triton Kernel Manager (TKM) Operator supports
-namespace-scoped CRDs. This enables the restriction of Triton kernel
-cache loading and mounting to specific namespaces, thereby enhancing
-isolation between workloads.
+- **TritonKernelCache CRD:** Represents the desired state of a kernel cache.
+  Through this CRD, the user can specify the OCI Image, which is the container
+  image containing the kernel binary.
+  This is a namespace scoped CRD.
 
-##### Motivation
+  > *[OI] Possible Naming Options (prefer a shorter name):
+  > TritonKernelCache/TKMCache/TKMImage/TKMCacheImage/TKMKernelImage*
+- **TritonKernelCacheCluster CRD:** Represents the desired state of a kernel
+  cache.
+  Same as TritonKernelCache CRD, but a cluster scoped CRD.
+- **TritonKernelCacheNodeStatus CRD:** Represents the actual state of a kernel
+  cache for a given Kubernetes Node.
+  The user does not create or modify this object, but is used by TKM to reflect
+  the status a kernel cache for a given Kubernetes Node.
+  One instance of this CRD is created for each node for each `TritonKernelCache`
+  instance.
+  This is a namespace scoped CRD.
+- **TritonKernelCacheNodeStatusCluster CRD:** Represents the actual state of a
+  kernel.
+  Same as TritonKernelCacheNodeStatus CRD, but a cluster scoped CRD.
+  One instance of this CRD is created for each node for each
+  `TritonKernelCacheCluster` instance.
 
+To increase security, the TKM Operator supports a namespace-scoped
+version of the TritonKernelCache CRD.
 Namespace-scoped CRDs improve security and flexibility by allowing
-administrators to limit Triron kernel usage to designated namespaces.
+administrators to limit Triton kernel usage to designated namespaces.
 This is particularly useful in multi-tenant Kubernetes clusters where
 different applications may require distinct Triton Kernel configurations.
+This enables the restriction of Triton kernel cache loading and mounting
+to specific namespaces, thereby enhancing isolation between workloads.
 
-##### Advantages:
+Advantages:
 
 - Improved security through namespace isolation.
 - Clear separation of kernel cache resources between tenants.
 - Simplified CRD structure by merging cache and metadata.
 
-#### TritonKernelCache CRD (Namespace Scoped)
+> *[OI] Does Namespace Scoped CRD make sense? We cannot isolate the actual
+> GPU to a namespace.*
 
-Represents the desired state of a kernel cache.
+#### TritonKernelCache and TritonKernelCacheCluster CRD
 
-- ociImage: The container image containing the kernel binary.
-- validateSignature: Boolean to enforce signature checks.
+The TritonKernelCache and TritonKernelCacheCluster CRDs allow the user
+to specify details about the OCI Image that contains the Triton kernel.
+The data provided allows the image to be downloaded and the Triton kernel
+extracted from the image.
 
-For example:
+> *[OI] Are there any GPU Type specific fields?*
+
+Example of TritonKernelCache CRD:
 
 ```yaml
 apiVersion: tkm.io/v1alpha1
@@ -146,64 +172,117 @@ metadata:
   name: kernel-y
   namespace: ml-apps
 spec:
-  ociImage: quay.io/example/kernel-y:latest
+  ociImage:
+    pullPolicy: IfNotPresent
+    image: quay.io/example/kernel-y:latest
+    pullSecret:
   validateSignature: false
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-08T21:06:07Z"
+    message: 'TritonKernelCache Reconciliation failed on the following TritonKernelCacheNodeStatus
+      objects: [kernel-y-node1]'
+    reason: Error
+    status: "True"
+    type: Error
 ```
 
-#### TritonKernelCacheCluster CRD (Cluster-Scoped)
+> *[OI] I don't think we need `validateSignature` here? We will want
+> a TKM configuration option to allow unsigned images and to disable
+> COSign. bpfman had a ConfigMap which contained a configuration file.*
 
-Same as TritonKernelCache but applies at the cluster level.
+#### TritonKernelCacheNodeStatus and TritonKernelCacheNodeStatusCluster CRD
 
-For example:
+TritonKernelCacheNodeStatus and TritonKernelCacheNodeStatusCluster CRD instances
+are created by the TKM Agent, not the user.
+There is an instance for each Kubernetes Node for each TritonKernelCache or
+TritonKernelCacheCluster instance.
+The purpose is to provide the status of a given Triton kernel for each node
+as well detected GPU info from the node.
 
-```yaml
-apiVersion: tkm.io/v1alpha1
-kind: TritonKernelCacheCluster
-metadata:
-  name: kernel-x
-spec:
-  ociImage: quay.io/example/kernel-x:latest
-  validateSignature: true
-```
+Summary of data reflected in CRD:
 
-#### TritonKernelCacheNodeStatus CRD (Node-Specific)
+- **nodeName:** The name of the node.
+- **kernelCacheRef:** Reference to the Triton kernel cache.
+- **gpuType:** The type of GPU present.
+- **driverVersion:** Version of the GPU driver.
 
-Represents the per-node status of a Triton kernel cache.
+> *[OI] Do need or can we have a used by?*
 
-- nodeName: The name of the node.
-- kernelCacheRef: Reference to the Triton kernel cache.
-- gpuType: The type of GPU present.
-- driverVersion: Version of the GPU driver.
-
-For example:
+Example of TritonKernelCacheNodeStatus CRD:
 
 ```yaml
 apiVersion: tkm.io/v1alpha1
 kind: TritonKernelCacheNodeStatus
 metadata:
   name: kernel-x-node1
-  namespace: tkm-system
-spec:
-  nodeName: node1
-  kernelCacheRef: kernel-x
-  gpuType: nvidia
-  driverVersion: 470.57.02
+  namespace: ml-apps
 status:
   conditions:
     - type: Ready
       status: "True"
     - type: Compatible
       status: "True"
+  driverVersion: 470.57.02
+  kernelCacheRef: kernel-x
+  gpuType: nvidia
+  nodeName: node1
 ```
+
+##### Pros and Cons of Using a NodeStatus CRD
+
+> [OI] API Review of bpfman CRDs flagged NodeStatus CRD as an issue.
+
+A couple of Operators use the NodeStatus pattern of creating a Node specific CRD
+to track the status of a higher level CRD for a given Kubernetes Node.
+In particular,
+(bpfman Operator)[https://operatorhub.io/operator/bpfman-operator],
+(Security Profiles Operator)[https://operatorhub.io/operator/security-profiles-operator]
+and Ingress Node Firewall Operator.
+Below are some Pros and Cons for using this pattern.
+
+###### Pros
+
+One of the reasons for using this pattern is that for a given CRD, work has to be
+done on every node (or a large subset of nodes) and because of potential hardware
+differences between nodes, the action may succeed on some nodes and fail on others.
+For large clusters with 100+ nodes, tracking success/failure, error message and
+small of amount of metadata for 100+ nodes in the status of one CRD get messy and
+hard for the user to consume.
+In addition, 100+ agents writing their status to a given CRD instance may not
+scale well.
+
+By keeping an overall status in the higher level CRD, with `Success` if all nodes
+succeeded and `Failure` if one or more nodes had a failure, and a list of nodes
+with failures, more detailed errors as well additional node metadata can be kept
+in Node specific CRD.
+
+###### Cons
+
+One of the major drawbacks to using this pattern is that it is not very Kubernetes
+like.
+The user creates the higher level CRD, but then has to get any failure details from
+the Node specific CRD.
+
+To address the issue of scale,
+(Server Side Apply)[https://kubernetes.io/docs/reference/using-api/server-side-apply/]
+may be the solution.
+This needs to be investigated.
 
 ## Interaction
 
+Below is a rough flow when using TKM:
+
 - User creates a TritonKernelCache CR specifying the kernel image.
-- Operator validates the image and updates the status.
 - TKM Agent on each node:
+  - Creates a TritonKernelCacheNodeStatus CR for its Node.
+  - Validates the image and updates the status in the TritonKernelCacheNodeStatus CR.
   - Collects GPU information and verifies kernel cache compatibility.
   - Updates TritonKernelCacheNodeStatus CR.
-- CSI plugin checks the TritonKernelCacheNodeStatus CR for the node and mounts the kernel cache as a volume if marked 'Ready' and 'Compatible'.
+- CSI plugin checks the TritonKernelCacheNodeStatus CR for the node and mounts the
+  kernel cache as a volume if marked 'Ready' and 'Compatible'.
+- Operator monitors that state of each TritonKernelCacheNodeStatus CR and updates
+  the status of the TritonKernelCache CR.
 
 An example of the flow is shown below:
 
@@ -215,20 +294,20 @@ An example of the flow is shown below:
                            |
                            v
                +-----------+------------+
-               | Controller verifies    |
+               | Agent verifies         |
                | image signature        |
                +-----------+------------+
                            |
             +--------------+----------------+
-            |                                 |
-   +--------v--------+               +---------v---------+
-   | Signature valid |               | Signature invalid |
-   +--------+--------+               +---------+---------+
-            |                                  |
-            v                                  v
-+-----------+-----------+             +---------+---------+
-| Mark CR as "Verified" |             | Mark CR as "Failed"|
-+-----------+-----------+             +---------+----------+
+            |                               |
+   +--------v--------+            +---------v---------+
+   | Signature valid |            | Signature invalid |
+   +--------+--------+            +---------+---------+
+            |                               |
+            v                               v
++-----------+-----------+        +----------+----------+
+| Mark CR as "Verified" |        | Mark CR as "Failed" |
++-----------+-----------+        +----------+----------+
             |
             v
 +-----------+-----------+
@@ -244,10 +323,10 @@ An example of the flow is shown below:
 +-----------+------------+               +-----------------------+
             |                                        |
             v                                        v
-+-----------+-----------+                +-----------+---------+
-| Mark CR as "Ready" and|                | Mark CR as "Failed" |
-| "Compatible"          |                | with error details  |
-+-----------+-----------+                +---------------------+
++-----------+-----------+                +-----------+-----------+
+| Mark CR as "Ready"    |                | Mark CR as "Failed"   |
+| and "Compatible"      |                | with error details    |
++-----------+-----------+                +-----------------------+
             |
             v
 +-----------+-----------+
@@ -275,7 +354,7 @@ volumes:
         kernel-name: kernel-x
 ```
 
-### State Management
+## State Management
 
 To ensure resilience and consistent state management, the operator will utilize
 a lightweight embedded database (such as Sled/SQLite/BoltDB) to maintain the
