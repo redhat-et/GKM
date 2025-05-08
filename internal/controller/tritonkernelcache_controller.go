@@ -66,7 +66,7 @@ func (r *TritonKernelCacheReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	fetcher := cargohold.NewImgFetcher()
-	img, err := fetcher.FetchImg(cache.Spec.BinaryImage)
+	img, err := fetcher.FetchImg(cache.Spec.CacheImage)
 	if err != nil {
 		logger.Error(err, "failed to fetch image")
 		setCondition(&cache, "Verified", metav1.ConditionFalse, "ImageFetchFailed", err.Error())
@@ -83,9 +83,9 @@ func (r *TritonKernelCacheReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	if cache.Spec.ValidateSignature {
-		logger.Info("Validating image signature with cosign", "image", cache.Spec.BinaryImage)
+		logger.Info("Validating image signature with cosign", "image", cache.Spec.CacheImage)
 
-		if err := verifyImageSignature(cache.Spec.BinaryImage); err != nil {
+		if err := verifyImageSignature(cache.Spec.CacheImage); err != nil {
 			logger.Error(err, "image signature verification failed")
 			setCondition(&cache, "Verified", metav1.ConditionFalse, "SignatureInvalid", err.Error())
 			_ = r.Status().Update(ctx, &cache)
@@ -94,7 +94,7 @@ func (r *TritonKernelCacheReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 		setCondition(&cache, "Verified", metav1.ConditionTrue, "SignatureVerified", "Signature verified successfully")
 	} else {
-		logger.Info("Signature verification skipped", "image", cache.Spec.BinaryImage)
+		logger.Info("Signature verification skipped", "image", cache.Spec.CacheImage)
 		setCondition(&cache, "Verified", metav1.ConditionTrue, "SignatureSkipped", "Validation disabled by spec")
 	}
 

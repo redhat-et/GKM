@@ -1,0 +1,27 @@
+# permissions for end users to edit tritonkernelcacheclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: tritonkernelcachecluster-editor-role
+rules:
+- apiGroups:
+  - tkm.io
+  resources:
+  - tritonkernelcacheclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tkm.io
+  resources:
+  - tritonkernelcacheclusters/status
+  verbs:
+  - get

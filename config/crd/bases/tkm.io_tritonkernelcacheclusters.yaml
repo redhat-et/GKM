@@ -4,20 +4,21 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: tritonkernelcaches.tkm.io
+  name: tritonkernelcacheclusters.tkm.io
 spec:
   group: tkm.io
   names:
-    kind: TritonKernelCache
-    listKind: TritonKernelCacheList
-    plural: tritonkernelcaches
-    singular: tritonkernelcache
+    kind: TritonKernelCacheCluster
+    listKind: TritonKernelCacheClusterList
+    plural: tritonkernelcacheclusters
+    singular: tritonkernelcachecluster
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TritonKernelCache is the Schema for the tritonkernelcaches API
+        description: TritonKernelCacheCluster is the Schema for the tritonkernelcacheclusters
+          API
         properties:
           apiVersion:
             description: |-
@@ -37,54 +38,20 @@ spec:
           metadata:
             type: object
           spec:
-            description: TritonKernelCacheSpec defines the desired state of TritonKernelCache
+            description: TritonKernelCacheClusterSpec defines the desired state of
+              TritonKernelCacheCluster
             properties:
               cacheImage:
-                type: string
-              intermediateRepImage:
-                type: string
-              kernelProperties:
-                properties:
-                  entryCount:
-                    type: integer
-                  metadata:
-                    items:
-                      properties:
-                        arch:
-                          type: string
-                        backend:
-                          type: string
-                        dummy_key:
-                          type: string
-                        hash:
-                          type: string
-                        warp_size:
-                          type: integer
-                      required:
-                      - arch
-                      - backend
-                      - hash
-                      - warp_size
-                      type: object
-                    type: array
-                  tritonVersion:
-                    type: string
-                  variant:
-                    type: string
-                required:
-                - tritonVersion
-                type: object
-              name:
                 type: string
               validateSignature:
                 type: boolean
             required:
             - cacheImage
-            - name
             - validateSignature
             type: object
           status:
-            description: TritonKernelCacheStatus defines the observed state of TritonKernelCache
+            description: TritonKernelCacheClusterStatus defines the observed state
+              of TritonKernelCacheCluster
             properties:
               conditions:
                 items:
@@ -147,26 +114,6 @@ spec:
               lastSynced:
                 format: date-time
                 type: string
-              observedMetadata:
-                items:
-                  properties:
-                    arch:
-                      type: string
-                    backend:
-                      type: string
-                    dummy_key:
-                      type: string
-                    hash:
-                      type: string
-                    warp_size:
-                      type: integer
-                  required:
-                  - arch
-                  - backend
-                  - hash
-                  - warp_size
-                  type: object
-                type: array
             type: object
         type: object
     served: true

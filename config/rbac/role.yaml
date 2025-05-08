@@ -7,6 +7,8 @@ rules:
 - apiGroups:
   - tkm.io
   resources:
+  - tritonkernelcacheclusters
+  - tritonkernelcachenodestatuses
   - tritonkernelcaches
   verbs:
   - create
@@ -19,12 +21,16 @@ rules:
 - apiGroups:
   - tkm.io
   resources:
+  - tritonkernelcacheclusters/finalizers
+  - tritonkernelcachenodestatuses/finalizers
   - tritonkernelcaches/finalizers
   verbs:
   - update
 - apiGroups:
   - tkm.io
   resources:
+  - tritonkernelcacheclusters/status
+  - tritonkernelcachenodestatuses/status
   - tritonkernelcaches/status
   verbs:
   - get
