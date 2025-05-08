@@ -151,6 +151,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "TritonKernelCache")
 		os.Exit(1)
 	}
+	if err = (&controller.TritonKernelCacheNodeStatusReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TritonKernelCacheNodeStatus")
+		os.Exit(1)
+	}
+	if err = (&controller.TritonKernelCacheClusterReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TritonKernelCacheCluster")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

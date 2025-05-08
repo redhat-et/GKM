@@ -15,9 +15,24 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: io
-  group: tkm
+  domain: tkm.io
   kind: TritonKernelCache
+  path: github.com/redhat-et/TKM/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: tkm.io
+  kind: TritonKernelCacheNodeStatus
+  path: github.com/redhat-et/TKM/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: tkm.io
+  kind: TritonKernelCacheCluster
   path: github.com/redhat-et/TKM/api/v1alpha1
   version: v1alpha1
 version: "3"

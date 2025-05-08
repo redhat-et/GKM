@@ -23,10 +23,10 @@ import (
 // TritonKernelCacheSpec defines the desired state of TritonKernelCache
 type TritonKernelCacheSpec struct {
 	Name                 string           `json:"name"`
-	BinaryImage          string           `json:"binaryImage"`
-	IntermediateRepImage string           `json:"intermediateRepImage"`
-	KernelProperties     KernelProperties `json:"kernelProperties"`
-	ValidateSignature    bool             `json:"validateSignature,omitempty"`
+	CacheImage           string           `json:"cacheImage"`
+	IntermediateRepImage string           `json:"intermediateRepImage,omitempty"`
+	KernelProperties     KernelProperties `json:"kernelProperties,omitempty"`
+	ValidateSignature    bool             `json:"validateSignature"`
 }
 
 type KernelProperties struct {
@@ -41,7 +41,7 @@ type KernelMetadata struct {
 	Backend  string `json:"backend"`
 	Arch     string `json:"arch"`
 	WarpSize int    `json:"warp_size"`
-	DummyKey string `json:"dummy_key"`
+	DummyKey string `json:"dummy_key,omitempty"`
 }
 
 // TritonKernelCacheStatus defines the observed state of TritonKernelCache
@@ -54,6 +54,7 @@ type TritonKernelCacheStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced
 
 // TritonKernelCache is the Schema for the tritonkernelcaches API
 type TritonKernelCache struct {

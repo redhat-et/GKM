@@ -50,7 +50,7 @@ endif
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.39.2
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= quay.io/tkm-operator/controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -170,6 +170,24 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
+
+##@ Cleanup
+
+.PHONY: clean
+clean: ## Remove all generated files and binaries
+	@echo "Cleaning up generated files and binaries..."
+	rm -rf bin/*
+	rm -rf dist/*
+	rm -rf $(GOBIN)/controller-gen
+	rm -rf $(GOBIN)/kustomize
+	rm -rf $(GOBIN)/setup-envtest
+	rm -rf $(GOBIN)/golangci-lint
+	rm -rf $(LOCALBIN)/*
+	find . -name 'zz_generated.*' -delete
+	find . -name '*.o' -delete
+	find . -name '*.out' -delete
+	find . -name '*.test' -delete
+	find . -name 'cover.out' -delete
 
 ##@ Deployment
 

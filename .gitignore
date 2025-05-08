@@ -25,3 +25,9 @@ go.work
 *.swp
 *.swo
 *~
+
+# Kind GPU files/dirs
+kind-gpu-config.yaml
+kind-config.yaml
+k8s-device-plugin-rocm/
+k8s-device-plugin-nvidia/
