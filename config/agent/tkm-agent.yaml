@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: tkm-agent
+  namespace: tkm-system
+  labels:
+    app: tkm-agent
+spec:
+  selector:
+    matchLabels:
+      app: tkm-agent
+  template:
+    metadata:
+      labels:
+        app: tkm-agent
+    spec:
+      containers:
+      - name: tkm-agent
+        image: quay.io/tkm/agent:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      nodeSelector:
+        hardware-type: gpu
+      tolerations:
+      - key: "gpu"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"

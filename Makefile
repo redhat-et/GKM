@@ -5,6 +5,25 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 0.0.1
 
+# Allows building bundles in Mac replacing BSD 'sed' command by GNU-compatible 'gsed'
+ifeq (,$(shell which gsed 2>/dev/null))
+SED ?= sed
+else
+SED ?= gsed
+endif
+
+## Tool Binaries
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+
+## Tool Versions
+KUSTOMIZE_VERSION ?= v5.6.0
+
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+.PHONY: kustomize
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
+$(KUSTOMIZE): $(LOCALBIN)
+	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -50,7 +69,9 @@ endif
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.39.2
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/tkm-operator/controller:latest
+IMAGE_TAG ?= latest
+OPERATOR_IMG ?= quay.io/tkm/operator:$(IMAGE_TAG)
+AGENT_IMG ?=quay.io/tkm/agent:$(IMAGE_TAG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -94,6 +115,11 @@ help: ## Display this help.
 
 ##@ Development
 
+.PHONY: vendors
+vendors: ## Refresh vendors directory.
+	@echo "### Checking vendors"
+	go mod tidy && go mod vendor
+
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
@@ -129,46 +155,60 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 ##@ Build
 
-.PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+.PHONY: build-tkm-operator
+build-tkm-operator: ## Build manager binary.
+	go build -o bin/tkm-operator ./cmd/tkm-operator
+
+.PHONY: build-tkm-agent
+build-tkm-agent: ## Build agent binary.
+	go build -o bin/tkm-agent ./cmd/tkm-agent
+
+.PHONY: build  ## Build binaries.
+build: manifests generate fmt vet build-tkm-operator build-tkm-agent
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
+.PHONY: docker-build-operator
+docker-build-operator:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) -f Containerfile.tkm-operator -t ${OPERATOR_IMG} .
+
+.PHONY: docker-build-agent
+docker-build-agent:
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) -f Containerfile.tkm-agent -t ${AGENT_IMG} .
+
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) -t ${IMG} .
+docker-build: docker-build-operator docker-build-agent ## Build docker images.
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
+	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
+# architectures. (i.e. make docker-buildx OPERATOR_IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
 # - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
+# - be able to push the image to your registry (i.e. if you do not set a valid value via OPERATOR_IMG=<myregistry/image:<tag>> then the export will fail)
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+	# copy existing Containerfile and insert --platform=${BUILDPLATFORM} into Containerfile.cross, and preserve the original Containerfile
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Containerfile > Containerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name triton-kernel-manager-operator-builder
 	$(CONTAINER_TOOL) buildx use triton-kernel-manager-operator-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${OPERATOR_IMG} -f Containerfile.cross .
 	- $(CONTAINER_TOOL) buildx rm triton-kernel-manager-operator-builder
-	rm Dockerfile.cross
+	rm Containerfile.cross
 
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
 ##@ Cleanup
@@ -203,14 +243,63 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
+##@ Deployment
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+deploy: manifests kustomize ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image agent=${AGENT_IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	@echo "Deployment of operator and agent completed."
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "Undeployment of operator and agent completed."
+
+##@ Kind Cluster Management
+
+KIND_GPU_SIM_SCRIPT := https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh
+KIND_CLUSTER_NAME ?= kind-gpu-sim
+# GPU Type (either "rocm" or "nvidia")
+GPU_TYPE ?= rocm
+
+.PHONY: setup-kind
+setup-kind: ## Create a Kind GPU cluster
+	@echo "Creating Kind GPU cluster with GPU type: $(GPU_TYPE) and cluster name: $(KIND_CLUSTER_NAME)"
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name $(KIND_CLUSTER_NAME)
+	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) created successfully."
+
+.PHONY: destroy-kind
+destroy-kind: ## Delete the Kind GPU cluster
+	@echo "Deleting Kind GPU cluster: $(KIND_CLUSTER_NAME)"
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name $(KIND_CLUSTER_NAME)
+	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
+
+.PHONY: kind-load-images
+kind-load-images: ## Load images into the Kind cluster
+	@echo "Loading operator image into Kind cluster: $(KIND_CLUSTER_NAME)"
+	kind load docker-image ${OPERATOR_IMG} --name $(KIND_CLUSTER_NAME)
+	@echo "Loading agent image into Kind cluster: $(KIND_CLUSTER_NAME)"
+	kind load docker-image ${AGENT_IMG} --name $(KIND_CLUSTER_NAME)
+	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
+
+.PHONY: deploy-on-kind
+deploy-on-kind: manifests kustomize ## Deploy operator and agent to the Kind GPU cluster.
+	cd config/manager && $(KUSTOMIZE) edit set image quay.io/tkm/operator=${OPERATOR_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image quay.io/tkm/agent=${AGENT_IMG}
+	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -
+	@echo "Deployment on Kind GPU cluster completed."
+
+
+.PHONY: undeploy-on-kind
+undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
+	@echo "Undeploying operator and agent from Kind GPU cluster: $(KIND_CLUSTER_NAME)"
+	$(KUSTOMIZE) build config/kind-gpu | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
+
+.PHONY: run-on-kind
+run-on-kind: setup-kind kind-load-images deploy-on-kind ## Setup Kind cluster, load images, and deploy
+	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
 
 ##@ Dependencies
 
@@ -288,17 +377,17 @@ endif
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(OPERATOR_IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker build -f bundle.Containerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
-	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+	$(MAKE) docker-push OPERATOR_IMG=$(BUNDLE_IMG)
 
 .PHONY: opm
 OPM = $(LOCALBIN)/opm
@@ -339,4 +428,4 @@ catalog-build: opm ## Build a catalog image.
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
-	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+	$(MAKE) docker-push OPERATOR_IMG=$(CATALOG_IMG)
