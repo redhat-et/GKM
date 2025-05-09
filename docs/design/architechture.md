@@ -17,7 +17,7 @@ Triton Kernels. By providing a pre-tuned kernel cache as a directory that can
 be consumed by Triton-lang at runtime, we aim to optimize model loading
 performance and reduce latency. Additionally, managing kernel images and
 ensuring their validity before usage in containers is crucial for performance
-optimisation and security.
+optimization and security.
 
 The TKM Operator focuses on:
 
@@ -42,7 +42,7 @@ verification.
 ## Goals
 
 - Decouple kernel image validation from mounting
-- Integrate with cargohold for cache image inspection and validation
+- Integrate with CargoHold for cache image inspection and validation
 - Provide both cluster and namespace-scoped CRDs
 - Maintain the controller as a long-running daemon for consistent state
   management and responsiveness
@@ -52,44 +52,53 @@ verification.
 ### Components
 
 ```bash
-                     ┌───────────────────────────────────┐
-                     │ Control Plane                     │
-                     │                                   │
-                     │ ┌───────────────────────────────┐ │
-                     │ │ TritonKernelCache (CR)        │ │
-                     │ │ - ociImage                    │ │
-                     │ │ - validateSignature           │ │
-                     │ └──────────────┬────────────────┘ │
-                     │                │                  │
-                     │                ▼                  │
-                     │      ┌─────────────────────┐      │
-                     │      │ Operator/controller │      │
-                     │      │ Runs on control     │      │
-                     │      │ plane, validates,   │      │
-                     │      │ Triton Cache image  │      │
-                     │      │ Signature.          │      │
-                     │      └─────────┬───────────┘      │
-                     │                │                  │
-                     └────────────────┼──────────────────┘
-                                      │
-                     ┌────────────────┴────────────────────┐
-                     │ Worker Node                         │
-                     │                                     │
-                     │ ┌────────────────────────────────┐  │
-                     │ │ TKM Agent (DaemonSet)          │  │
-                     │ │ - Detects GPU info             │  │
-                     │ │ - Validates cache compatibility│  │
-                     │ │ - Updates node-specific CR     │  │
-                     │ └──────────────┬─────────────────┘  │
-                     │                │                    │
-                     │                ▼                    │
-                     │ ┌────────────────────────────┐      │
-                     │ │ CSI Driver (DaemonSet)     │      │
-                     │ │ - Watches pod volumes      │      │
-                     │ │ - Loads kernel cache into  │      │
-                     │ │   volume if "Ready"        │      │
-                     │ └────────────────────────────┘      │
-                     └─────────────────────────────────────┘
+                 ┌───────────────────────────────────────┐
+                 │ Control Plane                         │
+                 │                                       │
+                 │ ┌───────────────────────────────────┐ │
+                 │ │ TritonKernelCache (CR)            │ │
+                 │ │ - ociImage                        │ │
+                 │ │ - Load Status Summary             │ │
+                 │ └─────────────────┬─────────────────┘ │
+                 │                   │                   │
+                 │                   ▼                   │
+                 │ ┌───────────────────────────────────┐ │
+                 │ │ Operator/controller (Deployment)  │ │
+                 │ │ - Runs on control plane           │ │
+                 │ │ - Registers CSI Driver            │ │
+                 │ │ - Launches TKM Agent              │ │
+                 │ │ - Tracks overall status across    │ │
+                 │ │   all nodes in TritonKernelCache  │ │
+                 │ └─────────────────┬─────────────────┘ │
+                 │                   │                   │
+                 └───────────────────┼───────────────────┘
+                                     │
+                 ┌───────────────────┴───────────────────┐
+                 │ Worker Node                           │
+                 │                                       │
+                 │ ┌───────────────────────────────────┐ │
+                 │ │ TritonKernelCacheNodeStatus (CR)  │ │
+                 │ │ - GPU Info                        │ │
+                 │ │ - Node Load Status                │ │
+                 │ └─────────────────┬─────────────────┘ │
+                 │                   │                   │
+                 │                   ▼                   │
+                 │ ┌───────────────────────────────────┐ │
+                 │ │ TKM Agent (DaemonSet)             │ │
+                 │ │ - Detects GPU Info                │ │
+                 │ │ - Validate Image Signature        │ │
+                 │ │ - Validates cache compatibility   │ │
+                 │ │ - Create/Update node-specific CR  │ │
+                 │ └─────────────────┬─────────────────┘ │
+                 │                   │                   │
+                 │                   ▼                   │
+                 │ ┌───────────────────────────────────┐ │
+                 │ │ CSI Driver (DaemonSet)            │ │
+                 │ │ - Watches pod volumes             │ │
+                 │ │ - Loads kernel cache into volume  │ │
+                 │ │   if "Ready"                      │ │
+                 │ └───────────────────────────────────┘ │
+                 └───────────────────────────────────────┘
 ```
 
 #### Control Plane Components
@@ -236,8 +245,8 @@ status:
 A couple of Operators use the NodeStatus pattern of creating a Node specific CRD
 to track the status of a higher level CRD for a given Kubernetes Node.
 In particular,
-(bpfman Operator)[https://operatorhub.io/operator/bpfman-operator],
-(Security Profiles Operator)[https://operatorhub.io/operator/security-profiles-operator]
+[bpfman Operator](https://operatorhub.io/operator/bpfman-operator)
+[Security Profiles Operator](https://operatorhub.io/operator/security-profiles-operator)
 and Ingress Node Firewall Operator.
 Below are some Pros and Cons for using this pattern.
 
@@ -265,7 +274,7 @@ The user creates the higher level CRD, but then has to get any failure details f
 the Node specific CRD.
 
 To address the issue of scale,
-(Server Side Apply)[https://kubernetes.io/docs/reference/using-api/server-side-apply/]
+[Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
 may be the solution.
 This needs to be investigated.
 
@@ -287,16 +296,16 @@ Below is a rough flow when using TKM:
 An example of the flow is shown below:
 
 ```sh
-                +------------------------+
-                | User creates Triton    |
-                | Kernel Cache (CR)      |
-                +----------+-------------+
+               +------------------------+
+               | User creates Triton    |
+               | Kernel Cache (CR)      |
+               +----------+-------------+
                            |
                            v
-               +-----------+------------+
-               | Agent verifies         |
-               | image signature        |
-               +-----------+------------+
+              +------------+-------------+
+              | Each Node Agent verifies |
+              | image signature          |
+              +------------+-------------+
                            |
             +--------------+----------------+
             |                               |
@@ -311,10 +320,9 @@ An example of the flow is shown below:
             |
             v
 +-----------+-----------+
-| Agent reads "Verified"|
-| status from CR and    |
-| runs preflight checks |+---------------------------+
-| using image metadata  |                            |
+| Agent runs preflight  |
+| checks using image    |+---------------------------+
+| metadata              |                            |
 +-----------+-----------+                            |
             |                                        |
             v                                        v
@@ -383,7 +391,11 @@ management and reducing potential conflicts.
 
 - Should validation be enforced strictly, or allow fallback for unverified
   images?
+    - Global configuration knob, `allow-unsigned-images` and `verify-enabled`?
 - How to handle image updates during runtime?
+- Does TKM have to manage access to GPU? Can 20 different pods all load their
+  Triton kernels simultaneously? Use:
+  [extended-resource-node](https://kubernetes.io/docs/tasks/administer-cluster/extended-resource-node/)
 
 ## Alternatives Considered
 
