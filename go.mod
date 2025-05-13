@@ -7,7 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.35.1
-	github.com/redhat-et/TKDK/cargohold v0.1.1
+	github.com/redhat-et/TKDK/tcv v1.0.0
 	k8s.io/apimachinery v0.31.0
 	k8s.io/client-go v0.31.0
 	sigs.k8s.io/controller-runtime v0.19.0

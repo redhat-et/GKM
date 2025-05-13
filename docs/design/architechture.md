@@ -42,7 +42,7 @@ verification.
 ## Goals
 
 - Decouple kernel image validation from mounting
-- Integrate with CargoHold for cache image inspection and validation
+- Integrate with TCV for cache image inspection and validation
 - Provide both cluster and namespace-scoped CRDs
 - Maintain the controller as a long-running daemon for consistent state
   management and responsiveness

@@ -316,8 +316,8 @@ github.com/prometheus/common v0.62.0 h1:xasJaQlnWAeyHdUBeGjXmutelfJHWMRr+Fg4QszZ
 github.com/prometheus/common v0.62.0/go.mod h1:vyBcEuLSvWos9B1+CyL7JZ2up+uFzXhkqml0W5zIY1I=
 github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0learggepc=
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
-github.com/redhat-et/TKDK/cargohold v0.1.1 h1:2yvSLO882z43c4W1nPK3ot9HACPqZfPLTb4my2wpT88=
-github.com/redhat-et/TKDK/cargohold v0.1.1/go.mod h1:obPP8LxO+8t/KHUdJ3wgVYPhd+8dtKqRRKLdbHlUHcc=
+github.com/redhat-et/TKDK/tcv v1.0.0 h1:ohvcMEFRGC8/j6R69zpFbDk9zEZkF6acLbFpeQOL+VQ=
+github.com/redhat-et/TKDK/tcv v1.0.0/go.mod h1:ZO5k/tTDvjCOoxGnnTfz/57hQgKZ6Zv67M99MGdz/bk=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
