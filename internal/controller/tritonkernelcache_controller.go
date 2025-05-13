@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	cargohold "github.com/redhat-et/TKDK/cargohold/pkg/fetcher"
+	tcv "github.com/redhat-et/TKDK/tcv/pkg/fetcher"
 	tkmv1alpha1 "github.com/redhat-et/TKM/api/v1alpha1"
 )
 
@@ -65,7 +65,7 @@ func (r *TritonKernelCacheReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	fetcher := cargohold.NewImgFetcher()
+	fetcher := tcv.NewImgFetcher()
 	img, err := fetcher.FetchImg(cache.Spec.CacheImage)
 	if err != nil {
 		logger.Error(err, "failed to fetch image")

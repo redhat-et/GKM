@@ -94,7 +94,7 @@ func (r *TritonKernelCacheNodeStatusReconciler) SetupWithManager(mgr ctrl.Manage
 
 // Helper function to detect GPU information
 func detectGPU() (string, string, error) {
-	// TODO: reuse cargohold to do GPU detection
+	// TODO: reuse tcv to do GPU detection
 	return "nvidia", "470.57.02", nil // Stub: Replace with actual GPU detection
 }
 
