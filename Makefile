@@ -86,7 +86,8 @@ endif
 # Be aware that the target commands are only tested with Docker which is
 # scaffolded by default. However, you might want to replace it to use other
 # tools. (i.e. podman)
-CONTAINER_TOOL ?= docker
+CONTAINER_TOOL_PATH := $(shell which docker 2>/dev/null || which podman)
+CONTAINER_TOOL ?= $(shell basename ${CONTAINER_TOOL_PATH})
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -298,7 +299,7 @@ undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
 	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
 
 .PHONY: run-on-kind
-run-on-kind: setup-kind kind-load-images deploy-on-kind ## Setup Kind cluster, load images, and deploy
+run-on-kind: destroy-kind setup-kind kind-load-images deploy-on-kind ## Setup Kind cluster, load images, and deploy
 	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
 
 ##@ Dependencies
@@ -383,7 +384,7 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Containerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Containerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
