@@ -173,11 +173,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build-operator
 docker-build-operator:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) -f Containerfile.tkm-operator -t ${OPERATOR_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --load -f Containerfile.tkm-operator -t ${OPERATOR_IMG} .
 
 .PHONY: docker-build-agent
 docker-build-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) -f Containerfile.tkm-agent -t ${AGENT_IMG} .
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --load -f Containerfile.tkm-agent -t ${AGENT_IMG} .
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -261,27 +261,36 @@ undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specifie
 
 KIND_GPU_SIM_SCRIPT := https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh
 KIND_CLUSTER_NAME ?= kind-gpu-sim
+
 # GPU Type (either "rocm" or "nvidia")
 GPU_TYPE ?= rocm
+
+# This Makefile may use docker, but when running the KIND cluster with a
+# simulated GPU, KIND requires podman. The KIND_GPU_SIM_SCRIPT sets up the
+# following podman environment variables to allow podman with KIND.
+# To use KIND on this cluster outside of the Makefile, make sure to set
+# these variables in local shell:
+# export KIND_EXPERIMENTAL_PROVIDER=podman
+# export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
 
 .PHONY: setup-kind
 setup-kind: ## Create a Kind GPU cluster
 	@echo "Creating Kind GPU cluster with GPU type: $(GPU_TYPE) and cluster name: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name $(KIND_CLUSTER_NAME)
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) created successfully."
 
 .PHONY: destroy-kind
 destroy-kind: ## Delete the Kind GPU cluster
 	@echo "Deleting Kind GPU cluster: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name $(KIND_CLUSTER_NAME)
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
 
 .PHONY: kind-load-images
 kind-load-images: ## Load images into the Kind cluster
 	@echo "Loading operator image into Kind cluster: $(KIND_CLUSTER_NAME)"
-	kind load docker-image ${OPERATOR_IMG} --name $(KIND_CLUSTER_NAME)
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image into Kind cluster: $(KIND_CLUSTER_NAME)"
-	kind load docker-image ${AGENT_IMG} --name $(KIND_CLUSTER_NAME)
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
 .PHONY: deploy-on-kind
