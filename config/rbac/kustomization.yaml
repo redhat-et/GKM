@@ -31,4 +31,3 @@ resources:
 - tritonkernelcachenodestatus_viewer_role.yaml
 - tritonkernelcache_editor_role.yaml
 - tritonkernelcache_viewer_role.yaml
-

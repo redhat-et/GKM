@@ -10,4 +10,3 @@ patches:
       kind: Deployment
       name: tkm-agent
     path: agent-patch.yaml
-
