@@ -239,18 +239,6 @@ This consolidates status for all relevant caches on that node.
 The CR includes labels and annotations to support efficient
 filtering and introspection.
 
-Labels:
-
-- tkm.node=<node-name>: Helps filter status CRs by node
-
-Annotations:
-
-- tkm.io/currentCaches: JSON-encoded map of digests currently mounted or compatible
-- tkm.io/lastUpdated: ISO8601 timestamp of last update
-- nodeName: The node this CR pertains to
-- gpus: Per-GPU ID, type, driver
-- caches: Map of cache digests to status (compatible, incompatible, last updated, grouped failure reasons)
-
 If the corresponding TKMCache is namespace-scoped, the NodeStatus CR
 should live in the same namespace. If the corresponding TKMCache is
 cluster-scoped, a cluster-scoped NodeStatus CR (TKMClusterNodeStatus)
@@ -265,19 +253,40 @@ heterogeneous GPU configurations and supports CSI plugin queries via the TKM Age
 
 Summary of data reflected in the CRD:
 
-- **nodeName**: The name of the Kubernetes node.
-- **gpus**: List of physical GPUs on the node with:
-  - **ids**: List of GPU indices (e.g., \[0, 1, 2]).
-  - **gpuType**: (e.g., nvidia-a100).
-  - **driverVersion**: The GPU driver version.
-- **caches**: Map of kernel cache identifiers to:
-  - **compatibleGPUs**: List of GPU groups that support the cache.
-  - **incompatibleGPUs**: List of GPU groups that do not support the cache, with reason/message.
-- **lastUpdated**: Timestamp of the last compatibility update.
+Labels:
 
+- tkm.node=<node-name>: Helps filter status CRs by node
 
-This consolidated per-node, per-GPU view supports scalable monitoring and allows the CSI
-driver to consult the Agent instead of accessing the Kubernetes API directly.
+Annotations:
+
+- tkm.io/lastUpdated: ISO8601 timestamp of the last time this CR was
+  updated by the Agent.
+- tkm.io/currentCaches: (Optional) Summary of cache states on the node,
+  potentially used for indexing/debugging.
+
+Spec Fields:
+
+- nodeName: The name of the Kubernetes node this CR represents.
+
+Status Fields:
+
+- gpus: A list describing each physical GPU on the node. Each entry
+  includes:
+    - ids: GPU indices (e.g., [0, 1, 2, 3])
+    - gpuType: GPU model (e.g., nvidia-a100)
+    - driverVersion: Installed driver version
+
+- caches: A map of kernel cache identifiers (e.g., cache-vllm-llama2)
+  to their status. Each cache entry includes:
+    - digest: Resolved OCI digest of the cache image.
+    - compatibleGPUs: List of GPU sets where the cache is compatible.
+    - incompatibleGPUs: List of GPU sets where the cache is incompatible,
+      with structured reason and message fields.
+    - lastUpdated: Last timestamp this entry was refreshed.
+
+This consolidated per-node, per-GPU view supports scalable monitoring and
+allows the CSI driver to consult the Agent instead of accessing the Kubernetes
+API directly.
 
 > *[OI] Do need or can we have a used by?*
 
