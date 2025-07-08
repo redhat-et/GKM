@@ -1,44 +1,54 @@
-# Triton Kernel Manager Operator and CSI Plugin Design
+# GPU Kernel Manager Operator, Agent and CSI Plugin Design
 
 ## Introduction
 
-The Triton Kernel Manager (TKM) Operator and CSI Plugin manage Triton kernel
-distribution and usage within a Kubernetes environment. The operator validates
-and inspects Triton kernel images, while the CSI plugin handles Triton Kernel
-cache extraction and volume mounting. The architecture follows a
-controller-runtime approach, leveraging Kubernetes Custom Resources (CRs) and
-a CSI plugin to manage kernel images efficiently.
+The GPU Kernel Manager (GKM) Operator, Agent and CSI Plugin manage GPU kernel
+cache distribution and usage within a Kubernetes environment.
+The Operator validates and inspects GPU kernel images, while the Agent
+handles Kernel cache extraction from OCI Images, and the CSI Plugin handles
+volume mounting the kernel images in pods.
+The architecture follows a controller-runtime approach, leveraging Kubernetes
+Custom Resources (CRs) and a CSI plugin to manage kernel images efficiently.
 
 ## Motivation
 
-The primary motivation of the Triton Kernel Manager Operator, Agent and CSI
+The primary motivation of the GPU Kernel Manager Operator, Agent and CSI
 Plugin is to reduce the startup time of large language models (LLMs) that use
-Triton Kernels. By providing a pre-tuned kernel cache as a directory that can
-be consumed by Triton-lang at runtime, we aim to optimize model loading
-performance and reduce latency. Additionally, managing kernel images and
-ensuring their validity before usage in containers is crucial for performance
-optimization and security.
+GPU Kernels.
+By providing a pre-tuned kernel cache as a directory in a container that can
+be consumed by Triton or vLLM at runtime, we aim to optimize model loading,
+performance and reduce latency in containerized workloads.
 
-The TKM Operator focuses on:
+Triton Cache Vault (TCV) is a utility developed under
+[TKDK](https://github.com/redhat-et/TKDK).
+TCV packages Triton Kernel Caches and vLLM caches into OCI-compliant container
+images.
+Applications can leverage TCV to package up their caches into container images
+and use [cosign](https://github.com/sigstore/cosign) to sign the images.
+GKM will then use Kubernetes to distribute the cache images to workloads on
+various nodes in a given cluster and use TCV to extract the caches from the images.
+Using GKM, TCV, cosign and Kubernetes to manage and distribute kernel images
+to containerized workloads ensures their validity before usage in containers and
+is crucial for performance, optimization and security.
 
-- Verifying Triton kernel cache image signatures using cosign.
+The GKM Operator focuses on:
+
+- Verifying kernel cache image signatures using cosign.
 - Aggregating node-level status of each kernel cache.
 - Supporting both cluster and namespace-scoped CRDs to improve security and
   flexibility
 
-The TKM Agent focuses on:
+The GKM Agent focuses on:
 
 - Detecting GPU hardware and driver versions on each node.
-- Pulling and extracting the cache container images.
+- Pulling and extracting the kernel cache container images.
 - Validating cache compatibility against the node's hardware (per GPU).
 - Reporting status to the control plane via node-specific CRs.
 - Tracking the status of all kernel caches for all GPUs on the node (via TCM).
-- Communicates with the CSI plugin via GRPC.
 
 The CSI Driver focuses on:
 
 - Mounting validated kernel caches into pods.
-- Talks to Agent via gRPC.
 - Does not directly access the Kubernetes API.
 
 This clear separation of concerns ensures that the CSI plugin does not perform
@@ -57,106 +67,108 @@ verification.
 ### Components
 
 ```bash
-                 ┌─────────────────────────────────────────────────┐
-                 │ Control Plane                                   │
-                 │                                                 │
-                 │ ┌───────────────────────────────────┐           │
-                 │ │ TKMCache (CR)                     │           │
-                 │ │ - ociImage                        │           │
-                 │ │ - Load Status Summary             │           │
-                 │ └─────────────────┬─────────────────┘           │
-                 │                   │                             │
-                 │                   ▼                             │
-                 │ ┌─────────────────────────────────────────────┐ │
-                 │ │ Operator/controller (Deployment)            │ │
-                 │ │ - Runs on control plane                     │ │
-                 │ │ - Registers CSI Driver                      │ │
-                 │ │ - Launches TKM Agent                        │ │
-                 │ │ - Validate image Signature                  │ │
-                 │ │ - Tracks overall status across              │ │
-                 │ │   all nodes in TKMNodeStatus                │ │
-                 │ └─────────────────┬───────────────────────────┘ │
-                 │                   │                             │
-                 └───────────────────┼─────────────────────────────┘
-                                     │
-                 ┌───────────────────┴───────────────────┐
-                 │ Worker Node                           │
-                 │                                       │
-                 │ ┌───────────────────────────────────┐ │
-                 │ │ TKMNodeStatus (CR)                │ │
-                 │ │ - GPU Info (per-GPU)              │ │
-                 │ │ - Node Load Status (per-GPU)      │ │
-                 │ └─────────────────┬─────────────────┘ │
-                 │                   │                   │
-                 │                   ▼                   │
-                 │ ┌───────────────────────────────────┐ │
-                 │ │ TKM Agent (DaemonSet)             │ │
-                 │ │ - Detects GPUs and drivers        │ │
-                 │ │ - Validates cache compatibility   │ │
-                 │ │ - Create/Update node-specific CR  │ │
-                 │ │ - Communicates via gRPC with CSI  │ │
-                 │ │   driver                          │ │
-                 │ └─────────────────┬─────────────────┘ │
-                 │                   │                   │
-                 │                   ▼                   │
-                 │ ┌───────────────────────────────────┐ │
-                 │ │ CSI Driver (DaemonSet)            │ │
-                 │ │ - Watches pod volumes             │ │
-                 │ │ - Communicates via gRPC with Agent│ │
-                 │ │ - Loads kernel cache into volume  │ │
-                 │ │   if approved by Agent            │ │
-                 │ └───────────────────────────────────┘ │
-                 └───────────────────────────────────────┘
+                 ┌────────────────────────────────────────────┐
+                 │ Control Plane                              │
+                 │                                            │
+                 │     ┌────────────────────────────────┐     │
+                 │     │ GKMCache (CR)                  │     │
+                 │     │ - ociImage                     │     │
+                 │     │ - Load Status Summary          │     │
+                 │     └───────────────┬────────────────┘     │
+                 │                     │                      │
+                 │                     ▼                      │
+                 │  ┌──────────────────────────────────────┐  │
+                 │  │ Operator/controller (Deployment)     │  │
+                 │  │ - Runs on control plane              │  │
+                 │  │ - Registers CSI Driver               │  │
+                 │  │ - Launches GKM Agent                 │  │
+                 │  │ - Validate image Signature           │  │
+                 │  │ - Tracks overall status across       │  │
+                 │  │   all nodes in GKMCacheNode          │  │
+                 │  └──────────────────┬───────────────────┘  │
+                 │                     │                      │
+                 └─────────────────────┼──────────────────────┘
+                                       │
+                 ┌─────────────────────┴──────────────────────┐
+                 │ Worker Node                                │
+                 │                                            │
+                 │     ┌────────────────────────────────┐     │
+                 │     │ GKMCacheNode (CR)              │     │
+                 │     │ - GPU Info (per-GPU)           │     │
+                 │     │ - Node Load Status (per-GPU)   │     │
+                 │     └───────────────┬────────────────┘     │
+                 │                     │                      │
+                 │                     ▼                      │
+                 │  ┌──────────────────────────────────────┐  │
+                 │  │ GKM Agent (DaemonSet)                │  │
+                 │  │ - Detects GPUs and drivers           │  │
+                 │  │ - Validates cache compatibility      │  │
+                 │  │ - Create/Update node-specific CR     │  │
+                 │  │ - Collects usage from CSI driver     │  │
+                 │  └──────────────────┬───────────────────┘  │
+                 │                     │                      │
+                 │                     ▼                      │
+                 │  ┌──────────────────────────────────────┐  │
+                 │  │ CSI Driver (DaemonSet)               │  │
+                 │  │ - Loads kernel cache into volume     │  │
+                 │  │   if extracted by Agent              │  │
+                 │  │ - Updates kernel cache usage file    │  │
+                 │  └──────────────────────────────────────┘  │
+                 └────────────────────────────────────────────┘
 ```
 
 #### Control Plane Components
 
-- TKM Operator/Controller (Control Plane): Validates Triton kernel images,
+- **GKM Operator/Controller (Control Plane):** Validates kernel cache images,
   inspects metadata, and updates CR status. Manages both cluster and
   namespace-scoped CRDs.
   Runs as a long-lived controller on the control plane.
 
 #### Worker Node Components
 
-- TKM Agent (Node-local Daemon): Discovers GPU hardware and driver versions,
+- **GKM Agent (Node-local Daemon):** Discovers GPU hardware and driver versions,
   verifies kernel cache compatibility, updates node-specific CRs, and reports
-  status to the control plane. Runs as a DaemonSet on each worker node.
+  status to the control plane.
+  Runs as a DaemonSet on each worker node.
 
-- TKM CSI Driver (Node-local Daemon): Mounts the validated kernel cache onto
+- **GKM CSI Driver (Node-local Daemon):** Mounts the validated kernel cache onto
   the pod's volume if marked as `Ready` and `Compatible` on the node.
   Runs as a DaemonSet on each worker node.
 
 ### Custom Resource Definitions (CRDs)
 
-TKM will support the following CRDs:
+GKM will support the following CRDs:
 
-- **TKMCache CRD (namespaced):**
-  Declares that workloads in a specific namespace intend to use a Triton GPU
-  kernel resource defined by an OCI image. This is a lightweight reference to
-  a kernel cache image — the actual validation, extraction, and usage tracking
-  are handled by the TKM Agent and CSI driver. This CRD supports multi-tenancy
+- **GKMCache CRD (namespaced):**
+  Declares that workloads in a specific namespace intend to use a GPU kernel
+  cache resource defined by an OCI image. This is a lightweight reference to
+  a kernel cache image. The actual validation, extraction, and usage tracking
+  are handled by the GKM Operator, Agent and CSI driver. This CRD supports multi-tenancy
   by scoping kernel cache declarations to specific namespaces.
 
-  > *[OI] Possible Naming Options (prefer a shorter name):
-  > TKMCache/TKMCache/TKMImage/TKMCacheImage/TKMKernelImage*
-- **TKMCacheCluster CRD:**
-  Same as TKMCache, but used when the kernel resource is intended for
+- **ClusterGKMCache CRD:**
+  Same as GKMCache, but used when the kernel resource is intended for
   workloads across the entire cluster. Suitable for shared or system-wide kernel
   caches.
-- **TKMNodeStatus CRD (namespaced):**
-  A TKMNodeStatus resource is created by the Agent to reflect
-  compatibility and readiness of kernel caches for each GPU on the node.
-- **TKMClusterNodeStatus CRD:**
-  Same as TKMClusterNodeStatus, but used when the corresponding kernel
-  cache is defined using a TKMCacheCluster resource
 
-To increase security, the TKM Operator supports a namespace-scoped
-version of the TKMCache CRD.
+- **GKMCacheNode CRD (namespaced):**
+  A GKMCacheNode resource is created by the Agent to reflect
+  compatibility and readiness of kernel caches for each GPU on the node.
+  A GKMCacheNode instance is created for each node for each GKMCache instance.
+
+- **ClusterGKMCacheNode CRD:**
+  Same as GKMCacheNode, but used when the corresponding kernel
+  cache is defined using a ClusterGKMCache resource
+  A ClusterGKMCacheNode instance is created for each node for each ClusterGKMCache
+  instance.
+
+To increase security, the GKM Operator supports a namespace-scoped
+version of the GKMCache CRD.
 Namespace-scoped CRDs improve security and flexibility by allowing
-administrators to limit Triton kernel usage to designated namespaces.
+administrators to limit kernel cache usage to designated namespaces.
 This is particularly useful in multi-tenant Kubernetes clusters where
-different applications may require distinct Triton Kernel configurations.
-This enables the restriction of Triton kernel cache loading and mounting
+different applications may require distinct Kernel configurations.
+This enables the restriction of kernel cache loading and mounting
 to specific namespaces, thereby enhancing isolation between workloads.
 
 Advantages:
@@ -165,43 +177,32 @@ Advantages:
 - Clear separation of kernel cache resources between tenants.
 - Simplified CRD structure by merging cache and metadata.
 
-> *[OI] Does Namespace Scoped CRD make sense? We cannot isolate the actual
-> GPU to a namespace.*
->
-> The namespaced CRDs act as a declaration of dependency: This pod needs
-> access to a kernel cache that is compatible with the GPU it will be scheduled on.
-> So Namespaced CRDs ensure that a pod can only request a kernel declared in its own
-> namespace.
+#### GKMCache and ClusterGKMCache CRD
 
-#### TKMCache and TKMCacheCluster CRD
-
-The TKMCache and TKMCacheCluster CRDs serve as declarations
-of interest in a specific Triton GPU kernel cache, represented by an OCI image.
-These resources inform the TKM system that workloads in the cluster may require
+The GKMCache and ClusterGKMCache CRDs serve as declarations
+of interest in a specific GPU kernel cache, represented by an OCI image.
+These resources inform the GKM system that workloads in the cluster may require
 access to the specified kernel cache.
 
-Users/app operators provide the image field, which points to a valid OCI image
-containing the precompiled Triton kernels. This image is pulled and validated
-by the TKMvAgent as needed. The actual management of image signatures, pull
-secrets, and validation policies is handled globally via TKM configuration
-(e.g., ConfigMap), not per resource.
-
-Once specified, the image is internally resolved to its digest (e.g., sha256:...).
+Users or application operators populate the image field, which points to a valid OCI
+image containing the precompiled kernel cache.
+Once specified, the operator resolves the image to its digest (e.g., sha256:...).
 This digest acts as the authoritative identifier throughout the system for validation,
 compatibility checks, cache extraction, and mounting.
 
-GPU compatibility is assessed dynamically by the TKM Agent on a per-node, per-GPU basis.
+This image is pulled by the GKM Agent as needed, and validated against the GPUs installed
+on given nodes.
+The actual management of image signatures, pull secrets, and validation policies is
+handled globally via GKM configuration (e.g., ConfigMap), not per resource.
+
+GPU compatibility is assessed dynamically by the GKM Agent on a per-node, per-GPU basis.
 The CRD itself does not include any GPU-specific configuration.
 
-> *[OI] Are there any GPU Type specific fields?*
->
-> I don't think so - as these are in the image itself.
-
-Example of TKMCache CRD:
+Example of GKMCache CRD:
 
 ```yaml
-apiVersion: tkm.io/v1alpha1
-kind: TKMCache
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
 metadata:
   name: cache-vllm-llama2
   namespace: ml-apps
@@ -230,38 +231,38 @@ status:
   lastUpdated: "2025-06-12T14:00:00Z"
 ```
 
-#### TKMNodeStatus and TKMClusterNodeStatus CRD
+#### GKMCacheNode and ClusterGKMCacheNode CRDs
 
-TKMNodeStatus and TKMClusterNodeStatus CRD instances
-are created by the TKM Agent, not the user.
+GKMCacheNode and ClusterGKMCacheNode CR instances are created by the GKM Agent,
+not the user.
 Each node reports status per kernel cache via one CR per node.
 This consolidates status for all relevant caches on that node.
-The CR includes labels and annotations to support efficient
-filtering and introspection.
+The CR includes labels and annotations to support efficient filtering and
+introspection.
 
-If the corresponding TKMCache is namespace-scoped, the NodeStatus CR
-should live in the same namespace. If the corresponding TKMCache is
-cluster-scoped, a cluster-scoped NodeStatus CR (TKMClusterNodeStatus)
-will be used instead.
+If the corresponding GKMCache is namespace-scoped, the GKMCacheNode CR
+will live in the same namespace.
+If the corresponding ClusterGKMCache is cluster-scoped, a cluster-scoped
+ClusterGKMCacheNode CR will be used instead.
 
-While nodes themselves are not namespaced, the namespace of the NodeStatus CR
+While nodes themselves are not namespaced, the namespace of the GKMCacheNode CR
 follows the scope of the kernel cache resource it reports on. This allows the
 operator to correctly associate status objects with their source cache definitions.
 
 This structure enables more efficient status tracking in environments with
-heterogeneous GPU configurations and supports CSI plugin queries via the TKM Agent.
+heterogeneous GPU configurations and supports CSI plugin queries via the GKM Agent.
 
 Summary of data reflected in the CRD:
 
 Labels:
 
-- tkm.node=<node-name>: Helps filter status CRs by node
+- gkm.node=<node-name>: Helps filter status CRs by node
 
 Annotations:
 
-- tkm.io/lastUpdated: ISO8601 timestamp of the last time this CR was
+- gkm.io/lastUpdated: ISO8601 timestamp of the last time this CR was
   updated by the Agent.
-- tkm.io/currentCaches: (Optional) Summary of cache states on the node,
+- gkm.io/currentCaches: (Optional) Summary of cache states on the node,
   potentially used for indexing/debugging.
 
 Spec Fields:
@@ -288,18 +289,16 @@ This consolidated per-node, per-GPU view supports scalable monitoring and
 allows the CSI driver to consult the Agent instead of accessing the Kubernetes
 API directly.
 
-> *[OI] Do need or can we have a used by?*
-
-Example of TKMNodeStatus CRD:
+Example of GKMCacheNode CRD:
 
 ```yaml
-apiVersion: tkm.io/v1alpha1
-kind: TKMNodeStatus
+apiVersion: gkm.io/v1alpha1
+kind: GKMCacheNode
 metadata:
   name: node-a100x8
   namespace: ml-apps
   labels:
-    tkm.node: node-a100x8
+    gkm.node: node-a100x8
 spec:
   nodeName: node-a100x8
 status:
@@ -330,46 +329,135 @@ status:
       lastUpdated: "2025-06-03T15:14:00Z"
 ```
 
-#### CSI Cache Extraction and Mounting Behavior
+## Interaction
 
-CSI driver does not validate kernel compatibility itself.
+Below is a rough flow when using GKM:
 
-- During pod volume mount:
-  - CSI contacts Agent for the location of the pre-extracted cache.
-  - Agent replies with cache path.
-  - CSI mounts resulting directory.
+- User or application creates a GKMCache CR specifying the kernel image.
+- Webhook verifies that the image is signed and not tampered with.
+- GKM Agent on each node:
+  - Creates a GKMCacheNode CR for its Node.
+  - Extracts the kernel cache from the OCI Image referenced in the GKMCache CR
+    to local host in known directory.
+  - Collects GPU information, verifies kernel cache compatibility, and updates
+    the status in the GKMCacheNode CR.
+- User or application creates a Pod referencing GKMCache CR in the Volume Mounts
+  section..
+- Kubelet call CSI Driver when pod is schedule on Node.
+- CSI Driver on each node:
+  - Searches host in known directory for subdirectory with GKMCache CR name and
+    namespace parent directories.
+  - If found, mounts the directory in Pod.
+  - Updates pod usage data in files on host.
+- Operator monitors that state of each GKMCacheNode CR and updates
+  the status of the GKMCache CR.
 
-Default layout for extracted cache:
+An example of the flow is shown below:
 
-```console
-/run/tkm/caches/<namespace>/<pod-name>/<cache-id>/
+```sh
+               +------------------------+
+               | User creates GPU       |
+               | Kernel Cache (CR)      |
+               +----------+-------------+
+                           |
+                           v
+               +-----------+------------+
+               | Webhook verifies       |
+               | image signature        |
+               +-----------+------------+
+                           |
+            +--------------+----------------+
+            |                               |
+   +--------v--------+            +---------v---------+
+   | Signature valid |            | Signature invalid |
+   +--------+--------+            +---------+---------+
+            |                               |
+            v                               v
++-----------+-----------+        +----------+----------+
+| Mark CR as "Verified" |        | CR is not created   |
++-----------+-----------+        +----------+----------+
+            |
+            v
++-----------+-----------+
+| Agent runs preflight  |
+| checks using image    |+---------------------------+
+| metadata              |                            |
++-----------+-----------+                            |
+            |                                        |
+            v                                        v
++-----------+------------+               +-----------+-----------+
+| Preflight check passes |               | Preflight check fails |
++-----------+------------+               +-----------------------+
+            |                                        |
+            v                                        v
++-----------+-----------+                +-----------+-----------+
+| Extract kernel cache  |                | Mark CR as "Failed"   |
+| from image to host    |                | with error details    |
+|                       |                +-----------------------+
+| Mark CR as "Ready"    |
+| and "Compatible"      |
++-----------+-----------+
+            |
+            v
++-----------+-----------+
+| Pod requests volume   |
+| from CSI driver via   |
+| CR name and namespace |
++-----------+-----------+
+            |
+            v
++-----------+-----------+
+| CSI Driver searches   |
+| host for CR directory |+---------------------------+
++-----------------------+                            |
+            |                                        |
+            v                                        v
++-----------+-----------+               +------------+-------------+
+| Found, CSI Driver     |               | Not Found, CSI Driver    |
+| mounts cache in pod   |               | returns error to request |
+| and updates usage     |               +--------------------------+
++-----------------------+
 ```
 
-Where `cache-id` is derived from the image digest internally resolved from the
-OCI image provided in the pod spec (e.g., `sha256:abc123`) as resolved from
-the OCI image.
+### Kernel Cache Extraction and CSI Mounting Behavior
 
-This structure ensures:
+The GKM Operator will make sure the OCI Image was properly signed using cosign
+and the image provided is valid and has not been tampered with.
+This will be done with a mutating webhook, so if the image is invalid, the
+GKMCache (or ClusterGKMCache) CR will not be allowed to be created.
 
--  Isolation across namespaces and pods
--  Simplified monitoring via Triton Cache Manager (TCM)
--  Easier cache cleanup and usage tracking by the Agent
+Once it is created, the GKM Agent will download the OCI Image and extract the
+kernel cache from the image into a temporary directory on host.
+From here, the GKM Agent will verify the kernel cache is compatible with the
+GPU and associated drivers installed on the host.
+The compatibility state will be written to the GKMCacheNode CR.
+If incompatible, the kernel cache directory will be deleted.
+If compatible, the kernel cache will be move to the default directory:
+
+```console
+/var/lib/gkm/caches/<namespace>/<cr-name>/
+```
+
+If the CR is cluster scoped (ClusterGKMCache), the `<namespace>` will be a fixed
+string like `cluster-scoped`.
+Note that this directory is not removed on server reboots so the extract cache is
+preserved.
+It will be up to the GKM Agent to remove stale data on power-up.
+
+When a pod needing the kernel cache is scheduled (see
+[Example Pod Spec Volume Request](#example-pod-spec-volume-request)
+below for example yaml), Kubelet will call the registered CSI Driver with the `volumeAttributes`
+from the pod spec, which includes the name of the CR and its namespace.
+The CSI driver will look in the known directory for a kernel cache directory with that
+name and namespace.
+If it exists, it will mount it in the pod.
 
 By default, the CSI driver mounts this cache directory as read-only into the
 requesting pod to maintain kernel integrity and enable safe sharing between pods.
-
 Applications requiring write access must opt-in by explicitly setting the `readOnly:`
-`false` flag in the volumeAttributes section of the pod spec. The CSI driver receives
-the Cache CR reference (e.g., `cacheName: kernel-x`) in the pod spec, and
-kicks the Agent to receive the path of the pre-extracted cache.
+`false` flag in the volumeAttributes section of the pod spec.
 
-Additionally, the TKM Agent internally tracks which pods are actively using each kernel
-cache. This internal usage map supports future cleanup, accurate monitoring, and TCM
-integration without exposing this detail in the Kubernetes CRDs.
-
-Example Pod Spec with Writable Cache Mount
-
-##### Example Pod Spec with Writable Cache Mount
+#### Example Pod Spec Volume Request
 
 ```yaml
 apiVersion: v1
@@ -387,42 +475,74 @@ spec:
   volumes:
     - name: kernel-cache
       csi:
-        driver: csi.tkm.io
+        driver: csi.gkm.io
         volumeAttributes:
           cacheName: kernel-x
+          cacheNamespace: ml-apps
           readOnly: "false"
 ```
 
-#### gRPC Communication Between CSI Driver and TKM Agent
+### Communication Between GKM Agent and CSI Driver
 
-The CSI driver communicates with the TKM Agent using a local gRPC interface.
-This interaction is central to validating and tracking kernel cache usage
-for pods, and effectively plugs the Agent into the pod lifecycle.
+In the initial implementation, the CSI Driver will store data in files
+on host in place of using a local database.
+It is not expected that there is much data that needs to be stored.
+After the initial PoC, if additional data needs to be stored, or data
+contention issues arise, a proper database will be leveraged.
 
-CSI Lifecycle Hooks via gRPC
+The CSI Driver needs a `VolumeId` mapping to the CR name and namespace.
+The `VolumeId` is provided by Kubelet in the initial `NodePublishVolume()`
+call, which requests the volume to be mounted.
+This call also includes the `volumeAttributes`, which contain the CR name
+and namespace.
+Subsequent Kubelet calls (`NodeGetVolumeStats()` and `NodeUnpublishVolume()`)
+only include the `VolumeId`, so the CSI driver needs the mapping to the CR name
+and namespace.
 
-Mount Request: When the CSI driver mounts a volume for a pod, it makes a
-gRPC call to the TKM Agent to validate the requested kernel cache
-(by resolved digest) for the node and GPU configuration. If the Agent
-confirms the cache is Ready and Compatible, the CSI proceeds with extraction
-and mounting.
+To help the user with introspection and debugging, the GKM Agent will provide
+usage data in the GKMCacheNode CR.
+This data is only known by the CSI Driver, so the CSI Driver will also store
+usage data in the files.
+The GKM Agent will have Read-only access to the files, which it will periodically
+read.
 
-Unmount Request: Upon pod deletion or volume unmount, the CSI driver notifies
-the Agent, allowing it to update internal reference counts or perform cleanup
-operations.
+When a kernel cache is mounted in a pod, CSI Driver will record pod data in a file
+in a mirror directory for GKM Agent to pull usage data from.
+Note that this directory is removed on server reboots so data is cleaned up.
 
-This bidirectional communication ensures the TKM Agent maintains an accurate,
-real-time view of which pods are actively using which kernel caches. It also
-opens the door to richer cache lifecycle tracking, future eviction logic,
-and better observability — all without the CSI needing to access Kubernetes
-APIs.
+```console
+/run/gkm/usage/<namespace>/<cr-name>/usage.json
+```
 
-This mechanism effectively ties the TKM Agent into pod scheduling and runtime
-behavior, via its tight integration with CSI.
+Example content of usage.json:
 
-##### Pros and Cons of Using a NodeStatus CRD
+```console
+{
+  "pod-foo": [
+    {
+      "podName": "pod-foo",
+      "podNamespace": "ml-apps",
+      "volumeId": "csi-a1427cb0aa8fc7c1429eaa38c2f4b371d823172e1d74af6c089e26bf9ca39e8c",
+      "volumeSize": 80608,
+      "targetPath": "/var/lib/kubelet/pods/f009a3d0-0a2e-46d8-bc0a-4a3cc139338d/volumes/kubernetes.io~csi/kernel-volume/mount"
+      "startTime": "2025-07-08T12:40:00Z",
+    }
+  ],
+  "pod-bar": [...]
+}
+```
 
-> [OI] API Review of bpfman CRDs flagged NodeStatus CRD as an issue.
+## Design Considerations
+
+### Separate Resources for Kernel Metadata and Cache
+
+Instead of managing separate resources for kernel metadata and cache, the GKM
+operator will use a unified GKMCache resource. This avoids redundancy
+since the kernel cache and its metadata are tightly coupled in Triton-lang.
+This single resource will hold both cache and metadata information, simplifying
+management and reducing potential conflicts.
+
+### Pros and Cons of Using a NodeStatus CRD
 
 A couple of Operators use the NodeStatus pattern of creating a Node specific CRD
 to track the status of a higher level CRD for a given Kubernetes Node.
@@ -432,7 +552,7 @@ In particular,
 and Ingress Node Firewall Operator.
 Below are some Pros and Cons for using this pattern.
 
-###### Pros
+#### Pros
 
 One of the reasons for using this pattern is that for a given CRD, work has to be
 done on every node (or a large subset of nodes) and because of potential hardware
@@ -448,7 +568,7 @@ succeeded and `Failure` if one or more nodes had a failure, and a list of nodes
 with failures, more detailed errors as well additional node metadata can be kept
 in Node specific CRD.
 
-###### Cons
+#### Cons
 
 One of the major drawbacks to using this pattern is that it is not very Kubernetes
 like.
@@ -460,96 +580,15 @@ To address the issue of scale,
 may be the solution.
 This needs to be investigated.
 
-## Interaction
+### State Management
 
-Below is a rough flow when using TKM:
+For the initial implementation, the CSI Driver will store some pod metadata in
+a file on the host for the GKM Agent to poll.
 
-- User creates a TKMCache CR specifying the kernel image.
-- TKM Agent on each node:
-  - Creates a TKMNodeStatus CR for its Node.
-  - Validates the image and updates the status in the TKMNodeStatus CR.
-  - Collects GPU information and verifies kernel cache compatibility.
-  - Updates TKMNodeStatus CR.
-- CSI plugin checks the TKMNodeStatus CR for the node and mounts the
-  kernel cache as a volume if marked 'Ready' and 'Compatible'.
-- Operator monitors that state of each TKMNodeStatus CR and updates
-  the status of the TKMCache CR.
-
-An example of the flow is shown below:
-
-```sh
-               +------------------------+
-               | User creates Triton    |
-               | Kernel Cache (CR)      |
-               +----------+-------------+
-                           |
-                           v
-              +------------+-------------+
-              | Controller verifies      |
-              | image signature          |
-              +------------+-------------+
-                           |
-            +--------------+----------------+
-            |                               |
-   +--------v--------+            +---------v---------+
-   | Signature valid |            | Signature invalid |
-   +--------+--------+            +---------+---------+
-            |                               |
-            v                               v
-+-----------+-----------+        +----------+----------+
-| Mark CR as "Verified" |        | Mark CR as "Failed" |
-+-----------+-----------+        +----------+----------+
-            |
-            v
-+-----------+-----------+
-| Agent runs preflight  |
-| checks using image    |+---------------------------+
-| metadata              |                            |
-+-----------+-----------+                            |
-            |                                        |
-            v                                        v
-+-----------+------------+               +-----------+-----------+
-| Preflight check passes |               | Preflight check fails |
-+-----------+------------+               +-----------------------+
-            |                                        |
-            v                                        v
-+-----------+-----------+                +-----------+-----------+
-| Mark CR as "Ready"    |                | Mark CR as "Failed"   |
-| and "Compatible"      |                | with error details    |
-+-----------+-----------+                +-----------------------+
-            |
-            v
-+-----------+-----------+
-| Pod requests volume   |
-| from CSI driver with  |
-| cache from image      |
-+-----------+-----------+
-            |
-            v
-+-----------+-----------+
-| CSI Driver validates  |
-| cache and mounts      |
-| volume                |
-+-----------------------+
-```
-
-## Example pod volume request
-
-```yaml
-volumes:
-  - name: kernel-volume
-    csi:
-      driver: csi.tkm.io
-      volumeAttributes:
-        cacheName: kernel-x
-```
-
-## State Management
-
-To ensure resilience and consistent state management, the operator will utilize
-a lightweight embedded database (such as Sled/SQLite/BoltDB) to maintain the
-current state of the Triton kernel images. This allows the operator to recover
-seamlessly from failures or restarts without losing track of Triton kernel
+To ensure resilience and consistent state management, future enhancements may include
+utilizing a lightweight embedded database (such as Sled/SQLite/BoltDB) to maintain the
+current state of the kernel cache images. This allows the operator to recover
+seamlessly from failures or restarts without losing track of kernel cache
 image validation and metadata status.
 
 The database will be used to store:
@@ -561,29 +600,21 @@ The database will be used to store:
 This database will be synchronized with the Kubernetes API state to ensure
 consistency between the operator's in-memory data and the persistent storage.
 
-### Design Considerations
-
-Instead of managing separate resources for kernel metadata and cache, the TKM
-operator will use a unified TKMCache resource. This avoids redundancy
-since the kernel cache and its metadata are tightly coupled in Triton-lang.
-This single resource will hold both cache and metadata information, simplifying
-management and reducing potential conflicts.
-
 ## Open Questions
 
 - Should validation be enforced strictly, or allow fallback for unverified
   images?
     - Global configuration knob, `allow-unsigned-images` and `verify-enabled`?
 - How to handle image updates during runtime?
-- Does TKM have to manage access to GPU? Can 20 different pods all load their
-  Triton kernels simultaneously? Use:
+- Does GKM have to manage access to GPU? Can 20 different pods all load their
+  kernels simultaneously? Use:
   [extended-resource-node](https://kubernetes.io/docs/tasks/administer-cluster/extended-resource-node/)
 
 ## Alternatives Considered
 
 - Running the controller as a short-lived process (daemonless). While this
   approach would reduce resource consumption when idle, it poses a challenge
-  in responding promptly to Triton kernel image validation and updates.
+  in responding promptly to kernel cache image validation and updates.
   Additionally, frequent start-stop cycles can increase latency during critical
   operations.
 
@@ -593,5 +624,5 @@ management and reducing potential conflicts.
 
 ## Future Work
 
-- Add metrics for the Triton Kernel usage.
+- Add metrics for the Kernel cache usage.
 - Improve signature validation with additional cosign policy support.
