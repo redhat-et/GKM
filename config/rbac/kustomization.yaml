@@ -25,9 +25,14 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
-- tritonkernelcachecluster_editor_role.yaml
-- tritonkernelcachecluster_viewer_role.yaml
-- tritonkernelcachenodestatus_editor_role.yaml
-- tritonkernelcachenodestatus_viewer_role.yaml
-- tritonkernelcache_editor_role.yaml
-- tritonkernelcache_viewer_role.yaml
+- clustertkmcachenode_editor_role.yaml
+- clustertkmcachenode_viewer_role.yaml
+- tkmcachenode_editor_role.yaml
+- tkmcachenode_viewer_role.yaml
+- clustertkmcache_editor_role.yaml
+- clustertkmcache_viewer_role.yaml
+- tkmcache_editor_role.yaml
+- tkmcache_viewer_role.yaml
+
+
+

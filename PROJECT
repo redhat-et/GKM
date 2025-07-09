@@ -16,7 +16,7 @@ resources:
     namespaced: true
   controller: true
   domain: tkm.io
-  kind: TritonKernelCache
+  kind: TKMCache
   path: github.com/redhat-et/TKM/api/v1alpha1
   version: v1alpha1
 - api:
@@ -24,7 +24,7 @@ resources:
     namespaced: true
   controller: true
   domain: tkm.io
-  kind: TritonKernelCacheNodeStatus
+  kind: TKMCacheNode
   path: github.com/redhat-et/TKM/api/v1alpha1
   version: v1alpha1
 - api:
@@ -32,7 +32,47 @@ resources:
     namespaced: true
   controller: true
   domain: tkm.io
-  kind: TritonKernelCacheCluster
+  kind: ClusterTKMCache
+  path: github.com/redhat-et/TKM/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: tkm.io
+  kind: TKMCache
+  path: github.com/redhat-et/TKM/api/v1alpha1
+  version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: tkm.io
+  kind: ClusterTKMCache
+  path: github.com/redhat-et/TKM/api/v1alpha1
+  version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: tkm.io
+  kind: TKMCacheNode
+  path: github.com/redhat-et/TKM/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: tkm.io
+  kind: ClusterTKMCacheNode
   path: github.com/redhat-et/TKM/api/v1alpha1
   version: v1alpha1
 version: "3"

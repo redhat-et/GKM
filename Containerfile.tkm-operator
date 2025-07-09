@@ -24,7 +24,7 @@ COPY go.sum go.sum
 # Copy the go source
 COPY cmd/tkm-operator/main.go cmd/main.go
 COPY api/ api/
-COPY internal/controllers/ internal/controllers/
+COPY internal/controller/ internal/controller/
 COPY vendor/ vendor/
 
 # Build the binary with CGO enabled
