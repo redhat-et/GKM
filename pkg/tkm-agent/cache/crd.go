@@ -23,22 +23,22 @@ func MonitorCacheCRDs(clientset *kubernetes.Clientset, accs map[string]accelerat
 // Monitor Cache CRD updates
 func monitorCacheCRD(clientset *kubernetes.Clientset, accs map[string]accelerator.Accelerator) {
 	for {
-		cacheList := &tkmv1alpha1.TritonKernelCacheList{}
+		cacheList := &tkmv1alpha1.TKMCacheList{}
 		err := clientset.RESTClient().Get().
-			Resource("tritonkernelcaches").
+			Resource("TKMCaches").
 			Namespace("default").
 			Do(context.Background()).
 			Into(cacheList)
 
 		if err != nil {
-			log.Printf("Error fetching TritonKernelCache CRDs: %v", err)
+			log.Printf("Error fetching TKMCache CRDs: %v", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		for _, cache := range cacheList.Items {
 			if isCRDVerified(cache.Status.Conditions) {
-				imageName := cache.Spec.CacheImage
+				imageName := cache.Spec.Image
 				log.Printf("Cache CRD %s verified. Running preflight checks...", cache.Name)
 				if err := node.RunPreflightChecks(accs, imageName); err != nil {
 					log.Printf("Preflight check failed: %v", err)
@@ -56,22 +56,22 @@ func monitorCacheCRD(clientset *kubernetes.Clientset, accs map[string]accelerato
 // Monitor CacheCluster CRD updates
 func monitorCacheClusterCRD(clientset *kubernetes.Clientset, accs map[string]accelerator.Accelerator) {
 	for {
-		clusterList := &tkmv1alpha1.TritonKernelCacheClusterList{}
+		clusterList := &tkmv1alpha1.ClusterTKMCacheList{}
 		err := clientset.RESTClient().Get().
-			Resource("tritonkernelcacheclusters").
+			Resource("ClusterTKMCaches").
 			Namespace("default").
 			Do(context.Background()).
 			Into(clusterList)
 
 		if err != nil {
-			log.Printf("Error fetching TritonKernelCacheCluster CRDs: %v", err)
+			log.Printf("Error fetching ClusterTKMCache CRDs: %v", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		for _, cluster := range clusterList.Items {
 			if isCRDVerified(cluster.Status.Conditions) {
-				imageName := cluster.Spec.CacheImage
+				imageName := cluster.Spec.Image
 				log.Printf("CacheCluster CRD %s verified. Running preflight checks...", cluster.Name)
 				if err := node.RunPreflightChecks(accs, imageName); err != nil {
 					log.Printf("Preflight check failed: %v", err)

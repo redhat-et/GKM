@@ -7,9 +7,10 @@ rules:
 - apiGroups:
   - tkm.io
   resources:
-  - tritonkernelcacheclusters
-  - tritonkernelcachenodestatuses
-  - tritonkernelcaches
+  - clustertkmcachenodes
+  - clustertkmcaches
+  - tkmcachenodes
+  - tkmcaches
   verbs:
   - create
   - delete
@@ -21,17 +22,19 @@ rules:
 - apiGroups:
   - tkm.io
   resources:
-  - tritonkernelcacheclusters/finalizers
-  - tritonkernelcachenodestatuses/finalizers
-  - tritonkernelcaches/finalizers
+  - clustertkmcachenodes/finalizers
+  - clustertkmcaches/finalizers
+  - tkmcachenodes/finalizers
+  - tkmcaches/finalizers
   verbs:
   - update
 - apiGroups:
   - tkm.io
   resources:
-  - tritonkernelcacheclusters/status
-  - tritonkernelcachenodestatuses/status
-  - tritonkernelcaches/status
+  - clustertkmcachenodes/status
+  - clustertkmcaches/status
+  - tkmcachenodes/status
+  - tkmcaches/status
   verbs:
   - get
   - patch

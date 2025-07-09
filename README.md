@@ -58,7 +58,7 @@ docker build  -f Containerfile.tkm-operator -t quay.io/tkm/operator:latest .
  => CACHED [builder  5/10] COPY go.sum go.sum                                                                                                                                                                                   0.0s
  => CACHED [builder  6/10] COPY cmd/tkm-operator/main.go cmd/main.go                                                                                                                                                            0.0s
  => CACHED [builder  7/10] COPY api/ api/                                                                                                                                                                                       0.0s
- => CACHED [builder  8/10] COPY internal/controllers/ internal/controllers/                                                                                                                                                     0.0s
+ => CACHED [builder  8/10] COPY internal/controller/ internal/controller/                                                                                                                                                     0.0s
  => CACHED [builder  9/10] COPY vendor/ vendor/                                                                                                                                                                                 0.0s
  => CACHED [builder 10/10] RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod vendor -o /workspace/manager cmd/main.go                                                                                                     0.0s
  => CACHED [stage-1 2/3] COPY --from=builder /workspace/manager /manager                                                                                                                                                        0.0s
@@ -117,20 +117,20 @@ Deploy the operator:
 cd config/manager && /home/mtahhan/TKM/bin/kustomize edit set image controller=quay.io/tkm/operator:latest
 /home/mtahhan/TKM/bin/kustomize build config/default | kubectl apply -f -
 namespace/tkm-system created
-customresourcedefinition.apiextensions.k8s.io/tritonkernelcacheclusters.tkm.io created
-customresourcedefinition.apiextensions.k8s.io/tritonkernelcachenodestatuses.tkm.io created
-customresourcedefinition.apiextensions.k8s.io/tritonkernelcaches.tkm.io created
+customresourcedefinition.apiextensions.k8s.io/ClusterTKMCaches.tkm.io created
+customresourcedefinition.apiextensions.k8s.io/TKMCacheNode.tkm.io created
+customresourcedefinition.apiextensions.k8s.io/TKMCaches.tkm.io created
 serviceaccount/tkm-operator-controller-manager created
 role.rbac.authorization.k8s.io/tkm-operator-leader-election-role created
 clusterrole.rbac.authorization.k8s.io/tkm-operator-manager-role created
 clusterrole.rbac.authorization.k8s.io/tkm-operator-metrics-auth-role created
 clusterrole.rbac.authorization.k8s.io/tkm-operator-metrics-reader created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-tritonkernelcache-editor-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-tritonkernelcache-viewer-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-tritonkernelcachecluster-editor-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-tritonkernelcachecluster-viewer-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-tritonkernelcachenodestatus-editor-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-tritonkernelcachenodestatus-viewer-role created
+clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCache-editor-role created
+clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCache-viewer-role created
+clusterrole.rbac.authorization.k8s.io/tkm-operator-ClusterTKMCache-editor-role created
+clusterrole.rbac.authorization.k8s.io/tkm-operator-ClusterTKMCache-viewer-role created
+clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCacheNode-editor-role created
+clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCacheNode-viewer-role created
 rolebinding.rbac.authorization.k8s.io/tkm-operator-leader-election-rolebinding created
 clusterrolebinding.rbac.authorization.k8s.io/tkm-operator-manager-rolebinding created
 clusterrolebinding.rbac.authorization.k8s.io/tkm-operator-metrics-auth-rolebinding created

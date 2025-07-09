@@ -1,0 +1,9 @@
+apiVersion: tkm.io/v1alpha1
+kind: TKMCacheNode
+metadata:
+  labels:
+    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: tkmcachenode-sample
+spec:
+  # TODO(user): Add fields here

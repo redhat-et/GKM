@@ -1,0 +1,23 @@
+# permissions for end users to view tkmcachenodes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: tkmcachenode-viewer-role
+rules:
+- apiGroups:
+  - tkm.io
+  resources:
+  - tkmcachenodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - tkm.io
+  resources:
+  - tkmcachenodes/status
+  verbs:
+  - get

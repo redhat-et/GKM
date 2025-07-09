@@ -1,6 +1,11 @@
 ## Append samples of your project ##
 resources:
-- tkm_v1alpha1_tritonkernelcache.yaml
-- tkm_v1alpha1_tritonkernelcachenodestatus.yaml
-- tkm_v1alpha1_tritonkernelcachecluster.yaml
+- v1alpha1_tkmcache.yaml
+- _v1alpha1_tkmcache.yaml
+- v1alpha1_clustertkmcache.yaml
+- _v1alpha1_clustertkmcache.yaml
+- v1alpha1_tkmcachenode.yaml
+- _v1alpha1_tkmcachenode.yaml
+- v1alpha1_clustertkmcachenode.yaml
+- _v1alpha1_clustertkmcachenode.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
