@@ -272,6 +272,42 @@ GPU_TYPE ?= rocm
 # these variables in local shell:
 # export KIND_EXPERIMENTAL_PROVIDER=podman
 # export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
+.PHONY: get-example-images
+get-example-images:
+	$(CONTAINER_TOOL) pull quay.io/tkm/vector-add-cache:rocm
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/tkm/vector-add-cache:rocm --cluster-name=$(KIND_CLUSTER_NAME)
+
+.PHONY: deploy-webhook-certs
+deploy-webhook-certs:
+	kubectl apply -k config/webhook
+
+.PHONY: get-cert-manager-images
+get-cert-manager-images:
+	@echo "Getting Images ..."
+	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-controller:v1.18.0
+	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-cainjector:v1.18.0
+	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-webhook:v1.18.0
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-controller:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME)
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-cainjector:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME)
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-webhook:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME)
+
+.PHONY: deploy-cert-manager
+deploy-cert-manager: get-cert-manager-images
+	@echo "Installing cert-manager base manifests from upstream..."
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+	@echo "Checking for Kind cluster..."
+	@if [[ "$$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')" =~ "kind" ]]; then \
+		echo "Kind detected – applying Kind-specific cert-manager patches..."; \
+		kubectl patch deployment -n cert-manager cert-manager --patch-file=config/kind-gpu/patch-cert-manager-controller.yaml; \
+		kubectl patch deployment -n cert-manager cert-manager-cainjector --patch-file=config/kind-gpu/patch-cert-manager-cainjector.yaml; \
+		kubectl patch deployment -n cert-manager cert-manager-webhook --patch-file=config/kind-gpu/patch-cert-manager-webhook.yaml; \
+	else \
+		echo "Non-Kind cluster – skipping GPU patching for cert-manager."; \
+	fi
+	@echo "Waiting for cert-manager deployment to become available..."
+	kubectl wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager
+	kubectl wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager-webhook
+	kubectl wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
 
 .PHONY: setup-kind
 setup-kind: ## Create a Kind GPU cluster
@@ -286,7 +322,7 @@ destroy-kind: ## Delete the Kind GPU cluster
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
 
 .PHONY: kind-load-images
-kind-load-images: ## Load images into the Kind cluster
+kind-load-images: get-example-images ## Load images into the Kind cluster
 	@echo "Loading operator image into Kind cluster: $(KIND_CLUSTER_NAME)"
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image into Kind cluster: $(KIND_CLUSTER_NAME)"
@@ -294,7 +330,7 @@ kind-load-images: ## Load images into the Kind cluster
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
 .PHONY: deploy-on-kind
-deploy-on-kind: manifests kustomize ## Deploy operator and agent to the Kind GPU cluster.
+deploy-on-kind: manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image quay.io/tkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/tkm/agent=${AGENT_IMG}
 	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -
@@ -305,6 +341,8 @@ deploy-on-kind: manifests kustomize ## Deploy operator and agent to the Kind GPU
 undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
 	@echo "Undeploying operator and agent from Kind GPU cluster: $(KIND_CLUSTER_NAME)"
 	$(KUSTOMIZE) build config/kind-gpu | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "Undeploy cert-manager"
+	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
 	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
 
 .PHONY: run-on-kind

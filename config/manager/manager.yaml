@@ -11,7 +11,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
-  namespace: system
+  namespace: tkm-system
   labels:
     control-plane: controller-manager
     app.kubernetes.io/name: triton-kernel-manager-operator
@@ -99,5 +99,13 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
+        volumeMounts:
+          - name: cert
+            mountPath: /tmp/k8s-webhook-server/serving-certs
+            readOnly: true
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+        - name: cert
+          secret:
+            secretName: webhook-server-cert

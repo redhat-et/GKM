@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -44,7 +46,10 @@ var _ webhook.Defaulter = &TKMCache{}
 func (r *TKMCache) Default() {
 	tkmcachelog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
+	// Hardcode example auto-populate ResolvedDigest if empty TODO update this for real
+	if r.Spec.ResolvedDigest == "" {
+		r.Spec.ResolvedDigest = "sha256:defaulted-digest-demo"
+	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -58,7 +63,13 @@ var _ webhook.Validator = &TKMCache{}
 func (r *TKMCache) ValidateCreate() (admission.Warnings, error) {
 	tkmcachelog.Info("validate create", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object creation.
+	var warnings admission.Warnings
+
+	// Example: Reject if Image field is empty
+	if r.Spec.Image == "" {
+		warnings = append(warnings, "Image not set")
+		return warnings, fmt.Errorf("spec.image must be set")
+	}
 	return nil, nil
 }
 
