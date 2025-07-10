@@ -1,7 +1,6 @@
 apiVersion: tkm.io/v1alpha1
-kind: TritonKernelCacheCluster
+kind: TKMCache
 metadata:
   name: flash-attention-rocm
 spec:
-  cacheImage: quay.io/mtahhan/flash-attention-rocm:latest
-  validateSignature: false
+  image: quay.io/mtahhan/flash-attention-rocm:latest
