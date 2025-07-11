@@ -1,11 +1,11 @@
 ## Append samples of your project ##
 resources:
-- v1alpha1_tkmcache.yaml
-- _v1alpha1_tkmcache.yaml
-- v1alpha1_clustertkmcache.yaml
-- _v1alpha1_clustertkmcache.yaml
-- v1alpha1_tkmcachenode.yaml
-- _v1alpha1_tkmcachenode.yaml
-- v1alpha1_clustertkmcachenode.yaml
-- _v1alpha1_clustertkmcachenode.yaml
+- v1alpha1_gkmcache.yaml
+- _v1alpha1_gkmcache.yaml
+- v1alpha1_clustergkmcache.yaml
+- _v1alpha1_clustergkmcache.yaml
+- v1alpha1_gkmcachenode.yaml
+- _v1alpha1_gkmcachenode.yaml
+- v1alpha1_clustergkmcachenode.yaml
+- _v1alpha1_clustergkmcachenode.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

@@ -5,12 +5,12 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - tkm.io
+  - gkm.io
   resources:
-  - clustertkmcachenodes
-  - clustertkmcaches
-  - tkmcachenodes
-  - tkmcaches
+  - clustergkmcachenodes
+  - clustergkmcaches
+  - gkmcachenodes
+  - gkmcaches
   verbs:
   - create
   - delete
@@ -20,21 +20,21 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tkm.io
+  - gkm.io
   resources:
-  - clustertkmcachenodes/finalizers
-  - clustertkmcaches/finalizers
-  - tkmcachenodes/finalizers
-  - tkmcaches/finalizers
+  - clustergkmcachenodes/finalizers
+  - clustergkmcaches/finalizers
+  - gkmcachenodes/finalizers
+  - gkmcaches/finalizers
   verbs:
   - update
 - apiGroups:
-  - tkm.io
+  - gkm.io
   resources:
-  - clustertkmcachenodes/status
-  - clustertkmcaches/status
-  - tkmcachenodes/status
-  - tkmcaches/status
+  - clustergkmcachenodes/status
+  - clustergkmcaches/status
+  - gkmcachenodes/status
+  - gkmcaches/status
   verbs:
   - get
   - patch

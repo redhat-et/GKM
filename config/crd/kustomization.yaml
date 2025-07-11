@@ -2,25 +2,25 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/tkm.io_tkmcaches.yaml
-- bases/tkm.io_clustertkmcaches.yaml
-- bases/tkm.io_tkmcachenodes.yaml
-- bases/tkm.io_clustertkmcachenodes.yaml
+- bases/gkm.io_gkmcaches.yaml
+- bases/gkm.io_clustergkmcaches.yaml
+- bases/gkm.io_gkmcachenodes.yaml
+- bases/gkm.io_clustergkmcachenodes.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
-- path: patches/webhook_in_tkmcaches.yaml
-- path: patches/webhook_in_clustertkmcaches.yaml
+- path: patches/webhook_in_gkmcaches.yaml
+- path: patches/webhook_in_clustergkmcaches.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
-#- path: patches/cainjection_in_tkmcaches.yaml
-#- path: patches/cainjection_in_clustertkmcaches.yaml
-#- path: patches/cainjection_in_tkmcachenodes.yaml
-#- path: patches/cainjection_in_clustertkmcachenodes.yaml
+#- path: patches/cainjection_in_gkmcaches.yaml
+#- path: patches/cainjection_in_clustergkmcaches.yaml
+#- path: patches/cainjection_in_gkmcachenodes.yaml
+#- path: patches/cainjection_in_clustergkmcachenodes.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # [WEBHOOK] To enable webhook, uncomment the following section

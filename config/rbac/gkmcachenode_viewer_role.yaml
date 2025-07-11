@@ -1,0 +1,23 @@
+# permissions for end users to view gkmcachenodes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: gkmcachenode-viewer-role
+rules:
+- apiGroups:
+  - gkm.io
+  resources:
+  - gkmcachenodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gkm.io
+  resources:
+  - gkmcachenodes/status
+  verbs:
+  - get

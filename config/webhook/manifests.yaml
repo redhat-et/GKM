@@ -10,19 +10,19 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-tkm-io-v1alpha1-clustertkmcache
+      path: /mutate-gkm-io-v1alpha1-clustergkmcache
   failurePolicy: Fail
-  name: mclustertkmcache.kb.io
+  name: mclustergkmcache.kb.io
   rules:
   - apiGroups:
-    - tkm.io
+    - gkm.io
     apiVersions:
     - v1alpha1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - clustertkmcaches
+    - clustergkmcaches
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -30,19 +30,19 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /mutate-tkm-io-v1alpha1-tkmcache
+      path: /mutate-gkm-io-v1alpha1-gkmcache
   failurePolicy: Fail
-  name: mtkmcache.kb.io
+  name: mgkmcache.kb.io
   rules:
   - apiGroups:
-    - tkm.io
+    - gkm.io
     apiVersions:
     - v1alpha1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - tkmcaches
+    - gkmcaches
   sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -56,19 +56,19 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-tkm-io-v1alpha1-clustertkmcache
+      path: /validate-gkm-io-v1alpha1-clustergkmcache
   failurePolicy: Fail
-  name: vclustertkmcache.kb.io
+  name: vclustergkmcache.kb.io
   rules:
   - apiGroups:
-    - tkm.io
+    - gkm.io
     apiVersions:
     - v1alpha1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - clustertkmcaches
+    - clustergkmcaches
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -76,17 +76,17 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-tkm-io-v1alpha1-tkmcache
+      path: /validate-gkm-io-v1alpha1-gkmcache
   failurePolicy: Fail
-  name: vtkmcache.kb.io
+  name: vgkmcache.kb.io
   rules:
   - apiGroups:
-    - tkm.io
+    - gkm.io
     apiVersions:
     - v1alpha1
     operations:
     - CREATE
     - UPDATE
     resources:
-    - tkmcaches
+    - gkmcaches
   sideEffects: None

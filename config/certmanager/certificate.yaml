@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: triton-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
   name: selfsigned-issuer
-  namespace: tkm-system
+  namespace: gkm-system
 spec:
   selfSigned: {}
 ---
@@ -23,7 +23,7 @@ metadata:
     app.kubernetes.io/part-of: triton-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
   name: serving-cert  # this name should match the one appeared in kustomizeconfig.yaml
-  namespace: tkm-system
+  namespace: gkm-system
 spec:
   # SERVICE_NAME and SERVICE_NAMESPACE will be substituted by kustomize
   dnsNames:

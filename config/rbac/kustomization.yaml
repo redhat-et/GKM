@@ -5,11 +5,11 @@ resources:
 # runtime. Be sure to update RoleBinding and ClusterRoleBinding
 # subjects if changing service account names.
 - service_account.yaml
-- service_account_tkm_agent.yaml
+- service_account_gkm_agent.yaml
 - role.yaml
 - role_binding.yaml
-- role_tkm_agent.yaml
-- role_binding_tkm_agent.yaml
+- role_gkm_agent.yaml
+- role_binding_gkm_agent.yaml
 - leader_election_role.yaml
 - leader_election_role_binding.yaml
 # The following RBAC configurations are used to protect
@@ -25,14 +25,14 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
-- clustertkmcachenode_editor_role.yaml
-- clustertkmcachenode_viewer_role.yaml
-- tkmcachenode_editor_role.yaml
-- tkmcachenode_viewer_role.yaml
-- clustertkmcache_editor_role.yaml
-- clustertkmcache_viewer_role.yaml
-- tkmcache_editor_role.yaml
-- tkmcache_viewer_role.yaml
+- clustergkmcachenode_editor_role.yaml
+- clustergkmcachenode_viewer_role.yaml
+- gkmcachenode_editor_role.yaml
+- gkmcachenode_viewer_role.yaml
+- clustergkmcache_editor_role.yaml
+- clustergkmcache_viewer_role.yaml
+- gkmcache_editor_role.yaml
+- gkmcache_viewer_role.yaml
 
 
 

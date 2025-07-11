@@ -113,10 +113,10 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&TKMCache{}).SetupWebhookWithManager(mgr)
+	err = (&GKMCache{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&ClusterTKMCache{}).SetupWebhookWithManager(mgr)
+	err = (&ClusterGKMCache{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:webhook

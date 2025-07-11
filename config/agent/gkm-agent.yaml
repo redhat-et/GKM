@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gkm-agent
+  namespace: gkm-system
+  labels:
+    app: gkm-agent
+spec:
+  selector:
+    matchLabels:
+      app: gkm-agent
+  template:
+    metadata:
+      labels:
+        app: gkm-agent
+    spec:
+      containers:
+      - name: gkm-agent
+        image: quay.io/gkm/agent:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      nodeSelector:
+        hardware-type: gpu
+      tolerations:
+      - key: "gpu"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
