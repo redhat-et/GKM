@@ -1,5 +1,5 @@
-apiVersion: tkm.io/v1alpha1
-kind: TKMCache
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
 metadata:
   name: flash-attention-rocm
 spec:

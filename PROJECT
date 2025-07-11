@@ -2,58 +2,46 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: tkm.io
+domain: gkm.io
 layout:
 - go.kubebuilder.io/v4
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: triton-kernel-manager-operator
-repo: github.com/redhat-et/TKM
+repo: github.com/redhat-et/GKM
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: tkm.io
-  kind: TKMCache
-  path: github.com/redhat-et/TKM/api/v1alpha1
+  domain: gkm.io
+  kind: GKMCache
+  path: github.com/redhat-et/GKM/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: tkm.io
-  kind: TKMCacheNode
-  path: github.com/redhat-et/TKM/api/v1alpha1
+  domain: gkm.io
+  kind: GKMCacheNode
+  path: github.com/redhat-et/GKM/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: tkm.io
-  kind: ClusterTKMCache
-  path: github.com/redhat-et/TKM/api/v1alpha1
+  domain: gkm.io
+  kind: ClusterGKMCache
+  path: github.com/redhat-et/GKM/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: tkm.io
-  kind: TKMCache
-  path: github.com/redhat-et/TKM/api/v1alpha1
-  version: v1alpha1
-  webhooks:
-    defaulting: true
-    validation: true
-    webhookVersion: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: tkm.io
-  kind: ClusterTKMCache
-  path: github.com/redhat-et/TKM/api/v1alpha1
+  domain: gkm.io
+  kind: GKMCache
+  path: github.com/redhat-et/GKM/api/v1alpha1
   version: v1alpha1
   webhooks:
     defaulting: true
@@ -63,16 +51,28 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: tkm.io
-  kind: TKMCacheNode
-  path: github.com/redhat-et/TKM/api/v1alpha1
+  domain: gkm.io
+  kind: ClusterGKMCache
+  path: github.com/redhat-et/GKM/api/v1alpha1
+  version: v1alpha1
+  webhooks:
+    defaulting: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: gkm.io
+  kind: GKMCacheNode
+  path: github.com/redhat-et/GKM/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: tkm.io
-  kind: ClusterTKMCacheNode
-  path: github.com/redhat-et/TKM/api/v1alpha1
+  domain: gkm.io
+  kind: ClusterGKMCacheNode
+  path: github.com/redhat-et/GKM/api/v1alpha1
   version: v1alpha1
 version: "3"

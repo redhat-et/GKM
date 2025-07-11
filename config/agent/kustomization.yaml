@@ -1,8 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- tkm-agent.yaml
+- gkm-agent.yaml
 images:
-- name: quay.io/tkm/agent
-  newName: quay.io/tkm/agent
+- name: quay.io/gkm/agent
+  newName: quay.io/gkm/agent
   newTag: latest

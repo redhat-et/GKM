@@ -1,4 +1,4 @@
-module github.com/redhat-et/TKM
+module github.com/redhat-et/GKM
 
 go 1.24.0
 

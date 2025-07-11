@@ -11,7 +11,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
-        args: [--toml, tkm-codespell.precommit-toml]
+        args: [--toml, gkm-codespell.precommit-toml]
         additional_dependencies:
           - tomli
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook

@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/redhat-et/TKM/test/utils"
+	"github.com/redhat-et/GKM/test/utils"
 )
 
 const namespace = "triton-kernel-manager-operator-system"

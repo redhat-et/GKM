@@ -1,8 +1,8 @@
-# triton-kernel-manager-operator
+# GPU-kernel-manager-operator
 
 ## Description
-Triton Kernel Manager is a software stack that aims to deploy, manage and
-monitor Triton Kernels in a Kubernetes
+GPU Kernel Manager is a software stack that aims to deploy, manage and
+monitor GPU Kernels in a Kubernetes
 cluster. It will use the utilities developed in
 [TKDK](https://github.com/redhat-et/TKDK) to accomplish these goals.
 
@@ -28,21 +28,21 @@ To delete a kind cluster with a simulated GPU
 wget -qO- https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh | bash -s delete
 ```
 
-#### To run the tkm-operator on this kind cluster
+#### To run the gkm-operator on this kind cluster
 
 Start by building the operator controller and the operator controller image
 
 ```sh
 $ make build docker-build
-/home/mtahhan/TKM/bin/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-/home/mtahhan/TKM/bin/controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
+/home/mtahhan/GKM/bin/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+/home/mtahhan/GKM/bin/controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 go fmt ./...
 go vet ./...
-go build -o bin/tkm-operator ./cmd/tkm-operator
-go build -o bin/tkm-agent ./cmd/tkm-agent
-docker build  -f Containerfile.tkm-operator -t quay.io/tkm/operator:latest .
+go build -o bin/gkm-operator ./cmd/gkm-operator
+go build -o bin/gkm-agent ./cmd/gkm-agent
+docker build  -f Containerfile.gkm-operator -t quay.io/gkm/operator:latest .
 [+] Building 21.8s (19/19) FINISHED                                                                                                                                                                                   docker:default
- => [internal] load build definition from Containerfile.tkm-operator                                                                                                                                                            0.0s
+ => [internal] load build definition from Containerfile.gkm-operator                                                                                                                                                            0.0s
  => => transferring dockerfile: 1.35kB                                                                                                                                                                                          0.0s
  => [internal] load metadata for public.ecr.aws/docker/library/golang:1.24.3                                                                                                                                                   20.4s
  => [internal] load metadata for public.ecr.aws/docker/library/ubuntu:22.04                                                                                                                                                    20.4s
@@ -56,7 +56,7 @@ docker build  -f Containerfile.tkm-operator -t quay.io/tkm/operator:latest .
  => CACHED [builder  3/10] RUN apt-get update &&     apt-get install -y         libgpgme-dev         btrfs-progs         libbtrfs-dev         libgpgme11-dev         libseccomp-dev         pkg-config         build-essential  0.0s
  => CACHED [builder  4/10] COPY go.mod go.mod                                                                                                                                                                                   0.0s
  => CACHED [builder  5/10] COPY go.sum go.sum                                                                                                                                                                                   0.0s
- => CACHED [builder  6/10] COPY cmd/tkm-operator/main.go cmd/main.go                                                                                                                                                            0.0s
+ => CACHED [builder  6/10] COPY cmd/gkm-operator/main.go cmd/main.go                                                                                                                                                            0.0s
  => CACHED [builder  7/10] COPY api/ api/                                                                                                                                                                                       0.0s
  => CACHED [builder  8/10] COPY internal/controller/ internal/controller/                                                                                                                                                     0.0s
  => CACHED [builder  9/10] COPY vendor/ vendor/                                                                                                                                                                                 0.0s
@@ -66,10 +66,10 @@ docker build  -f Containerfile.tkm-operator -t quay.io/tkm/operator:latest .
  => exporting to image                                                                                                                                                                                                          0.0s
  => => exporting layers                                                                                                                                                                                                         0.0s
  => => writing image sha256:32bdbfe0c24fe2e31a36fa7b72e4444f6e997b861c1b1062ee41bb7a15333918                                                                                                                                    0.0s
- => => naming to quay.io/tkm/operator:latest                                                                                                                                                                                    0.0s
-docker build   -f Containerfile.tkm-agent -t quay.io/tkm/agent:latest .
+ => => naming to quay.io/gkm/operator:latest                                                                                                                                                                                    0.0s
+docker build   -f Containerfile.gkm-agent -t quay.io/gkm/agent:latest .
 [+] Building 97.9s (19/19) FINISHED                                                                                                                                                                                   docker:default
- => [internal] load build definition from Containerfile.tkm-agent                                                                                                                                                               0.0s
+ => [internal] load build definition from Containerfile.gkm-agent                                                                                                                                                               0.0s
  => => transferring dockerfile: 1.26kB                                                                                                                                                                                          0.0s
  => [internal] load metadata for public.ecr.aws/docker/library/ubuntu:22.04                                                                                                                                                     0.1s
  => [internal] load metadata for public.ecr.aws/docker/library/golang:1.24.3                                                                                                                                                    0.1s
@@ -83,7 +83,7 @@ docker build   -f Containerfile.tkm-agent -t quay.io/tkm/agent:latest .
  => CACHED [builder  3/10] RUN apt-get update &&     apt-get install -y         libgpgme-dev         btrfs-progs         libbtrfs-dev         libgpgme11-dev         libseccomp-dev         pkg-config         build-essential  0.0s
  => CACHED [builder  4/10] COPY go.mod go.mod                                                                                                                                                                                   0.0s
  => CACHED [builder  5/10] COPY go.sum go.sum                                                                                                                                                                                   0.0s
- => [builder  6/10] COPY cmd/tkm-agent/main.go cmd/main.go                                                                                                                                                                      0.0s
+ => [builder  6/10] COPY cmd/gkm-agent/main.go cmd/main.go                                                                                                                                                                      0.0s
  => [builder  7/10] COPY api/ api/                                                                                                                                                                                              0.0s
  => [builder  8/10] COPY pkg/ pkg/                                                                                                                                                                                              0.0s
  => [builder  9/10] COPY vendor/ vendor/                                                                                                                                                                                        4.2s
@@ -93,52 +93,52 @@ docker build   -f Containerfile.tkm-agent -t quay.io/tkm/agent:latest .
  => exporting to image                                                                                                                                                                                                          1.5s
  => => exporting layers                                                                                                                                                                                                         1.5s
  => => writing image sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46                                                                                                                                    0.0s
- => => naming to quay.io/tkm/agent:latest
+ => => naming to quay.io/gkm/agent:latest
 ```
 
 Load the images onto the kind cluster:
 
 ```sh
-$ kind load docker-image quay.io/tkm/operator --name kind-gpu-sim
-Image: "quay.io/tkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-control-plane", loading...
-Image: "quay.io/tkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-worker", loading...
-Image: "quay.io/tkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-worker2", loading...
-$ kind load docker-image quay.io/tkm/agent --name kind-gpu-sim
-Image: "quay.io/tkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-worker", loading...
-Image: "quay.io/tkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-worker2", loading...
-Image: "quay.io/tkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-control-plane", loading...
+$ kind load docker-image quay.io/gkm/operator --name kind-gpu-sim
+Image: "quay.io/gkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-control-plane", loading...
+Image: "quay.io/gkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-worker", loading...
+Image: "quay.io/gkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-worker2", loading...
+$ kind load docker-image quay.io/gkm/agent --name kind-gpu-sim
+Image: "quay.io/gkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-worker", loading...
+Image: "quay.io/gkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-worker2", loading...
+Image: "quay.io/gkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-control-plane", loading...
 ```
 
 Deploy the operator:
 
 ```sh
  make deploy
-/home/mtahhan/TKM/bin/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-cd config/manager && /home/mtahhan/TKM/bin/kustomize edit set image controller=quay.io/tkm/operator:latest
-/home/mtahhan/TKM/bin/kustomize build config/default | kubectl apply -f -
-namespace/tkm-system created
-customresourcedefinition.apiextensions.k8s.io/ClusterTKMCaches.tkm.io created
-customresourcedefinition.apiextensions.k8s.io/TKMCacheNode.tkm.io created
-customresourcedefinition.apiextensions.k8s.io/TKMCaches.tkm.io created
-serviceaccount/tkm-operator-controller-manager created
-role.rbac.authorization.k8s.io/tkm-operator-leader-election-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-manager-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-metrics-auth-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-metrics-reader created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCache-editor-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCache-viewer-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-ClusterTKMCache-editor-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-ClusterTKMCache-viewer-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCacheNode-editor-role created
-clusterrole.rbac.authorization.k8s.io/tkm-operator-TKMCacheNode-viewer-role created
-rolebinding.rbac.authorization.k8s.io/tkm-operator-leader-election-rolebinding created
-clusterrolebinding.rbac.authorization.k8s.io/tkm-operator-manager-rolebinding created
-clusterrolebinding.rbac.authorization.k8s.io/tkm-operator-metrics-auth-rolebinding created
-service/tkm-operator-controller-manager-metrics-service created
-deployment.apps/tkm-operator-controller-manager created
+/home/mtahhan/GKM/bin/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+cd config/manager && /home/mtahhan/GKM/bin/kustomize edit set image controller=quay.io/gkm/operator:latest
+/home/mtahhan/GKM/bin/kustomize build config/default | kubectl apply -f -
+namespace/gkm-system created
+customresourcedefinition.apiextensions.k8s.io/ClusterGKMCaches.gkm.io created
+customresourcedefinition.apiextensions.k8s.io/GKMCacheNode.gkm.io created
+customresourcedefinition.apiextensions.k8s.io/GKMCaches.gkm.io created
+serviceaccount/gkm-operator-controller-manager created
+role.rbac.authorization.k8s.io/gkm-operator-leader-election-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-manager-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-metrics-auth-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCache-editor-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCache-viewer-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-ClusterGKMCache-editor-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-ClusterGKMCache-viewer-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCacheNode-editor-role created
+clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCacheNode-viewer-role created
+rolebinding.rbac.authorization.k8s.io/gkm-operator-leader-election-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/gkm-operator-manager-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/gkm-operator-metrics-auth-rolebinding created
+service/gkm-operator-controller-manager-metrics-service created
+deployment.apps/gkm-operator-controller-manager created
 ```
 
-Check the TKM operator pod:
+Check the GKM operator pod:
 
 ```sh
 $ kubectl get pods -A
@@ -158,7 +158,7 @@ kube-system          kube-proxy-97jwg                                     1/1   
 kube-system          kube-proxy-qvt2j                                     1/1     Running   0          6h50m
 kube-system          kube-scheduler-kind-gpu-sim-control-plane            1/1     Running   0          6h50m
 local-path-storage   local-path-provisioner-7dc846544d-kjqqz              1/1     Running   0          6h50m
-tkm-system           tkm-operator-controller-manager-6ffb68ddb-2fdjl      1/1     Running   0          28s
+gkm-system           gkm-operator-controller-manager-6ffb68ddb-2fdjl      1/1     Running   0          28s
 ```
 
 ### To Deploy on the cluster
@@ -167,13 +167,13 @@ tkm-system           tkm-operator-controller-manager-6ffb68ddb-2fdjl      1/1   
 To build with podman:
 
 ```sh
-make docker-build CONTAINER_TOOL=podman IMG=quay.io/tkm/operator:latest CONTAINER_FLAGS="--network=host"
+make docker-build CONTAINER_TOOL=podman IMG=quay.io/gkm/operator:latest CONTAINER_FLAGS="--network=host"
 ```
 
 To build with docker:
 
 ```sh
-make docker-build docker-push IMG=quay.io/tkm/operator:latest
+make docker-build docker-push IMG=quay.io/gkm/operator:latest
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified.
@@ -189,7 +189,7 @@ make install
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=quay.io/tkm/operator:latest
+make deploy IMG=quay.io/gkm/operator:latest
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -230,7 +230,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=quay.io/tkm/operator:latest
+make build-installer IMG=quay.io/gkm/operator:latest
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -243,7 +243,7 @@ its dependencies.
 Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/triton-kernel-manager-operator/<tag or branch>/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/<org>/GPU-kernel-manager-operator/<tag or branch>/dist/install.yaml
 ```
 
 ## Contributing

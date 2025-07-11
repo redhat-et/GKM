@@ -47,8 +47,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
-# tkm.io/triton-kernel-manager-operator-bundle:$VERSION and tkm.io/triton-kernel-manager-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= tkm.io/triton-kernel-manager-operator
+# gkm.io/triton-kernel-manager-operator-bundle:$VERSION and gkm.io/triton-kernel-manager-operator-catalog:$VERSION.
+IMAGE_TAG_BASE ?= gkm.io/triton-kernel-manager-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -70,8 +70,8 @@ endif
 OPERATOR_SDK_VERSION ?= v1.39.2
 # Image URL to use all building/pushing image targets
 IMAGE_TAG ?= latest
-OPERATOR_IMG ?= quay.io/tkm/operator:$(IMAGE_TAG)
-AGENT_IMG ?=quay.io/tkm/agent:$(IMAGE_TAG)
+OPERATOR_IMG ?= quay.io/gkm/operator:$(IMAGE_TAG)
+AGENT_IMG ?=quay.io/gkm/agent:$(IMAGE_TAG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -156,16 +156,16 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 ##@ Build
 
-.PHONY: build-tkm-operator
-build-tkm-operator: ## Build manager binary.
-	go build -o bin/tkm-operator ./cmd/tkm-operator
+.PHONY: build-gkm-operator
+build-gkm-operator: ## Build manager binary.
+	go build -o bin/gkm-operator ./cmd/gkm-operator
 
-.PHONY: build-tkm-agent
-build-tkm-agent: ## Build agent binary.
-	go build -o bin/tkm-agent ./cmd/tkm-agent
+.PHONY: build-gkm-agent
+build-gkm-agent: ## Build agent binary.
+	go build -o bin/gkm-agent ./cmd/gkm-agent
 
 .PHONY: build  ## Build binaries.
-build: manifests generate fmt vet build-tkm-operator build-tkm-agent
+build: manifests generate fmt vet build-gkm-operator build-gkm-agent
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -173,11 +173,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build-operator
 docker-build-operator:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --load -f Containerfile.tkm-operator -t ${OPERATOR_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --load -f Containerfile.gkm-operator -t ${OPERATOR_IMG} .
 
 .PHONY: docker-build-agent
 docker-build-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --load -f Containerfile.tkm-agent -t ${AGENT_IMG} .
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -274,8 +274,8 @@ GPU_TYPE ?= rocm
 # export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
 .PHONY: get-example-images
 get-example-images:
-	$(CONTAINER_TOOL) pull quay.io/tkm/vector-add-cache:rocm
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/tkm/vector-add-cache:rocm --cluster-name=$(KIND_CLUSTER_NAME)
+	$(CONTAINER_TOOL) pull quay.io/gkm/vector-add-cache:rocm
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/vector-add-cache:rocm --cluster-name=$(KIND_CLUSTER_NAME)
 
 .PHONY: deploy-webhook-certs
 deploy-webhook-certs:
@@ -331,8 +331,8 @@ kind-load-images: get-example-images ## Load images into the Kind cluster
 
 .PHONY: deploy-on-kind
 deploy-on-kind: manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
-	cd config/manager && $(KUSTOMIZE) edit set image quay.io/tkm/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image quay.io/tkm/agent=${AGENT_IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
 	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -
 	@echo "Deployment on Kind GPU cluster completed."
 

@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gkm-agent-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: gkm-agent
+    namespace: default
+roleRef:
+  kind: Role
+  name: gkm-agent-role
+  apiGroup: rbac.authorization.k8s.io

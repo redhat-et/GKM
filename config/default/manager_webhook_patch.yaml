@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
-  namespace: tkm-system
+  namespace: gkm-system
   labels:
     app.kubernetes.io/name: triton-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
