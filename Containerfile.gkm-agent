@@ -22,7 +22,7 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 
 # Copy the go source
-COPY cmd/gkm-agent/main.go cmd/main.go
+COPY agent/main.go cmd/main.go
 COPY api/ api/
 COPY pkg/ pkg/
 COPY vendor/ vendor/

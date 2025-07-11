@@ -22,7 +22,7 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 
 # Copy the go source
-COPY cmd/gkm-operator/main.go cmd/main.go
+COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY vendor/ vendor/

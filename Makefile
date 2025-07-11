@@ -158,11 +158,11 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build-gkm-operator
 build-gkm-operator: ## Build manager binary.
-	go build -o bin/gkm-operator ./cmd/gkm-operator
+	go build -o bin/gkm-operator ./cmd
 
 .PHONY: build-gkm-agent
 build-gkm-agent: ## Build agent binary.
-	go build -o bin/gkm-agent ./cmd/gkm-agent
+	go build -o bin/gkm-agent ./agent
 
 .PHONY: build  ## Build binaries.
 build: manifests generate fmt vet build-gkm-operator build-gkm-agent
