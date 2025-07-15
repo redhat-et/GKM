@@ -2,225 +2,180 @@
 
 ## Description
 GPU Kernel Manager is a software stack that aims to deploy, manage and
-monitor GPU Kernels in a Kubernetes
-cluster. It will use the utilities developed in
-[TKDK](https://github.com/redhat-et/TKDK) to accomplish these goals.
+monitor GPU Kernels in a Kubernetes cluster.
+It will use the utilities developed in [TKDK](https://github.com/redhat-et/TKDK)
+to accomplish these goals.
 
 ## Getting Started
 
 ### Prerequisites
 - go version v1.22.0+
-- docker version 17.03+.
+- podman version 5.3.1+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
-### To Deploy a cluster with a simulated GPU
+### To Deploy a Cluster With a Simulated GPU
 
-To create a kind cluster with a simulated GPU
+To simulate a GPU in `kind`, GKM is leveraging scripts in
+[kind-gpu-sim](https://github.com/maryamtahhan/kind-gpu-sim).
+These scripts require `podman` and some environment variables defined.
+If `kind` is not being used, then `docker` can be used to build images.
+`Makefile` will use `podman` if found, and fallback to `docker` if not found
+(but `make run-on-kind` will fail).
+
+To create a `kind` cluster with a simulated GPU and latest GKM running:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh | bash -s create [rocm|nvidia]
+export KIND_EXPERIMENTAL_PROVIDER=podman
+export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
+make run-on-kind
 ```
 
-To delete a kind cluster with a simulated GPU
+Check the GKM installed pods:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh | bash -s delete
+$ kubectl get pods -n gkm-system
+NAME                                     READY   STATUS    RESTARTS   AGE
+gkm-agent-7ggr2                          1/1     Running   0          74m
+gkm-agent-mc9h6                          1/1     Running   0          74m
+gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          74m
+gkm-csi-node-nd6qn                       2/2     Running   0          74m
+gkm-csi-node-tkkc8                       2/2     Running   0          74m
+gkm-test-pod                             1/1     Running   0          64m
 ```
 
-#### To run the gkm-operator on this kind cluster
-
-Start by building the operator controller and the operator controller image
+To delete a `kind` cluster with a simulated GPU:
 
 ```sh
-$ make build docker-build
-/home/mtahhan/GKM/bin/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-/home/mtahhan/GKM/bin/controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
-go fmt ./...
-go vet ./...
-go build -o bin/gkm-operator ./cmd/gkm-operator
-go build -o bin/gkm-agent ./cmd/gkm-agent
-docker build  -f Containerfile.gkm-operator -t quay.io/gkm/operator:latest .
-[+] Building 21.8s (19/19) FINISHED                                                                                                                                                                                   docker:default
- => [internal] load build definition from Containerfile.gkm-operator                                                                                                                                                            0.0s
- => => transferring dockerfile: 1.35kB                                                                                                                                                                                          0.0s
- => [internal] load metadata for public.ecr.aws/docker/library/golang:1.24.3                                                                                                                                                   20.4s
- => [internal] load metadata for public.ecr.aws/docker/library/ubuntu:22.04                                                                                                                                                    20.4s
- => [internal] load .dockerignore                                                                                                                                                                                               0.0s
- => => transferring context: 219B                                                                                                                                                                                               0.0s
- => [stage-1 1/3] FROM public.ecr.aws/docker/library/ubuntu:22.04@sha256:67cadaff1dca187079fce41360d5a7eb6f7dcd3745e53c79ad5efd8563118240                                                                                       0.0s
- => [internal] load build context                                                                                                                                                                                               1.2s
- => => transferring context: 1.47MB                                                                                                                                                                                             1.2s
- => [builder  1/10] FROM public.ecr.aws/docker/library/golang:1.24.3@sha256:39d9e7d9c5d9c9e4baf0d8fff579f06d5032c0f4425cdec9e86732e8e4e374dc                                                                                    0.0s
- => CACHED [builder  2/10] WORKDIR /workspace                                                                                                                                                                                   0.0s
- => CACHED [builder  3/10] RUN apt-get update &&     apt-get install -y         libgpgme-dev         btrfs-progs         libbtrfs-dev         libgpgme11-dev         libseccomp-dev         pkg-config         build-essential  0.0s
- => CACHED [builder  4/10] COPY go.mod go.mod                                                                                                                                                                                   0.0s
- => CACHED [builder  5/10] COPY go.sum go.sum                                                                                                                                                                                   0.0s
- => CACHED [builder  6/10] COPY cmd/gkm-operator/main.go cmd/main.go                                                                                                                                                            0.0s
- => CACHED [builder  7/10] COPY api/ api/                                                                                                                                                                                       0.0s
- => CACHED [builder  8/10] COPY internal/controller/ internal/controller/                                                                                                                                                     0.0s
- => CACHED [builder  9/10] COPY vendor/ vendor/                                                                                                                                                                                 0.0s
- => CACHED [builder 10/10] RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod vendor -o /workspace/manager cmd/main.go                                                                                                     0.0s
- => CACHED [stage-1 2/3] COPY --from=builder /workspace/manager /manager                                                                                                                                                        0.0s
- => CACHED [stage-1 3/3] RUN apt-get update &&     apt-get install -y         libgpgme11         libbtrfs0         libseccomp2 &&     apt-get clean                                                                             0.0s
- => exporting to image                                                                                                                                                                                                          0.0s
- => => exporting layers                                                                                                                                                                                                         0.0s
- => => writing image sha256:32bdbfe0c24fe2e31a36fa7b72e4444f6e997b861c1b1062ee41bb7a15333918                                                                                                                                    0.0s
- => => naming to quay.io/gkm/operator:latest                                                                                                                                                                                    0.0s
-docker build   -f Containerfile.gkm-agent -t quay.io/gkm/agent:latest .
-[+] Building 97.9s (19/19) FINISHED                                                                                                                                                                                   docker:default
- => [internal] load build definition from Containerfile.gkm-agent                                                                                                                                                               0.0s
- => => transferring dockerfile: 1.26kB                                                                                                                                                                                          0.0s
- => [internal] load metadata for public.ecr.aws/docker/library/ubuntu:22.04                                                                                                                                                     0.1s
- => [internal] load metadata for public.ecr.aws/docker/library/golang:1.24.3                                                                                                                                                    0.1s
- => [internal] load .dockerignore                                                                                                                                                                                               0.0s
- => => transferring context: 219B                                                                                                                                                                                               0.0s
- => [builder  1/10] FROM public.ecr.aws/docker/library/golang:1.24.3@sha256:39d9e7d9c5d9c9e4baf0d8fff579f06d5032c0f4425cdec9e86732e8e4e374dc                                                                                    0.0s
- => CACHED [stage-1 1/3] FROM public.ecr.aws/docker/library/ubuntu:22.04@sha256:67cadaff1dca187079fce41360d5a7eb6f7dcd3745e53c79ad5efd8563118240                                                                                0.0s
- => [internal] load build context                                                                                                                                                                                               1.2s
- => => transferring context: 1.43MB                                                                                                                                                                                             1.2s
- => CACHED [builder  2/10] WORKDIR /workspace                                                                                                                                                                                   0.0s
- => CACHED [builder  3/10] RUN apt-get update &&     apt-get install -y         libgpgme-dev         btrfs-progs         libbtrfs-dev         libgpgme11-dev         libseccomp-dev         pkg-config         build-essential  0.0s
- => CACHED [builder  4/10] COPY go.mod go.mod                                                                                                                                                                                   0.0s
- => CACHED [builder  5/10] COPY go.sum go.sum                                                                                                                                                                                   0.0s
- => [builder  6/10] COPY cmd/gkm-agent/main.go cmd/main.go                                                                                                                                                                      0.0s
- => [builder  7/10] COPY api/ api/                                                                                                                                                                                              0.0s
- => [builder  8/10] COPY pkg/ pkg/                                                                                                                                                                                              0.0s
- => [builder  9/10] COPY vendor/ vendor/                                                                                                                                                                                        4.2s
- => [builder 10/10] RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod vendor -o /workspace/agent cmd/main.go                                                                                                             59.9s
- => [stage-1 2/3] COPY --from=builder /workspace/agent /agent                                                                                                                                                                   0.0s
- => [stage-1 3/3] RUN apt-get update &&     apt-get install -y         libgpgme11         libbtrfs0         libseccomp2 &&     apt-get clean                                                                                   29.6s
- => exporting to image                                                                                                                                                                                                          1.5s
- => => exporting layers                                                                                                                                                                                                         1.5s
- => => writing image sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46                                                                                                                                    0.0s
- => => naming to quay.io/gkm/agent:latest
+make destroy-kind
 ```
 
-Load the images onto the kind cluster:
+### Install Test Pod Using GKM
 
-```sh
-$ kind load docker-image quay.io/gkm/operator --name kind-gpu-sim
-Image: "quay.io/gkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-control-plane", loading...
-Image: "quay.io/gkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-worker", loading...
-Image: "quay.io/gkm/operator" with ID "sha256:b1f3befec93f296e1a64363de5114d83a49d9b888f1cc8652baad481bd51b743" not yet present on node "kind-gpu-sim-worker2", loading...
-$ kind load docker-image quay.io/gkm/agent --name kind-gpu-sim
-Image: "quay.io/gkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-worker", loading...
-Image: "quay.io/gkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-worker2", loading...
-Image: "quay.io/gkm/agent" with ID "sha256:9d7003c82e0af4fa6e1cfab425cb93b37b9603f0232ef132dbe83ad96eb35d46" not yet present on node "kind-gpu-sim-control-plane", loading...
+There is an example yaml that creates a `GKMCache` custom resource (CR) instance
+which points an OCI Image with GPU Kernel Cache.
+Example:
+
+```yaml
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: flash-attention-rocm
+spec:
+  image: quay.io/mtahhan/flash-attention-rocm:latest
 ```
 
-Deploy the operator:
+The example yaml also includes a test pod that references the `GKMCache` CR instance.
+Example:
 
-```sh
- make deploy
-/home/mtahhan/GKM/bin/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-cd config/manager && /home/mtahhan/GKM/bin/kustomize edit set image controller=quay.io/gkm/operator:latest
-/home/mtahhan/GKM/bin/kustomize build config/default | kubectl apply -f -
-namespace/gkm-system created
-customresourcedefinition.apiextensions.k8s.io/ClusterGKMCaches.gkm.io created
-customresourcedefinition.apiextensions.k8s.io/GKMCacheNode.gkm.io created
-customresourcedefinition.apiextensions.k8s.io/GKMCaches.gkm.io created
-serviceaccount/gkm-operator-controller-manager created
-role.rbac.authorization.k8s.io/gkm-operator-leader-election-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-manager-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-metrics-auth-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-metrics-reader created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCache-editor-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCache-viewer-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-ClusterGKMCache-editor-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-ClusterGKMCache-viewer-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCacheNode-editor-role created
-clusterrole.rbac.authorization.k8s.io/gkm-operator-GKMCacheNode-viewer-role created
-rolebinding.rbac.authorization.k8s.io/gkm-operator-leader-election-rolebinding created
-clusterrolebinding.rbac.authorization.k8s.io/gkm-operator-manager-rolebinding created
-clusterrolebinding.rbac.authorization.k8s.io/gkm-operator-metrics-auth-rolebinding created
-service/gkm-operator-controller-manager-metrics-service created
-deployment.apps/gkm-operator-controller-manager created
+```yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: gkm-test-pod
+  namespace: gkm-system
+spec:
+  tolerations:
+    - key: gpu
+      operator: Equal
+      effect: NoSchedule
+      value: "true"
+  nodeSelector:
+    gkm-test-node: "true"
+  containers:
+  - name: alpine
+    :
+    volumeMounts:
+    - name: kernel-volume
+      mountPath: "/cache"
+  volumes:
+  - name: kernel-volume
+    csi:
+      driver: csi.gkm.io
+      volumeAttributes:
+        csi.gkm.io/GKMCache: flash-attention-rocm
 ```
 
-Check the GKM operator pod:
+Pod Spec Highlights:
+
+* The `volumes:` named `kernel-volume` references the GKM CSI driver via
+  `driver: csi.gkm.io` and references the GKM Cache CR via
+  `csi.gkm.io/GKMCache: flash-attention-rocm`.
+* The `volumeMounts:` named `kernel-volume` maps the GPU Kernel Cache to the directory `/cache`
+  within the pod.
+* There is a Node Selector `gkm-test-node: "true"`.
+  The `make run-on-kind` command adds this label to node `kind-gpu-sim-worker`.
+  This is help monitor logs while applying the pod.
+
+> **NOTE:** GKM is still a work in progress and the Agent and Operator are deployed but aren't
+> coded up to reconcile the CRDs.
+> To test, the OCI Image needs to be manually extracted to the node.
+> This is a temporary step.
+
+Because of the Node Selector, the test pod will be launched on node `kind-gpu-sim-worker`.
+Determine the CSI Plugin instant running on this node:
 
 ```sh
-$ kubectl get pods -A
-NAMESPACE            NAME                                                 READY   STATUS    RESTARTS   AGE
-kube-system          amdgpu-device-plugin-daemonset-qtnt9                 1/1     Running   0          6h48m
-kube-system          amdgpu-device-plugin-daemonset-zcwkg                 1/1     Running   0          6h48m
-kube-system          coredns-668d6bf9bc-2xskm                             1/1     Running   0          6h50m
-kube-system          coredns-668d6bf9bc-h6jdb                             1/1     Running   0          6h50m
-kube-system          etcd-kind-gpu-sim-control-plane                      1/1     Running   0          6h50m
-kube-system          kindnet-2cqbb                                        1/1     Running   0          6h50m
-kube-system          kindnet-bfjq6                                        1/1     Running   0          6h50m
-kube-system          kindnet-n9xj4                                        1/1     Running   0          6h50m
-kube-system          kube-apiserver-kind-gpu-sim-control-plane            1/1     Running   0          6h50m
-kube-system          kube-controller-manager-kind-gpu-sim-control-plane   1/1     Running   0          6h50m
-kube-system          kube-proxy-4wxtn                                     1/1     Running   0          6h50m
-kube-system          kube-proxy-97jwg                                     1/1     Running   0          6h50m
-kube-system          kube-proxy-qvt2j                                     1/1     Running   0          6h50m
-kube-system          kube-scheduler-kind-gpu-sim-control-plane            1/1     Running   0          6h50m
-local-path-storage   local-path-provisioner-7dc846544d-kjqqz              1/1     Running   0          6h50m
-gkm-system           gkm-operator-controller-manager-6ffb68ddb-2fdjl      1/1     Running   0          28s
+$ kubectl get pods -n gkm-system -o wide
+NAME                                     READY   STATUS    RESTARTS   AGE    IP           NODE
+gkm-agent-7ggr2                          1/1     Running   0          102m   10.244.1.6   kind-gpu-sim-worker
+gkm-agent-mc9h6                          1/1     Running   0          102m   10.244.2.3   kind-gpu-sim-worker2
+gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          102m   10.244.0.5   kind-gpu-sim-control-plane
+gkm-csi-node-nd6qn                       2/2     Running   0          102m   10.89.0.67   kind-gpu-sim-worker2
+**gkm-csi-node-tkkc8                       2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker**
 ```
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
-
-To build with podman:
+Exec into the CSI Plugin on node `kind-gpu-sim-worker` and use the GKM Agent Stub.
+This calls `TCV` to extracts the OCI Image into a directory on the Node.
 
 ```sh
-make docker-build CONTAINER_TOOL=podman IMG=quay.io/gkm/operator:latest CONTAINER_FLAGS="--network=host"
+$ kubectl exec -it -n gkm-system -c gkm-csi-node-plugin gkm-csi-node-tkkc8 -- sh
+sh-5.2#
+sh-5.2# gkm-agent-stub -load -image quay.io/mtahhan/flash-attention-rocm:latest -crdName flash-attention-rocm
+2025/07/15 18:25:03 Response from gRPC server's LoadKernelImage function: Load Image Request Succeeded
+sh-5.2#
+sh-5.2# ls /run/gkm/caches/cluster-scoped/flash-attention-rocm/
+c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6  c880dcbe2ffa9f4c96a3c5ce87fbf0b61a04ee4c46f96ee728d2d1efb65133f6  e0a7f37fbe7bb678faad9ffe683ba5d53d92645aefa5b62195bc2683b9971485
 ```
 
-To build with docker:
+Now the example yaml can be applied:
 
 ```sh
-make docker-build docker-push IMG=quay.io/gkm/operator:latest
+kubectl apply -f examples/flash-attention-rocm.yaml
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
+The `gkm-test-pod` should be running and the cache should be volume mounted in the pod:
 
 ```sh
-make install
+$ kubectl get pods -n gkm-system
+NAME                                     READY   STATUS    RESTARTS   AGE
+gkm-agent-7ggr2                          1/1     Running   0          74m
+gkm-agent-mc9h6                          1/1     Running   0          74m
+gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          74m
+gkm-csi-node-nd6qn                       2/2     Running   0          74m
+gkm-csi-node-tkkc8                       2/2     Running   0          74m
+gkm-test-pod                             1/1     Running   0          64m
+
+kubectl exec -it -n gkm-system gkm-test-pod -- sh
+sh-5.2# ls /cache/
+c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6  c880dcbe2ffa9f4c96a3c5ce87fbf0b61a04ee4c46f96ee728d2d1efb65133f6  e0a7f37fbe7bb678faad9ffe683ba5d53d92645aefa5b62195bc2683b9971485
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+### Build and Run Private GKM Build
+
+By default, `Makefile` defaults to `quay.io/gkm/*` for pushing and pulling.
+For building private images and testing, set the environment variable `QUAY_USER` to override
+image repository.
+
+**NOTE:** Make sure not to check-in `kustomization.yaml` files with overridden quay.io user account.
+
+Start by building and pushing the GKM images, then start `kind` cluster:
 
 ```sh
-make deploy IMG=quay.io/gkm/operator:latest
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
-```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
+export QUAY_USER=<UserName>
+make build-images
+make push-images
+make run-on-kind
 ```
 
 ## Project Distribution

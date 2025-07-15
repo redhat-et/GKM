@@ -24,7 +24,9 @@ COPY go.sum go.sum
 # Copy the go source
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
+COPY pkg/utils pkg/utils
 COPY internal/controller/ internal/controller/
+COPY config/csi-plugin/csi-driver.yaml config/csi-plugin/csi-driver.yaml
 COPY vendor/ vendor/
 
 # Build the binary with CGO enabled
@@ -35,6 +37,7 @@ FROM public.ecr.aws/docker/library/ubuntu:22.04
 
 # Copy the binary from the builder
 COPY --from=builder /workspace/manager /manager
+COPY --from=builder /workspace/config/csi-plugin/csi-driver.yaml /csi-driver.yaml
 
 # Install required runtime libraries for CGO (GPGME and others)
 RUN apt-get update && \

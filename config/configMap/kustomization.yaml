@@ -1,0 +1,14 @@
+resources:
+- configMap.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Patch the configMap.yaml to change the images and tag.
+# Because it is of "kind: ConfigMap", the data is opaque and kustomize can't
+# update image magically.
+configMapGenerator:
+- behavior: merge
+  literals:
+  - gkm.agent.image=quay.io/gkm/agent:latest
+  - gkm.csi.image=quay.io/gkm/gkm-csi-plugin:latest
+  name: config
+  namespace: kube-system

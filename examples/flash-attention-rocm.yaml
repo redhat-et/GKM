@@ -1,6 +1,35 @@
+---
 apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
   name: flash-attention-rocm
 spec:
   image: quay.io/mtahhan/flash-attention-rocm:latest
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: gkm-test-pod
+  namespace: gkm-system
+spec:
+  tolerations:
+    - key: gpu
+      operator: Equal
+      effect: NoSchedule
+      value: "true"
+  nodeSelector:
+    gkm-test-node: "true"
+  containers:
+    - name: alpine
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      volumeMounts:
+        - name: kernel-volume
+          mountPath: /cache
+  volumes:
+    - name: kernel-volume
+      csi:
+        driver: csi.gkm.io
+        volumeAttributes:
+          csi.gkm.io/GKMCache: flash-attention-rocm

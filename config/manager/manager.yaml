@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/name: gpu-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
   name: system
 ---
@@ -14,7 +14,7 @@ metadata:
   namespace: gkm-system
   labels:
     control-plane: controller-manager
-    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/name: gpu-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
 spec:
   selector:
@@ -55,8 +55,8 @@ spec:
         - key: "node-role.kubernetes.io/master"
           operator: "Exists"
           effect: "NoSchedule"
-      securityContext:
-        runAsNonRoot: true
+      # securityContext:
+        #runAsNonRoot: true
         # TODO(user): For common cases that do not require escalating privileges
         # it is recommended to ensure that all your Pods/Containers are restrictive.
         # More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
@@ -103,9 +103,40 @@ spec:
           - name: cert
             mountPath: /tmp/k8s-webhook-server/serving-certs
             readOnly: true
+
+      - name: csi-provisioner
+        image: k8s.gcr.io/sig-storage/csi-provisioner:v2.2.0
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - "-v=5"
+          - "--csi-address=$(ADDRESS)"
+          - "--timeout=30s"
+          - "--default-fstype=ext4"
+        env:
+          - name: ADDRESS
+            value: /csi/csi.sock
+        volumeMounts:
+          - name: socket-dir
+            mountPath: /csi
+      - name: csi-attacher
+        image: k8s.gcr.io/sig-storage/csi-attacher:v3.1.0
+        imagePullPolicy: "IfNotPresent"
+        args:
+          - "--csi-address=$(ADDRESS)"
+          - "--timeout=30s"
+          - "--v=5"
+        env:
+          - name: ADDRESS
+            value: /csi/csi.sock
+        volumeMounts:
+          - name: socket-dir
+            mountPath: /csi
+
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
         - name: cert
           secret:
             secretName: webhook-server-cert
+        - name: socket-dir
+          emptyDir: {}

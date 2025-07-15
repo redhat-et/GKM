@@ -1,0 +1,65 @@
+FROM golang:1.24 AS csi-builder
+ARG TARGETOS
+ARG TARGETARCH
+
+WORKDIR /workspace
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+# Copy the go source
+COPY csi-plugin/ csi-plugin/
+COPY pkg/ pkg/
+COPY test/ test/
+COPY vendor/ vendor/
+COPY Makefile Makefile
+
+# Build the GKM CSI Driver binary.
+RUN make build-csi
+RUN make build-agent-stub
+
+
+FROM golang:1.24 AS tcv-builder
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV CGO_ENABLED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgpgme-dev \
+    libbtrfs-dev \
+    build-essential \
+    git \
+    libc-dev \
+    libffi-dev \
+    linux-headers-amd64 \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+RUN git clone https://github.com/redhat-et/TKDK.git  --depth 1
+
+WORKDIR /workspace/TKDK/tcv
+RUN pwd && ls -al
+
+# Build TCV
+RUN make build
+
+# Use the fedora minimal image to reduce the size of the final image but still
+# be able to easily install extra packages.
+FROM quay.io/fedora/fedora-minimal
+
+RUN dnf update && dnf install -y \
+    gpgme-devel \
+    libbtrfs \
+ && dnf clean all
+
+# Copy the binary from the builder
+COPY --from=csi-builder /workspace/bin/gkm-csi-plugin /usr/sbin/.
+COPY --from=csi-builder /workspace/bin/gkm-agent-stub /usr/sbin/.
+COPY --from=tcv-builder /workspace/TKDK/tcv/_output/bin/linux_amd64/tcv /usr/sbin/.
+ENV PATH="$PATH:/usr/sbin"
+
+# Run as non-root user
+USER 65532:65532
+
+ENTRYPOINT ["gkm-csi-plugin", "--nogpu"]

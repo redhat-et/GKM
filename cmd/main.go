@@ -37,6 +37,7 @@ import (
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
 	"github.com/redhat-et/GKM/internal/controller"
+	"github.com/redhat-et/GKM/pkg/utils"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -144,6 +145,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controller.GKMConfigMapReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		CsiDriverYamlFile: utils.CsiDriverYamlFile,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GKMConfigMap")
+		os.Exit(1)
+	}
 	if err = (&controller.GKMCacheReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

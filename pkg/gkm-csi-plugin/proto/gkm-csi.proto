@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option go_package = "github.com/redhat-et/GKM/pkg/gkm-csi-plugin/proto";
+
+package gkmCsi;
+
+service GkmCsiService {
+  rpc LoadKernelImage(LoadKernelImageRequest) returns (LoadKernelImageResponse) {}
+  rpc UnloadKernelImage(UnloadKernelImageRequest) returns (UnloadKernelImageResponse) {}
+}
+
+message ImageLocation {
+    string url = 1;
+    optional int32 image_pull_policy = 2;
+    optional string username = 3;
+    optional string password = 4;
+}
+
+/* LoadKernelImageRequest represents a request to load a GPU Kernel Cache from
+ * an OCI Image.
+ */
+message LoadKernelImageRequest {
+    ImageLocation image = 1;
+    string name = 2;
+    optional string namespace = 3;
+}
+
+/* LoadKernelImageResponse represents a response from loading a GPU Kernel Cache from
+ * an OCI Image. The response contains success or failure
+ */
+ message LoadKernelImageResponse {
+    string message = 1;
+}
+
+/* UnloadKernelImageRequest represents a request to unload/delete a GPU Kernel Cache
+ * from the local filesystem.
+ */
+message UnloadKernelImageRequest {
+    string name = 2;
+    optional string namespace = 3;
+}
+
+/* UnloadKernelImageResponse represents a response from unloading a GPU Kernel Cache
+ * from the local filesystem. The response contains success or failure
+ */
+ message UnloadKernelImageResponse {
+    string message = 1;
+}
