@@ -18,12 +18,6 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
 
-KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
-
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -47,8 +41,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
-# gkm.io/triton-kernel-manager-operator-bundle:$VERSION and gkm.io/triton-kernel-manager-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= gkm.io/triton-kernel-manager-operator
+# gkm.io/gpu-kernel-manager-operator-bundle:$VERSION and gkm.io/gpu-kernel-manager-operator-catalog:$VERSION.
+IMAGE_TAG_BASE ?= gkm.io/gpu-kernel-manager-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -69,9 +63,11 @@ endif
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.39.2
 # Image URL to use all building/pushing image targets
+QUAY_USER ?= gkm
 IMAGE_TAG ?= latest
-OPERATOR_IMG ?= quay.io/gkm/operator:$(IMAGE_TAG)
-AGENT_IMG ?=quay.io/gkm/agent:$(IMAGE_TAG)
+OPERATOR_IMG ?= quay.io/$(QUAY_USER)/operator:$(IMAGE_TAG)
+AGENT_IMG ?=quay.io/$(QUAY_USER)/agent:$(IMAGE_TAG)
+CSI_IMG ?=quay.io/$(QUAY_USER)/gkm-csi-plugin:$(IMAGE_TAG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -83,10 +79,10 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # CONTAINER_TOOL defines the container tool to be used for building images.
-# Be aware that the target commands are only tested with Docker which is
-# scaffolded by default. However, you might want to replace it to use other
-# tools. (i.e. podman)
-CONTAINER_TOOL_PATH := $(shell which docker 2>/dev/null || which podman)
+# Defaulting to `podman` because the `run-on-kind` which leverages KIND_GPU_SIM_SCRIPT
+# (maryamtahhan/kind-gpu-sim) which requires docker.
+#CONTAINER_TOOL_PATH := $(shell which docker 2>/dev/null || which podman)
+CONTAINER_TOOL_PATH := $(shell which podman 2>/dev/null || which docker)
 CONTAINER_TOOL ?= $(shell basename ${CONTAINER_TOOL_PATH})
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
@@ -157,37 +153,59 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 ##@ Build
 
 .PHONY: build-gkm-operator
-build-gkm-operator: ## Build manager binary.
+build-gkm-operator:
 	go build -o bin/gkm-operator ./cmd
 
 .PHONY: build-gkm-agent
-build-gkm-agent: ## Build agent binary.
+build-gkm-agent:
 	go build -o bin/gkm-agent ./agent
 
-.PHONY: build  ## Build binaries.
-build: manifests generate fmt vet build-gkm-operator build-gkm-agent
+.PHONY: build-csi
+build-csi:
+	go build -o bin/gkm-csi-plugin ./csi-plugin
+
+# Temporary test binary for CSI
+.PHONY: build-agent-stub
+build-agent-stub:
+	go build -o bin/gkm-agent-stub ./test/gkm-agent-stub
+
+.PHONY: build
+build: manifests generate fmt vet build-gkm-operator build-gkm-agent build-csi build-agent-stub  ## Build all binaries.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
-.PHONY: docker-build-operator
-docker-build-operator:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --load -f Containerfile.gkm-operator -t ${OPERATOR_IMG} .
+.PHONY: build-image-operator
+build-image-operator:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-operator -t ${OPERATOR_IMG} .
 
-.PHONY: docker-build-agent
-docker-build-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
+.PHONY: build-image-agent
+build-image-agent:
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
+
+.PHONY: build-image-csi
+build-image-csi:
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-csi -t ${CSI_IMG} .
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
+.PHONY: build-images
+build-images: build-image-operator build-image-agent build-image-csi ## Build all container images.
+
+.PHONY: push-images
+push-images: ## Push all container image.
+	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_IMG}
+	$(CONTAINER_TOOL) push ${CSI_IMG}
+
+# Mapping old commands after rename
 .PHONY: docker-build
-docker-build: docker-build-operator docker-build-agent ## Build docker images.
+docker-build: build-images
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
+docker-push: push-images
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx OPERATOR_IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -199,11 +217,11 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Containerfile and insert --platform=${BUILDPLATFORM} into Containerfile.cross, and preserve the original Containerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Containerfile > Containerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name triton-kernel-manager-operator-builder
-	$(CONTAINER_TOOL) buildx use triton-kernel-manager-operator-builder
+	$(SED) -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Containerfile > Containerfile.cross
+	- $(CONTAINER_TOOL) buildx create --name gpu-kernel-manager-operator-builder
+	$(CONTAINER_TOOL) buildx use gpu-kernel-manager-operator-builder
 	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${OPERATOR_IMG} -f Containerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm triton-kernel-manager-operator-builder
+	- $(CONTAINER_TOOL) buildx rm gpu-kernel-manager-operator-builder
 	rm Containerfile.cross
 
 .PHONY: build-installer
@@ -211,6 +229,13 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
+
+.PHONY: proto
+proto: ## Build the gRPC protobuf. This generates gkm-csi_grpc.pb.go and gkm-csi.pb.go.
+	cd pkg/gkm-csi-plugin/proto && \
+	protoc --go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    gkm-csi.proto
 
 ##@ Cleanup
 
@@ -249,6 +274,11 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image agent=${AGENT_IMG}
+	cd config/csi-plugin && $(KUSTOMIZE) edit set image agent=${CSI_IMG}
+	cd config/configMap && \
+	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+		  kustomization.yaml.env > kustomization.yaml
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 	@echo "Deployment of operator and agent completed."
 
@@ -323,17 +353,26 @@ destroy-kind: ## Delete the Kind GPU cluster
 
 .PHONY: kind-load-images
 kind-load-images: get-example-images ## Load images into the Kind cluster
-	@echo "Loading operator image into Kind cluster: $(KIND_CLUSTER_NAME)"
+	@echo "Loading operator image ${OPERATOR_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading agent image into Kind cluster: $(KIND_CLUSTER_NAME)"
+	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Loading csi-driver image ${CSI_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${CSI_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
 .PHONY: deploy-on-kind
 deploy-on-kind: manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
+	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
+	cd config/configMap && \
+	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+		  kustomization.yaml.env > kustomization.yaml
 	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -
+	@echo "Add label gkm-test-node= to node kind-gpu-sim-worker."
+	kubectl label node kind-gpu-sim-worker gkm-test-node=true
 	@echo "Deployment on Kind GPU cluster completed."
 
 
@@ -369,10 +408,11 @@ CONTROLLER_TOOLS_VERSION ?= v0.16.1
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.59.1
 
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -426,6 +466,10 @@ endif
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(OPERATOR_IMG)
+	cd config/configMap && \
+	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+		  kustomization.yaml.env > kustomization.yaml
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle
 

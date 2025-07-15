@@ -1,0 +1,49 @@
+name: pull-request
+
+on: # yamllint disable-line rule:truthy
+  pull_request:
+    branches: ["*"]
+  push:
+    branches: [main]
+
+jobs:
+  build-lint-test:
+    name: Build (Go ${{ matrix.go }} - ${{ matrix.arch.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.23", "1.24"]
+        arch:
+          - arch: amd64
+            filename: linux-x86_64
+            # - arch: arm64
+            #   filename: linux-arm64
+            # - arch: ppc64le
+            #   filename: linux-ppc64le
+            # - arch: s390x
+            #   filename: linux-s390x
+    steps:
+      - name: Install go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Checkout GKM
+        uses: actions/checkout@v4
+
+      - name: Check format
+        if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.24' }}
+        run: make fmt && git add -A && git diff --exit-code
+
+      # TBD: Currently failing
+      # - name: Run lint
+      #   if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.24' }}
+      #   run: make lint
+
+      - name: Build Operator, Agent and CSI-Plugin
+        run: GOARCH=${{ matrix.arch.arch }} make build
+
+      - name: Unit Tests
+        if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.24' }}
+        run: sudo env "PATH=$PATH" make test

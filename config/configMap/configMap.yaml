@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config
+  namespace: gkm-system
+data:
+  ## Can be configured at runtime
+  gkm.agent.image: quay.io/gkm/agent:latest
+  gkm.csi.image: quay.io/gkm/gkm-csi-plugin:latest
+  ## Can be set to "info", "debug", or "trace"
+  gkm.agent.log.level: info
+  gkm.csi.log.level: info

@@ -6,7 +6,7 @@ namespace: gkm-system
 # "wordpress" becomes "alices-wordpress".
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
-namePrefix: gkm-operator-
+namePrefix: gkm-
 
 # Labels to add to all resources and selectors.
 #labels:
@@ -19,6 +19,8 @@ resources:
 - ../rbac
 - ../manager
 - ../agent
+- ../configMap
+- ../csi-plugin
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 - ../webhook

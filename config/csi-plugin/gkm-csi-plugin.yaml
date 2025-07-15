@@ -1,0 +1,148 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-node
+  namespace: gkm-system
+spec:
+  selector:
+    matchLabels:
+      app: gkm-csi-node
+  template:
+    metadata:
+      labels:
+        app: gkm-csi-node
+        role: gkm-csi
+    spec:
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      #serviceAccount: gkm-csi-node-sa
+      nodeSelector:
+        hardware-type: gpu
+      tolerations:
+        - key: "gpu"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+        # these tolerations are to have the daemonset runnable on control plane nodes
+        # remove them if your control plane nodes should not run pods
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: gpu
+          operator: Equal
+          effect: NoSchedule
+          value: "true"
+      # Specify FS group so that the agent can use the GKM socket
+      # without needing to be root.
+      securityContext:
+        runAsUser: 0
+      #   fsGroup: 2000
+      containers:
+        # GKM Node Plugin
+        - name: gkm-csi-node-plugin
+          image: quay.io/gkm/gkm-csi-plugin:latest
+          imagePullPolicy: "Always"
+          env:
+            - name: GO_LOG
+              value: info
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GKM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+            allowPrivilegeEscalation: true
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: gkm-runtime
+              mountPath: /run/gkm
+              mountPropagation: Bidirectional
+            - name: etc-dir
+              mountPath: /etc
+              readOnly: true
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - name: device-dir
+              mountPath: /dev
+
+        # CSI Registrar - Registers GKM CSI Plugin with Kubernetes
+        - name: csi-driver-registrar
+          image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.1
+          args:
+            - --v=5
+            - --csi-address=$(ADDRESS)
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+          #   - --health-port=9809
+          #   - --timeout=30s
+          # ports:
+          # - containerPort: 9809
+          #   name: healthz
+          # livenessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: healthz
+          #   initialDelaySeconds: 30
+          #   timeoutSeconds: 30
+          #   periodSeconds: 30
+          #   failureThreshold: 10
+          #   successThreshold: 1
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/csi-gkm/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+
+      volumes:
+        # This volume is where the node-driver-registrar registers the plugin
+        # with kubelet
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        # This volume is where the socket for kubelet->driver communication is held
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi-gkm/
+            type: DirectoryOrCreate
+        # This volume is the GKM runtime directory. This is where OCI Images will be
+        # expanded in
+        - name: gkm-runtime
+          hostPath:
+            path: /run/gkm
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: etc-dir
+          hostPath:
+            path: /etc
+        - name: device-dir
+          hostPath:
+            path: /dev
+        - name: udev-rules-dir
+          hostPath:
+            path: /etc/udev/rules.d/
