@@ -5,6 +5,27 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
   - gkm.io
   resources:
   - clustergkmcachenodes
@@ -24,6 +45,7 @@ rules:
   resources:
   - clustergkmcachenodes/finalizers
   - clustergkmcaches/finalizers
+  - configmaps/finalizers
   - gkmcachenodes/finalizers
   - gkmcaches/finalizers
   verbs:
@@ -39,3 +61,23 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - security.openshift.io
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - csidrivers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
