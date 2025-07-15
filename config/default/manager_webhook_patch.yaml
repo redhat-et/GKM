@@ -4,7 +4,7 @@ metadata:
   name: controller-manager
   namespace: gkm-system
   labels:
-    app.kubernetes.io/name: triton-kernel-manager-operator
+    app.kubernetes.io/name: gpu-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
 spec:
   template:
