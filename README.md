@@ -1,5 +1,7 @@
 # GPU-kernel-manager-operator
 
+<img src="docs/images/gkm-logo.png" alt="gkm" width="20%" height="auto">
+
 ## Description
 GPU Kernel Manager is a software stack that aims to deploy, manage and
 monitor GPU Kernels in a Kubernetes cluster.
