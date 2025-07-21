@@ -20,41 +20,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// ClusterGKMCacheSpec defines the desired state of ClusterGKMCache
-type ClusterGKMCacheSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of ClusterGKMCache. Edit clustergkmcache_types.go to remove/update
-	Name             string           `json:"name"`
-	Image            string           `json:"image"`
-	ResolvedDigest   string           `json:"resolvedDigest,omitempty"` // Injected by webhook or controller
-	KernelProperties KernelProperties `json:"kernelProperties,omitempty"`
-}
-
-// ClusterGKMCacheStatus defines the observed state of ClusterGKMCache
-type ClusterGKMCacheStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	LastSynced metav1.Time        `json:"lastSynced,omitempty"`
-	Summary    []KernelSummary    `json:"summary,omitempty"`
-	Digest     string             `json:"digest,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// ClusterGKMCache is the Schema for the clustergkmcaches API
+// ClusterGKMCache is the Schema for the cluster scoped GKMCaches API. Using
+// this API allows applications to pre-populate a GPU Kernel Cache in a Pod,
+// allowing the application to avoid having to build the kernel on the fly. The
+// cache is packaged in an OCI Image, which is referenced in the
+// ClusterGKMCache.
+//
+// The ClusterGKMCache.status field can be used to determine if any error
+// occurred in the loading of the GPU Kernel Cache. Because one image can be
+// loaded on multiple Kubernetes nodes, ClusterGKMCache.status is just a
+// summary, all loaded or something failed. GKM creates a ClusterGKMCacheNode
+// CR instance for each Kubernetes Node for each ClusterGKMCache instance. The
+// ClusterGKMCacheNode CRD provides load status for each GPU Kernel Cache for
+// each GPU on the node.
 type ClusterGKMCache struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ClusterGKMCacheSpec   `json:"spec,omitempty"`
-	Status ClusterGKMCacheStatus `json:"status,omitempty"`
+	Spec   GKMCacheSpec   `json:"spec,omitempty"`
+	Status GKMCacheStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

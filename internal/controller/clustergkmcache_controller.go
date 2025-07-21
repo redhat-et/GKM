@@ -62,7 +62,7 @@ func (r *ClusterGKMCacheReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	clusterCache.Status.LastSynced = metav1.Now()
+	clusterCache.Status.LastUpdated = metav1.Now()
 	setClusterCondition(&clusterCache, "Ready", metav1.ConditionTrue, "CacheReady", "Cluster-wide cache ready for use")
 
 	if err := r.Status().Update(ctx, &clusterCache); err != nil {
