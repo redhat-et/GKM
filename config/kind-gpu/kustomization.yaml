@@ -7,6 +7,12 @@ patches:
   - target:
       group: apps
       version: v1
-      kind: Deployment
+      kind: DaemonSet
       name: gkm-agent
     path: agent-patch.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: DaemonSet
+      name: gkm-csi-node
+    path: csi-patch.yaml

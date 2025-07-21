@@ -24,10 +24,3 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
-      nodeSelector:
-        hardware-type: gpu
-      tolerations:
-      - key: "gpu"
-        operator: "Equal"
-        value: "true"
-        effect: "NoSchedule"

@@ -63,7 +63,7 @@ type GKMConfigMapReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *GKMConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.Logger = ctrl.Log.WithName("configMap")
-	r.Logger.Info("BILLY: ConfigMap Reconcile ENTER")
+	r.Logger.Info("ConfigMap Reconcile ENTER")
 
 	gkmConfigMap := &corev1.ConfigMap{}
 	if err := r.Get(ctx, req.NamespacedName, gkmConfigMap); err != nil {
