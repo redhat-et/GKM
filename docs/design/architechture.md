@@ -624,5 +624,54 @@ consistency between the operator's in-memory data and the persistent storage.
 
 ## Future Work
 
-- Add metrics for the Kernel cache usage.
-- Improve signature validation with additional cosign policy support.
+- **Add metrics for kernel cache usage:**
+  Introduce Kernel metrics from GKM, including per-pod and per-node cache hit/miss ratios,
+  extraction times, and compatibility failures, and Kernel usage.
+
+- **Improve signature validation with additional cosign policy support:**
+  Add support for configurable cosign policies such as keyless verification, transparency
+  logs, and support for multiple signers or trusted keys to enhance supply chain security.
+
+- **Introduce Just-In-Time (JIT) Kernel Cache Mode:**
+  To avoid the overhead and complexity of precompiling and distributing kernel images for
+  every possible GPU and driver combination, GKM will support a **JIT Kernel Cache Mode**.
+  In this mode:
+
+  - When a pod requiring a kernel cache is scheduled, and no prebuilt cache exists for the specific
+    hardware (GPU model, driver version), GKM will initiate an **on-cluster compilation** of the
+    necessary kernel.
+  - This compilation can be triggered by the pod itself (when the model runs).
+  - Once the cache is compiled and tuned for the specific hardware:
+    - The GKM Agent will **sign** the generated cache contents and **package** the cache using TCV
+      into a compliant OCI container image. It will also **sign** the container image.
+    - The image will be **pushed automatically** to a configurable container registry
+      (e.g., Quay, Harbor, or any OCI-compliant registry).
+    - The GKM Operator will **label** and **register** this image in a corresponding GKMCache
+      or ClusterGKMCache CR, including compatibility metadata.
+    - Subsequent workloads on similar hardware can reuse the newly created kernel image, avoiding
+      recompilation.
+
+  **Benefits:**
+
+  - **One-time cost per hardware model**: Kernel cache compilation is performed once per unique
+    GPU/driver configuration in the cluster.
+  - **Reduced image sprawl**: Only kernel caches actually needed by running workloads are stored
+    and distributed.
+  - **Faster time-to-first-run**: Pods with compatible hardware benefit from prebuilt images
+    automatically in subsequent launches.
+  - **Scalable optimization**: New nodes or GPUs introduced into the cluster will generate their
+    own caches once, then use them persistently.
+
+  **Default Mode Behavior:**
+
+  This JIT Kernel Cache Mode is expected to be the **default operating mode**, with an option to
+  disable it for air-gapped or security-sensitive environments where all images must be pre-validated
+  and controlled externally.
+
+  **Configuration Considerations:**
+
+  - The push location (target registry) will be configurable via GKM ConfigMap or environment variable.
+  - Signing policies for JIT-generated images can be enforced using internal cosign keys or keyless
+    signing workflows.
+  - An optional retention policy can be configured to garbage-collect unused JIT kernel caches after a
+    specified TTL or number of image versions.
