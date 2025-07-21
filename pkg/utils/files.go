@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -113,6 +114,24 @@ func DirSize(path string) (int64, error) {
 		return nil
 	})
 	return totalSize, err
+}
+
+// IsDirEmpty checks if the directory at the given path is empty.
+func IsDirEmpty(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to open directory: %w", err)
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1) // Read at most one entry
+	if err == io.EOF {
+		return true, nil // Directory is empty
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to read directory entries: %w", err)
+	}
+	return false, nil // Directory is not empty
 }
 
 func InitializeLogging(logLevel string) logr.Logger {

@@ -25,14 +25,6 @@ const Name string = "GKM CSI Driver"
 // Version is the current version of the driver to set in the User-Agent header
 var Version string = "0.0.1"
 
-// CacheData contains metadata about a given Kernel Cache.
-type CacheData struct {
-	volumeSize    int64
-	clusterScoped bool
-	kernelName    string
-	namespace     string
-}
-
 // Driver implement the CSI endpoints for Identity, Node and Controller
 type Driver struct {
 	client.Client
@@ -45,10 +37,6 @@ type Driver struct {
 	grpcServer     *grpc.Server
 	log            logr.Logger
 
-	// volumeIdMapping stores metadata for each Kernel Cache and is
-	// indexed by the VolumeId sent from Kubelet.
-	volumeIdMapping map[string]CacheData
-
 	csi.UnimplementedNodeServer
 	csi.UnimplementedControllerServer
 	csi.UnimplementedIdentityServer
@@ -59,15 +47,14 @@ func NewDriver(log logr.Logger,
 	nodeName, namespace, socketFilename, cacheDir string,
 	testMode bool) (*Driver, error) {
 	return &Driver{
-		NodeName:        nodeName,
-		Namespace:       namespace,
-		SocketFilename:  socketFilename,
-		cacheDir:        cacheDir,
-		TestMode:        testMode,
-		mounter:         mount.New(""),
-		grpcServer:      &grpc.Server{},
-		log:             log,
-		volumeIdMapping: map[string]CacheData{},
+		NodeName:       nodeName,
+		Namespace:      namespace,
+		SocketFilename: socketFilename,
+		cacheDir:       cacheDir,
+		TestMode:       testMode,
+		mounter:        mount.New(""),
+		grpcServer:     &grpc.Server{},
+		log:            log,
 	}, nil
 }
 
