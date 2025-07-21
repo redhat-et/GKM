@@ -17,13 +17,7 @@ spec:
       hostNetwork: true
       priorityClassName: system-node-critical
       #serviceAccount: gkm-csi-node-sa
-      nodeSelector:
-        hardware-type: gpu
       tolerations:
-        - key: "gpu"
-          operator: "Equal"
-          value: "true"
-          effect: "NoSchedule"
         # these tolerations are to have the daemonset runnable on control plane nodes
         # remove them if your control plane nodes should not run pods
         - key: node-role.kubernetes.io/control-plane
@@ -32,10 +26,6 @@ spec:
         - key: node-role.kubernetes.io/master
           operator: Exists
           effect: NoSchedule
-        - key: gpu
-          operator: Equal
-          effect: NoSchedule
-          value: "true"
       # Specify FS group so that the agent can use the GKM socket
       # without needing to be root.
       securityContext:

@@ -11,4 +11,4 @@ configMapGenerator:
   - gkm.agent.image=quay.io/gkm/agent:latest
   - gkm.csi.image=quay.io/gkm/gkm-csi-plugin:latest
   name: config
-  namespace: kube-system
+  namespace: gkm-system

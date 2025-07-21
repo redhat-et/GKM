@@ -122,7 +122,7 @@ gkm-agent-7ggr2                          1/1     Running   0          102m   10.
 gkm-agent-mc9h6                          1/1     Running   0          102m   10.244.2.3   kind-gpu-sim-worker2
 gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          102m   10.244.0.5   kind-gpu-sim-control-plane
 gkm-csi-node-nd6qn                       2/2     Running   0          102m   10.89.0.67   kind-gpu-sim-worker2
-**gkm-csi-node-tkkc8                       2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker**
+gkm-csi-node-tkkc8                       2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker  <-- HERE
 ```
 
 Exec into the CSI Plugin on node `kind-gpu-sim-worker` and use the GKM Agent Stub.

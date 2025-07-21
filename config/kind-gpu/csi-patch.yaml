@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: gkm-agent
+  name: gkm-csi-node
 spec:
   template:
     spec:
