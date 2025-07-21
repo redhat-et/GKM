@@ -9,6 +9,8 @@ on: # yamllint disable-line rule:truthy
     branches: [main]
     tags:
       - v*
+  paths-ignore:
+    - docs/**
 
 jobs:
   build-and-push-images:
