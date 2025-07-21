@@ -51,6 +51,9 @@ var _ = Describe("ClusterGKMCache Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
+					Spec: gkmiov1alpha1.GKMCacheSpec{
+						Image: "quay.io/repository/gkm/vector-add-cache",
+					},
 					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())

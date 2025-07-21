@@ -62,7 +62,7 @@ func (r *GKMCacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
-	cache.Status.LastSynced = metav1.Now()
+	cache.Status.LastUpdated = metav1.Now()
 	setCondition(&cache, "Verified", metav1.ConditionTrue, "ImageVerified", "Image successfully verified")
 
 	if err := r.Status().Update(ctx, &cache); err != nil {

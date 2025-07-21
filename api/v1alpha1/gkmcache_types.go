@@ -20,46 +20,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// GKMCacheSpec defines the desired state of GKMCache
-type GKMCacheSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	Name           string `json:"name"`
-	Image          string `json:"image"`
-	ResolvedDigest string `json:"resolvedDigest,omitempty"` // Injected by webhook
-}
-
-type KernelProperties struct {
-	TritonVersion string          `json:"tritonVersion"`
-	Variant       string          `json:"variant,omitempty"`
-	EntryCount    int             `json:"entryCount,omitempty"`
-	Summary       []KernelSummary `json:"summary,omitempty"`
-}
-
-type KernelSummary struct {
-	Backend  string `json:"backend"`
-	Arch     string `json:"arch"`
-	WarpSize int    `json:"warp_size"`
-}
-
-// GKMCacheStatus defines the observed state of GKMCache
-type GKMCacheStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	LastSynced metav1.Time        `json:"lastSynced,omitempty"`
-	Summary    []KernelSummary    `json:"summary,omitempty"`
-	Digest     string             `json:"digest,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// GKMCache is the Schema for the gkmcaches API
+// GKMCache is the Schema for the namespace scoped GKMCaches API. Using this
+// API allows applications to pre-populate a GPU Kernel Cache in a Pod,
+// allowing the application to avoid having to build the kernel on the fly. The
+// cache is packaged in an OCI Image, which is referenced in the GKMCache.
+//
+// The GKMCache.status field can be used to determine if any errors occurred in
+// the loading of the GPU Kernel Cache. Because one image can be loaded on
+// multiple Kubernetes nodes, GKMCache.status is just a summary, all loaded or
+// something failed. GKM creates a GKMCacheNode CR instance for each Kubernetes
+// Node for each GKMCache instance. The GKMCacheNode CRD provides load status
+// for each GPU Kernel Cache for each GPU on the node.
 type GKMCache struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

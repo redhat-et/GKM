@@ -47,8 +47,8 @@ func (r *GKMCache) Default() {
 	gkmcachelog.Info("default", "name", r.Name)
 
 	// Hardcode example auto-populate ResolvedDigest if empty TODO update this for real
-	if r.Spec.ResolvedDigest == "" {
-		r.Spec.ResolvedDigest = "sha256:defaulted-digest-demo"
+	if r.Status.ResolvedDigest == "" {
+		r.Status.ResolvedDigest = "sha256:defaulted-digest-demo"
 	}
 }
 

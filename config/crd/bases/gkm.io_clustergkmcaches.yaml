@@ -17,7 +17,20 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ClusterGKMCache is the Schema for the clustergkmcaches API
+        description: |-
+          ClusterGKMCache is the Schema for the cluster scoped GKMCaches API. Using
+          this API allows applications to pre-populate a GPU Kernel Cache in a Pod,
+          allowing the application to avoid having to build the kernel on the fly. The
+          cache is packaged in an OCI Image, which is referenced in the
+          ClusterGKMCache.
+
+          The ClusterGKMCache.status field can be used to determine if any error
+          occurred in the loading of the GPU Kernel Cache. Because one image can be
+          loaded on multiple Kubernetes nodes, ClusterGKMCache.status is just a
+          summary, all loaded or something failed. GKM creates a ClusterGKMCacheNode
+          CR instance for each Kubernetes Node for each ClusterGKMCache instance. The
+          ClusterGKMCacheNode CRD provides load status for each GPU Kernel Cache for
+          each GPU on the node.
         properties:
           apiVersion:
             description: |-
@@ -37,53 +50,33 @@ spec:
           metadata:
             type: object
           spec:
-            description: ClusterGKMCacheSpec defines the desired state of ClusterGKMCache
+            description: |-
+              spec defines the desired state of the GKMCache. The GKMCache describes a GPU
+              Kernel Cache that can be deployed by a Pod. The GPU Kernel Cache is packaged
+              in an OCI Image which allows the cache to be distributed to Nodes.
             properties:
               image:
-                type: string
-              kernelProperties:
-                properties:
-                  entryCount:
-                    type: integer
-                  summary:
-                    items:
-                      properties:
-                        arch:
-                          type: string
-                        backend:
-                          type: string
-                        warp_size:
-                          type: integer
-                      required:
-                      - arch
-                      - backend
-                      - warp_size
-                      type: object
-                    type: array
-                  tritonVersion:
-                    type: string
-                  variant:
-                    type: string
-                required:
-                - tritonVersion
-                type: object
-              name:
-                description: Foo is an example field of ClusterGKMCache. Edit clustergkmcache_types.go
-                  to remove/update
-                type: string
-              resolvedDigest:
+                description: |-
+                  image is a required field and is a valid container image URL used to
+                  reference a remote GPU Kernel Cache image. url must not be an empty string,
+                  must not exceed 525 characters in length and must be a valid URL.
+                maxLength: 525
+                pattern: '[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}'
                 type: string
             required:
             - image
-            - name
             type: object
           status:
-            description: ClusterGKMCacheStatus defines the observed state of ClusterGKMCache
+            description: |-
+              status reflects the observed state of a GKMCache or ClusterGKMCluster
+              instance and indicates if the GPU Kernel Cache for a given instance loaded
+              successfully or not across all nodes. Use GKMCacheNode or
+              ClusterGKMClusterNode instances to determine the status for a given node.
             properties:
               conditions:
                 description: |-
-                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
+                  conditions contains the summary state for the GPU Kernel Cache for all the
+                  Kubernetes nodes in the cluster.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -139,26 +132,34 @@ spec:
                   - type
                   type: object
                 type: array
-              digest:
-                type: string
-              lastSynced:
+              failedNodes:
+                description: |-
+                  failedNodes contains the number of nodes the GKM Agent is running that have
+                  failures.
+                type: integer
+              lastUpdated:
+                description: |-
+                  lastUpdated contains the timestamp of the last time this instance was
+                  updated.
                 format: date-time
                 type: string
-              summary:
-                items:
-                  properties:
-                    arch:
-                      type: string
-                    backend:
-                      type: string
-                    warp_size:
-                      type: integer
-                  required:
-                  - arch
-                  - backend
-                  - warp_size
-                  type: object
-                type: array
+              readyNodes:
+                description: |-
+                  readyNodes contains the number of nodes the GKM Agent is running that have
+                  no failures.
+                type: integer
+              resolvedDigest:
+                description: resolvedDigest contains the digest of the image after
+                  it has been verified.
+                type: string
+              totalNodes:
+                description: totalNodes contains the total number of nodes the GKM
+                  Agent is running.
+                type: integer
+            required:
+            - failedNodes
+            - readyNodes
+            - totalNodes
             type: object
         type: object
     served: true
