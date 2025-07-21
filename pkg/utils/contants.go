@@ -15,7 +15,12 @@ const (
 
 	// DefaultCacheDir is the default root directory to store the expanded the GPU Kernel
 	// images.
-	DefaultCacheDir = "/run/gkm/caches"
+	DefaultCacheDir = "/var/lib/gkm/caches"
+
+	// DefaultUsageDir is the default root directory to store the usage data for the GPU Kernel
+	// images.
+	DefaultUsageDir = "/run/gkm/usage"
+	UsageFilename   = "usage.json"
 
 	// DefaultCacheDir is the default root directory to store the expanded the GPU Kernel
 	// images.

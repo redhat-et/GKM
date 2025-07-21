@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/redhat-et/GKM/pkg/usage"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
@@ -61,11 +62,11 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	// Determine if Namespace or Cluster Scoped.
 	clusterScoped := false
-	tkcNamespace, ok := req.VolumeContext[utils.CsiCacheNamespaceIndex]
+	crNamespace, ok := req.VolumeContext[utils.CsiCacheNamespaceIndex]
 	if !ok {
 		// Namespace is not required. If not provided, then assume it is a Cluster scoped
 		// GKMCache instance.
-		tkcNamespace = utils.ClusterScopedSubDir
+		crNamespace = utils.ClusterScopedSubDir
 		clusterScoped = true
 	}
 
@@ -74,7 +75,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	// OCI Image. Pull that out of the input data. The namespace and CRD name is
 	// embedded in the directory structure on the Node if it has been downloaded and
 	// expanded.
-	tkcName, ok := req.VolumeContext[utils.CsiCacheIndex]
+	crName, ok := req.VolumeContext[utils.CsiCacheIndex]
 	if !ok {
 		if clusterScoped {
 			d.log.Error(fmt.Errorf("must provide a GKMCacheCluster"), "invalid input")
@@ -87,16 +88,16 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	// Build up the directory name from the namespace and CRD name.
 	sourcePath := d.cacheDir
-	sourcePath = filepath.Join(sourcePath, tkcNamespace)
-	sourcePath = filepath.Join(sourcePath, tkcName)
+	sourcePath = filepath.Join(sourcePath, crNamespace)
+	sourcePath = filepath.Join(sourcePath, crName)
 	if _, err := os.Stat(sourcePath); err != nil {
 		if os.IsNotExist(err) {
 			if clusterScoped {
-				d.log.Error(fmt.Errorf("GKMCacheCluster has not been created"), "invalid input", "name", tkcName)
+				d.log.Error(fmt.Errorf("GKMCacheCluster has not been created"), "invalid input", "name", crName)
 				return nil, status.Error(codes.InvalidArgument, "GKMCacheCluster has not been created NodePublishVolume")
 			} else {
 				d.log.Error(fmt.Errorf("GKMCache has not been created"),
-					"invalid input", "name", tkcName, "namespace", tkcNamespace)
+					"invalid input", "name", crName, "namespace", crNamespace)
 				return nil, status.Error(codes.InvalidArgument, "GKMCache has not been created NodePublishVolume")
 			}
 		} else {
@@ -108,7 +109,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	// Make sure the target directory is created. This is where the Kernel Cache will
 	// be mounted into the Pod.
-	if err := os.MkdirAll(req.TargetPath, 0o750); err != nil {
+	if err := os.MkdirAll(req.TargetPath, 0755); err != nil {
 		d.log.Error(err, "failed to create target path", "volume_id", req.VolumeId, "targetPath", req.TargetPath)
 		return nil, err
 	}
@@ -123,8 +124,8 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 
 	// Code needs to be idempotent, so if already mounted, just return.
 	if mounted {
-		_, ok := d.volumeIdMapping[req.VolumeId]
-		if !ok {
+		_, err := usage.GetUsageDataByVolumeId(req.VolumeId, d.log)
+		if err != nil {
 			size, err := utils.DirSize(sourcePath)
 			if err != nil {
 				size = 0
@@ -132,11 +133,9 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 			}
 
 			// Save off the VolumeId mapping to CRD Info
-			d.volumeIdMapping[req.VolumeId] = CacheData{
-				volumeSize:    size,
-				clusterScoped: clusterScoped,
-				kernelName:    tkcName,
-				namespace:     tkcNamespace,
+			err = usage.AddUsageData(crNamespace, crName, req.VolumeId, size, d.log)
+			if err != nil {
+				d.log.Error(err, "unable to save usage data", "VolumeId", req.VolumeId)
 			}
 		}
 
@@ -164,11 +163,9 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		d.log.Error(err, "unable to get directory size", "sourcePath", sourcePath)
 	}
 
-	d.volumeIdMapping[req.VolumeId] = CacheData{
-		volumeSize:    size,
-		clusterScoped: clusterScoped,
-		kernelName:    tkcName,
-		namespace:     tkcNamespace,
+	err = usage.AddUsageData(crNamespace, crName, req.VolumeId, size, d.log)
+	if err != nil {
+		d.log.Error(err, "unable to save usage data", "VolumeId", req.VolumeId)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -190,13 +187,11 @@ func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublish
 		return nil, status.Error(codes.InvalidArgument, "must provide a TargetPath to NodeUnpublishVolume")
 	}
 
-	/* Check if Cache Data was created */
-	_, ok := d.volumeIdMapping[req.VolumeId]
-	if !ok {
-		d.log.Info("could not map VolumeId to GKMCache so volume must be deleted, just continue", "VolumeId",
+	/* Delete Cache Data */
+	err := usage.DeleteUsageData(req.VolumeId, d.log)
+	if err != nil {
+		d.log.Error(err, "usage deletion failed, just continue", "VolumeId",
 			req.VolumeId, "TargetPath", req.TargetPath)
-	} else {
-		delete(d.volumeIdMapping, req.VolumeId)
 	}
 
 	// Check if already mounted
@@ -260,23 +255,24 @@ func (d *Driver) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeS
 	}
 
 	/* Check if Cache Data was created */
-	cacheData, ok := d.volumeIdMapping[req.VolumeId]
-	if !ok {
+	usageData, err := usage.GetUsageDataByVolumeId(req.VolumeId, d.log)
+	if err != nil {
 		d.log.Error(fmt.Errorf("could not map VolumeId to GKMCache"), "invalid input")
 		return nil, status.Error(codes.InvalidArgument, "could not map VolumeId to GKMCache NodeUnpublishVolume")
 	}
 
 	d.log.Info("Node capacity statistics retrieved",
 		"bytes_available", 0,
-		"bytes_total", cacheData.volumeSize,
-		"bytes_used", cacheData.volumeSize)
+		"bytes_total", usageData.VolumeSize,
+		"bytes_used", usageData.VolumeSize,
+		"usageData", usageData)
 
 	return &csi.NodeGetVolumeStatsResponse{
 		Usage: []*csi.VolumeUsage{
 			{
 				Available: 0,
-				Total:     cacheData.volumeSize,
-				Used:      cacheData.volumeSize,
+				Total:     usageData.VolumeSize,
+				Used:      usageData.VolumeSize,
 				Unit:      csi.VolumeUsage_BYTES,
 			},
 		},
