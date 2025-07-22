@@ -5,12 +5,16 @@ name: image-build
 on: # yamllint disable-line rule:truthy
   pull_request:
     branches: ["*"]
+    paths-ignore:
+      - docs/**
+      - README.md
   push:
     branches: [main]
     tags:
       - v*
-  paths-ignore:
-    - docs/**
+    paths-ignore:
+      - docs/**
+      - README.md
 
 jobs:
   build-and-push-images:

@@ -3,10 +3,14 @@ name: pull-request
 on: # yamllint disable-line rule:truthy
   pull_request:
     branches: ["*"]
+    paths-ignore:
+      - docs/**
+      - README.md
   push:
     branches: [main]
-  paths-ignore:
-    - docs/**
+    paths-ignore:
+      - docs/**
+      - README.md
 
 jobs:
   build-lint-test:
