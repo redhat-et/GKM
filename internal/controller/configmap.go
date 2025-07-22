@@ -65,6 +65,8 @@ func (r *GKMConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	r.Logger = ctrl.Log.WithName("configMap")
 	r.Logger.Info("ConfigMap Reconcile ENTER")
 
+	// Update code to test github
+
 	gkmConfigMap := &corev1.ConfigMap{}
 	if err := r.Get(ctx, req.NamespacedName, gkmConfigMap); err != nil {
 		if !errors.IsNotFound(err) {
