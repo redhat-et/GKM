@@ -20,8 +20,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +genclient
+// +genclient:nonNamespaced
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
+
 // ClusterGKMCache is the Schema for the cluster scoped GKMCaches API. Using
 // this API allows applications to pre-populate a GPU Kernel Cache in a Pod,
 // allowing the application to avoid having to build the kernel on the fly. The
@@ -35,6 +39,9 @@ import (
 // CR instance for each Kubernetes Node for each ClusterGKMCache instance. The
 // ClusterGKMCacheNode CRD provides load status for each GPU Kernel Cache for
 // each GPU on the node.
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type ClusterGKMCache struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

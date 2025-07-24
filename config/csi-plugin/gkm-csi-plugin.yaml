@@ -57,6 +57,9 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+            - name: gkm-state
+              mountPath: /var/lib/gkm
+              mountPropagation: Bidirectional
             - name: gkm-runtime
               mountPath: /run/gkm
               mountPropagation: Bidirectional
@@ -117,8 +120,14 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/csi-gkm/
             type: DirectoryOrCreate
-        # This volume is the GKM runtime directory. This is where OCI Images will be
-        # expanded in
+        # This volume is the GKM Runtime directory. This is where the Usage data
+        # will tracked which pods are using which cache.
+        - name: gkm-state
+          hostPath:
+            path: /var/lib/gkm
+            type: DirectoryOrCreate
+        # This volume is the GKM runtime directory. This is where the Cache Usage
+        # will be tracked.
         - name: gkm-runtime
           hostPath:
             path: /run/gkm

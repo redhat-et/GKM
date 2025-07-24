@@ -14,13 +14,45 @@ spec:
       labels:
         app: gkm-agent
     spec:
+      serviceAccountName: gkm-agent
       containers:
       - name: gkm-agent
         image: quay.io/gkm/agent:latest
         imagePullPolicy: IfNotPresent
         securityContext:
+          runAsUser: 0
           privileged: true
+          capabilities:
+            add: ["CAP_DAC_OVERRIDE", "CAP_FOWNER"]
+        env:
+          - name: GO_LOG
+            value: info
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
         resources:
           limits:
             memory: "128Mi"
             cpu: "100m"
+        volumeMounts:
+          - name: gkm-state
+            mountPath: /var/lib/gkm
+            mountPropagation: Bidirectional
+          - name: gkm-runtime
+            mountPath: /run/gkm
+            mountPropagation: Bidirectional
+
+      volumes:
+        # This volume is the GKM State directory. This is where GPU Kernel Cache
+        # will be extracted.
+        - name: gkm-state
+          hostPath:
+            path: /var/lib/gkm
+            type: DirectoryOrCreate
+        # This volume is the GKM Runtime directory. This is where the Usage data
+        # will tracked which pods are using which cache.
+        - name: gkm-runtime
+          hostPath:
+            path: /run/gkm
+            type: DirectoryOrCreate

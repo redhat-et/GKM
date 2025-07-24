@@ -9,6 +9,8 @@ kind: GKMCache
 metadata:
   name: flash-attention-rocm
   namespace: gkm-test-ns-scoped
+  annotations:
+    gkm.io/resolvedDigest: 424f8764e001f90156067c3035628bcbce666b92db63bcef90fd2ebab9948b43
 spec:
   image: quay.io/mtahhan/flash-attention-rocm:latest
 ---

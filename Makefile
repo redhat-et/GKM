@@ -119,7 +119,9 @@ vendors: ## Refresh vendors directory.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=agent-role paths="./internal/controller/gkm-agent/..." output:rbac:artifacts:config=config/rbac/gkm-agent
+	$(CONTROLLER_GEN) rbac:roleName=operator-role paths="./internal/controller/gkm-operator" output:rbac:artifacts:config=config/rbac/gkm-operator
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -164,13 +166,8 @@ build-gkm-agent:
 build-csi:
 	go build -o bin/gkm-csi-plugin ./csi-plugin
 
-# Temporary test binary for CSI
-.PHONY: build-agent-stub
-build-agent-stub:
-	go build -o bin/gkm-agent-stub ./test/gkm-agent-stub
-
 .PHONY: build
-build: manifests generate fmt vet build-gkm-operator build-gkm-agent build-csi build-agent-stub  ## Build all binaries.
+build: manifests generate fmt vet build-gkm-operator build-gkm-agent build-csi ## Build all binaries.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -229,13 +226,6 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
-
-.PHONY: proto
-proto: ## Build the gRPC protobuf. This generates gkm-csi_grpc.pb.go and gkm-csi.pb.go.
-	cd pkg/gkm-csi-plugin/proto && \
-	protoc --go_out=. --go_opt=paths=source_relative \
-    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-    gkm-csi.proto
 
 ##@ Cleanup
 
@@ -306,6 +296,8 @@ GPU_TYPE ?= rocm
 get-example-images:
 	$(CONTAINER_TOOL) pull quay.io/gkm/vector-add-cache:rocm
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/vector-add-cache:rocm --cluster-name=$(KIND_CLUSTER_NAME)
+	$(CONTAINER_TOOL) pull quay.io/mtahhan/flash-attention-rocm:latest
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/mtahhan/flash-attention-rocm:latest --cluster-name=$(KIND_CLUSTER_NAME)
 
 .PHONY: deploy-webhook-certs
 deploy-webhook-certs:

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package gkmoperator
 
 import (
 	"context"
@@ -121,4 +121,13 @@ func setNodeCondition(obj *gkmv1alpha1.GKMCacheNode, condType string, status met
 		Message:            msg,
 		LastTransitionTime: metav1.Now(),
 	})
+}
+
+func isConditionTrue(conds []metav1.Condition, condType string) bool {
+	for _, c := range conds {
+		if c.Type == condType && c.Status == metav1.ConditionTrue {
+			return true
+		}
+	}
+	return false
 }

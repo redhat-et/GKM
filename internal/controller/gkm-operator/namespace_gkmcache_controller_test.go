@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package gkmoperator
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	gkmiov1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
 )
 
-var _ = Describe("ClusterGKMCacheNode Controller", func() {
+var _ = Describe("GKMCacheNode Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("ClusterGKMCacheNode Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		clustergkmcachenode := &gkmiov1alpha1.ClusterGKMCacheNode{}
+		gkmcachenode := &gkmiov1alpha1.GKMCacheNode{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind ClusterGKMCacheNode")
-			err := k8sClient.Get(ctx, typeNamespacedName, clustergkmcachenode)
+			By("creating the custom resource for the Kind GKMCacheNode")
+			err := k8sClient.Get(ctx, typeNamespacedName, gkmcachenode)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &gkmiov1alpha1.ClusterGKMCacheNode{
+				resource := &gkmiov1alpha1.GKMCacheNode{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,16 +59,16 @@ var _ = Describe("ClusterGKMCacheNode Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &gkmiov1alpha1.ClusterGKMCacheNode{}
+			resource := &gkmiov1alpha1.GKMCacheNode{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance ClusterGKMCacheNode")
+			By("Cleanup the specific resource instance GKMCacheNode")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &ClusterGKMCacheNodeReconciler{
+			controllerReconciler := &GKMCacheNodeReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

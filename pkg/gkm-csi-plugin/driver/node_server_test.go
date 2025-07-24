@@ -14,16 +14,18 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/redhat-et/GKM/pkg/database"
+	gkmTesting "github.com/redhat-et/GKM/pkg/testing"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
 const (
 	// TestDir is the temporary directory for storing files used during testing.
-	TestDir = "/tmp/csi-gkm"
+	TestDir = "/tmp/gkm-csi"
 
 	// DefaultSocketFilename is the location of the Unix domain socket for this CSI driver
 	// for Kubelet to send requests.
-	TestSocketFilename string = "unix:///tmp/csi-gkm/notused.sock"
+	TestSocketFilename string = "unix:///tmp/gkm-csi/notused.sock"
 
 	// TestImagePort is the location of port the Image Server will listen on for GKM
 	// to send requests.
@@ -31,14 +33,30 @@ const (
 
 	// TestCacheDir is the default root directory to store the expanded the GPU Kernel
 	// images.
-	TestCacheDir = "/tmp/csi-gkm/caches"
+	TestCacheDir = "/tmp/gkm-csi/caches"
 )
+
+type TestData struct {
+	CrNamespace  string
+	CrName       string
+	Digest       string
+	VolumeId     string
+	Image        string
+	PodNamespace string
+	PodName      string
+	PodUid       string
+}
+
+//go:generate go run -tags "testStubs"
 
 func TestNodePublishVolume(t *testing.T) {
 	t.Run("Publish a volume", func(t *testing.T) {
 		// Setup logging before anything else so code can log errors.
 		logf.SetLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(os.Stderr)))
 		log := ctrl.Log.WithName("gkm-csi-driver")
+
+		// For Testing, override the location of the stored data
+		database.ExportForTestInitializeCachePath(TestCacheDir)
 
 		t.Logf("REMINDER: Use 'sudo env \"PATH=$PATH\" make test' so CSI can test mounting logic.")
 
@@ -56,91 +74,98 @@ func TestNodePublishVolume(t *testing.T) {
 		}()
 
 		// Instance 1: Cluster Scoped
-		gkmCacheNs1 := ""
-		volumeId1 := "csi-0123456789abcdef000000000000000000000000000000000000000000000001"
-		podUid1 := "fedcba98-7654-3210-dead-000000000001"
-		podName1 := "testPod-1"
-		podNs1 := "testpod1"
-		gkmCacheCrd1 := "rocmKernel"
+		t1 := TestData{
+			CrNamespace:  "",
+			CrName:       "rocmKernel",
+			Digest:       "1111111111111111111111111111111111111111111111111111111111111111",
+			VolumeId:     "csi-0123456789abcdef000000000000000000000000000000000000000000000001",
+			Image:        "quay.io/test/tstImage1:latest",
+			PodNamespace: "testpod1",
+			PodName:      "testPod-1",
+			PodUid:       "fedcba98-7654-3210-dead-000000000001",
+		}
 
 		// Instance 2: Namespace Scoped
-		gkmCacheNs2 := "testpod2"
-		volumeId2 := "csi-0123456789abcdef000000000000000000000000000000000000000000000002"
-		podUid2 := "fedcba98-7654-3210-dead-000000000002"
-		podName2 := "testPod-2"
-		podNs2 := "testpod2"
-		gkmCacheCrd2 := "rocmKernel"
+		t2 := TestData{
+			CrNamespace:  "testpod2",
+			CrName:       "rocmKernel",
+			Digest:       "2222222222222222222222222222222222222222222222222222222222222222",
+			VolumeId:     "csi-0123456789abcdef000000000000000000000000000000000000000000000002",
+			Image:        "quay.io/test/tstImage2:latest",
+			PodNamespace: "testpod2",
+			PodName:      "testPod-2",
+			PodUid:       "fedcba98-7654-3210-dead-000000000002",
+		}
 
 		// Instance 1 - Populated the Request Structure for a NodePublishVolume() call.
-		pubReq1, err := buildNodePublishVolumeRequest(volumeId1, podUid1, podName1, podNs1, gkmCacheCrd1)
+		pubReq1, err := buildNodePublishVolumeRequest(t1)
 		require.NoError(t, err)
 
 		// TEST: Instance 1 - Call NodePublishVolume() where it is expected to fail because
 		// the OCI Image has not been downloaded.
-		t.Logf("TEST: Instance 1 - Calling NodePublishVolume() to Fail")
+		t.Logf("TEST 1: Instance 1 - Calling NodePublishVolume() to Fail - Cache Not extracted yet")
 		_, err = d.NodePublishVolume(context.Background(), pubReq1)
 		t.Logf("Instance 1 - NodePublishVolume() err: %v", err)
 		require.Error(t, err)
 
 		// Instance 1 - Create files from the OCI Image download
-		err = createImageFiles(TestCacheDir, gkmCacheNs1, gkmCacheCrd1)
+		err = gkmTesting.ExtractCacheImage(TestCacheDir, t1.CrNamespace, t1.CrName, t1.Digest, t1.Image, log)
 		require.NoError(t, err)
 
 		// TEST: Instance 1 - Call NodePublishVolume() where it is expected to pass.
-		t.Logf("TEST: Instance 1 - Calling NodePublishVolume() to Succeed")
+		t.Logf("TEST 2: Instance 1 - Calling NodePublishVolume() to Succeed")
 		_, err = d.NodePublishVolume(context.Background(), pubReq1)
 		t.Logf("Instance 1 - NodePublishVolume() err: %v", err)
 		require.NoError(t, err)
 
 		// Instance 2 - Populated the Request Structure for a NodePublishVolume() call.
-		pubReq2, err := buildNodePublishVolumeRequest(volumeId2, podUid2, podName2, podNs2, gkmCacheCrd2)
+		pubReq2, err := buildNodePublishVolumeRequest(t2)
 		require.NoError(t, err)
 
 		// Instance 2 - Create files from the OCI Image download
-		err = createImageFiles(TestCacheDir, gkmCacheNs2, gkmCacheCrd2)
+		err = gkmTesting.ExtractCacheImage(TestCacheDir, t2.CrNamespace, t2.CrName, t2.Digest, t2.Image, log)
 		require.NoError(t, err)
 
 		// TEST: Instance 2 - Call NodePublishVolume() where it is expected to pass.
-		t.Logf("TEST: Instance 2 - Calling NodePublishVolume() to Succeed")
+		t.Logf("TEST 3: Instance 2 - Calling NodePublishVolume() to Succeed")
 		_, err = d.NodePublishVolume(context.Background(), pubReq2)
 		t.Logf("Instance 2 - NodePublishVolume() err: %v", err)
 		require.NoError(t, err)
 
 		// Instance 1 - Populated the Request Structure for a NodeUnpublishVolume() call.
-		unpubReq1, err := buildNodeUnpublishVolumeRequest(volumeId1, podUid1)
+		unpubReq1, err := buildNodeUnpublishVolumeRequest(t1)
 		require.NoError(t, err)
 
 		// TEST: Instance 1 - Call NodeUnpublishVolume() where it is expected to pass.
-		t.Logf("TEST: Instance 1 - Calling NodeUnpublishVolume() to Succeed")
+		t.Logf("TEST 4: Instance 1 - Calling NodeUnpublishVolume() to Succeed")
 		_, err = d.NodeUnpublishVolume(context.Background(), unpubReq1)
 		t.Logf("NodePublishVolume() err: %v", err)
 		require.NoError(t, err)
 
 		// TEST: Instance 1 - Call NodeUnpublishVolume() even though it is already deleted,
 		// expected to pass.
-		t.Logf("TEST: Instance 1 - Calling NodeUnpublishVolume() to Succeed")
+		t.Logf("TEST 5: Instance 1 - Calling NodeUnpublishVolume() to Succeed")
 		_, err = d.NodeUnpublishVolume(context.Background(), unpubReq1)
 		t.Logf("NodePublishVolume() err: %v", err)
 		require.NoError(t, err)
 
 		// Instance 2 - Populated the Request Structure for a NodeUnpublishVolume() call.
-		unpubReq2, err := buildNodeUnpublishVolumeRequest(volumeId2, podUid2)
+		unpubReq2, err := buildNodeUnpublishVolumeRequest(t2)
 		require.NoError(t, err)
 
 		// TEST: Instance 2 - Call NodeUnpublishVolume() where it is expected to pass.
-		t.Logf("TEST: Instance 2 - Calling NodeUnpublishVolume() to Succeed")
+		t.Logf("TEST 6: Instance 2 - Calling NodeUnpublishVolume() to Succeed")
 		_, err = d.NodeUnpublishVolume(context.Background(), unpubReq2)
 		t.Logf("NodePublishVolume() err: %v", err)
 		require.NoError(t, err)
 	})
 }
 
-func buildNodePublishVolumeRequest(volumeId, podUid, podName, podNs, gkmCacheCrd string,
-) (*csi.NodePublishVolumeRequest, error) {
+func buildNodePublishVolumeRequest(tstData TestData) (*csi.NodePublishVolumeRequest, error) {
 	req := csi.NodePublishVolumeRequest{
-		VolumeId:          volumeId,
+		VolumeId:          tstData.VolumeId,
 		StagingTargetPath: "",
-		TargetPath:        TestDir + "/kubelet/pods/" + podUid + "/volumes/kubernetes.io~csi/kernel-volume/mount",
+		TargetPath:        TestDir + "/kubelet/pods/" + tstData.PodUid + "/volumes/kubernetes.io~csi/kernel-volume/mount",
 		VolumeCapability: &csi.VolumeCapability{
 			AccessType: &csi.VolumeCapability_Mount{},
 			AccessMode: &csi.VolumeCapability_AccessMode{
@@ -150,43 +175,35 @@ func buildNodePublishVolumeRequest(volumeId, podUid, podName, podNs, gkmCacheCrd
 	}
 	req.VolumeContext = make(map[string]string)
 	req.VolumeContext["csi.storage.k8s.io/ephemeral"] = "true"
-	req.VolumeContext["csi.storage.k8s.io/pod.name"] = podName
-	req.VolumeContext["csi.storage.k8s.io/pod.namespace"] = podNs
-	req.VolumeContext["csi.storage.k8s.io/pod.uid"] = podUid
+	req.VolumeContext["csi.storage.k8s.io/pod.namespace"] = tstData.PodNamespace
+	req.VolumeContext["csi.storage.k8s.io/pod.name"] = tstData.PodName
+	req.VolumeContext["csi.storage.k8s.io/pod.uid"] = tstData.PodUid
 	req.VolumeContext["csi.storage.k8s.io/serviceAccount.name"] = "default"
 
-	if gkmCacheCrd != "" {
-		req.VolumeContext["csi.gkm.io/GKMCache"] = gkmCacheCrd
-	}
+	req.VolumeContext[utils.CsiCacheNamespaceIndex] = tstData.CrNamespace
+	req.VolumeContext[utils.CsiCacheNameIndex] = tstData.CrName
 
 	return &req, nil
 }
 
-func buildNodeUnpublishVolumeRequest(volumeId, podUid string,
-) (*csi.NodeUnpublishVolumeRequest, error) {
+func buildNodeUnpublishVolumeRequest(tstData TestData) (*csi.NodeUnpublishVolumeRequest, error) {
 	req := csi.NodeUnpublishVolumeRequest{
-		VolumeId:   volumeId,
-		TargetPath: TestDir + "/kubelet/pods/" + podUid + "/volumes/kubernetes.io~csi/kernel-volume/mount",
+		VolumeId:   tstData.VolumeId,
+		TargetPath: TestDir + "/kubelet/pods/" + tstData.PodUid + "/volumes/kubernetes.io~csi/kernel-volume/mount",
 	}
 
 	return &req, nil
 }
 
-func createImageFiles(cacheDir, namespace, kernelName string) error {
-	outputDir := cacheDir
-
-	if namespace == "" {
-		namespace = utils.ClusterScopedSubDir
-	}
-	outputDir = filepath.Join(outputDir, namespace)
-
-	if kernelName != "" {
-		outputDir = filepath.Join(outputDir, kernelName)
+func createCacheImageFiles(tstData TestData, log logr.Logger) error {
+	outputDir, err := database.BuildDbDir(TestCacheDir, tstData.CrNamespace, tstData.CrName, tstData.Digest, log)
+	if err != nil {
+		return err
 	}
 
 	// Directory 1
 	sampleDir := filepath.Join(outputDir, "CETLGDE7YAKGU4FRJ26IM6S47TFSIUU7KWBWDR3H2K3QRNRABUCA")
-	err := os.MkdirAll(sampleDir, 0755)
+	err = os.MkdirAll(sampleDir, 0755)
 	if err != nil {
 		return err
 	}
@@ -241,6 +258,10 @@ func createImageFiles(cacheDir, namespace, kernelName string) error {
 		return err
 	}
 	file.Close()
+
+	if err := database.ExportForTestWriteCacheFile(tstData.CrNamespace, tstData.CrName, tstData.Image, tstData.Digest, log); err != nil {
+		return err
+	}
 
 	return nil
 }

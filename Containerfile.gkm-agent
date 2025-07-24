@@ -25,6 +25,7 @@ COPY go.sum go.sum
 COPY agent/main.go cmd/main.go
 COPY api/ api/
 COPY pkg/ pkg/
+COPY internal/controller/ internal/controller/
 COPY vendor/ vendor/
 
 # Build the binary with CGO enabled
@@ -39,6 +40,7 @@ COPY --from=builder /workspace/agent /agent
 # Install required runtime libraries for CGO
 RUN apt-get update && \
     apt-get install -y \
+        ca-certificates \
         libgpgme11 \
         libbtrfs0 \
         libseccomp2 && \
