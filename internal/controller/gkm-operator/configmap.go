@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package gkmoperator
 
 import (
 	"context"
@@ -74,7 +74,7 @@ func (r *GKMConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	} else {
 		if updated := controllerutil.AddFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer); updated {
 			if err := r.Update(ctx, gkmConfigMap); err != nil {
-				r.Logger.Error(err, "failed adding bpfman-operator finalizer to bpfman config")
+				r.Logger.Error(err, "failed adding gkm-operator finalizer to GKM ConfigMap")
 				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryDurationOperator}, nil
 			}
 		}

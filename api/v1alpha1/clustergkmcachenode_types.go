@@ -38,10 +38,16 @@ type ClusterGKMCacheNodeStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
+// +genclient
+// +genclient:nonNamespaced
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // ClusterGKMCacheNode is the Schema for the clustergkmcachenodes API
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type ClusterGKMCacheNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

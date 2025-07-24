@@ -1,0 +1,44 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-role
+rules:
+- apiGroups:
+  - gkm.io
+  resources:
+  - clustergkmcachenodes
+  - gkmcachenodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gkm.io
+  resources:
+  - clustergkmcachenodes/finalizers
+  - gkmcachenodes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gkm.io
+  resources:
+  - clustergkmcachenodes/status
+  - gkmcachenodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gkm.io
+  resources:
+  - clustergkmcaches
+  - gkmcaches
+  verbs:
+  - get
+  - list
+  - watch

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package gkmagent
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	gkmiov1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
 )
 
-var _ = Describe("GKMCache Controller", func() {
+var _ = Describe("ClusterGKMCache Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("GKMCache Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		gkmcache := &gkmiov1alpha1.GKMCache{}
+		clustergkmcache := &gkmiov1alpha1.ClusterGKMCache{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind GKMCache")
-			err := k8sClient.Get(ctx, typeNamespacedName, gkmcache)
+			By("creating the custom resource for the Kind ClusterGKMCache")
+			err := k8sClient.Get(ctx, typeNamespacedName, clustergkmcache)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &gkmiov1alpha1.GKMCache{
+				resource := &gkmiov1alpha1.ClusterGKMCache{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -62,16 +62,16 @@ var _ = Describe("GKMCache Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &gkmiov1alpha1.GKMCache{}
+			resource := &gkmiov1alpha1.ClusterGKMCache{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance GKMCache")
+			By("Cleanup the specific resource instance ClusterGKMCache")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &GKMCacheReconciler{
+			controllerReconciler := &ClusterGKMCacheReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

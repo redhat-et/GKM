@@ -133,22 +133,6 @@ gkm-csi-node-tkkc8                       2/2     Running   0          102m   10.
 ```
 <!-- markdownlint-enable  MD013 -->
 
-Exec into the CSI Plugin on node `kind-gpu-sim-worker` and use the GKM Agent Stub.
-This calls `TCV` to extracts the OCI Image into a directory on the Node.
-
-<!-- markdownlint-disable  MD013 -->
-<!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
-```sh
-$ kubectl exec -it -n gkm-system -c gkm-csi-node-plugin gkm-csi-node-tkkc8 -- sh
-sh-5.2#
-sh-5.2# gkm-agent-stub -load -image quay.io/mtahhan/flash-attention-rocm:latest -crdName flash-attention-rocm
-2025/07/15 18:25:03 Response from gRPC server's LoadKernelImage function: Load Image Request Succeeded
-sh-5.2#
-sh-5.2# ls /run/gkm/caches/cluster-scoped/flash-attention-rocm/
-c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6  c880dcbe2ffa9f4c96a3c5ce87fbf0b61a04ee4c46f96ee728d2d1efb65133f6  e0a7f37fbe7bb678faad9ffe683ba5d53d92645aefa5b62195bc2683b9971485
-```
-<!-- markdownlint-enable  MD013 -->
-
 Now the example yaml can be applied:
 
 ```sh

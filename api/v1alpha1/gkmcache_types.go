@@ -20,8 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced
 
 // GKMCache is the Schema for the namespace scoped GKMCaches API. Using this
 // API allows applications to pre-populate a GPU Kernel Cache in a Pod,
@@ -34,6 +36,9 @@ import (
 // something failed. GKM creates a GKMCacheNode CR instance for each Kubernetes
 // Node for each GKMCache instance. The GKMCacheNode CRD provides load status
 // for each GPU Kernel Cache for each GPU on the node.
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type GKMCache struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

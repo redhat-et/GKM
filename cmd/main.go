@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
-	"github.com/redhat-et/GKM/internal/controller"
+	gkmoperator "github.com/redhat-et/GKM/internal/controller/gkm-operator"
 	"github.com/redhat-et/GKM/pkg/utils"
 	// +kubebuilder:scaffold:imports
 )
@@ -145,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.GKMConfigMapReconciler{
+	if err = (&gkmoperator.GKMConfigMapReconciler{
 		Client:            mgr.GetClient(),
 		Scheme:            mgr.GetScheme(),
 		CsiDriverYamlFile: utils.CsiDriverYamlFile,
@@ -153,27 +153,30 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMConfigMap")
 		os.Exit(1)
 	}
-	if err = (&controller.GKMCacheReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GKMCache")
-		os.Exit(1)
-	}
-	if err = (&controller.GKMCacheNodeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GKMCacheNode")
-		os.Exit(1)
-	}
-	if err = (&controller.ClusterGKMCacheReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GKMCacheCluster")
-		os.Exit(1)
-	}
+	/*
+		if err = (&gkmoperator.GKMCacheReconciler{
+			Client:   mgr.GetClient(),
+			Scheme:   mgr.GetScheme(),
+			CacheDir: utils.DefaultCacheDir,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GKMCache")
+			os.Exit(1)
+		}
+		if err = (&gkmoperator.GKMCacheNodeReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GKMCacheNode")
+			os.Exit(1)
+		}
+		if err = (&gkmoperator.ClusterGKMCacheReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GKMCacheCluster")
+			os.Exit(1)
+		}
+	*/
 	if err = (&gkmv1alpha1.GKMCache{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "GKMCache")
 		os.Exit(1)

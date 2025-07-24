@@ -14,4 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package gkmagent
+
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
+func generateUniqueName(baseName string) string {
+	uuid := uuid.New().String()
+	return fmt.Sprintf("%s-%s", baseName, uuid[:8])
+}

@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/redhat-et/GKM/pkg/usage"
+	"github.com/redhat-et/GKM/pkg/database"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
@@ -65,107 +64,142 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	crNamespace, ok := req.VolumeContext[utils.CsiCacheNamespaceIndex]
 	if !ok {
 		// Namespace is not required. If not provided, then assume it is a Cluster scoped
-		// GKMCache instance.
-		crNamespace = utils.ClusterScopedSubDir
+		// ClusterGKMCache instance.
+		crNamespace = ""
 		clusterScoped = true
 	}
 
 	// The Pod Spec should contain CSI fields in the Volume Mount section, and that
-	// should contain the name of the GKMCache or GKMCacheCluster CRD that provides
+	// should contain the name of the GKMCache or ClusterGKMCache CRD that provides
 	// OCI Image. Pull that out of the input data. The namespace and CRD name is
 	// embedded in the directory structure on the Node if it has been downloaded and
 	// expanded.
-	crName, ok := req.VolumeContext[utils.CsiCacheIndex]
+	crName, ok := req.VolumeContext[utils.CsiCacheNameIndex]
 	if !ok {
 		if clusterScoped {
-			d.log.Error(fmt.Errorf("must provide a GKMCacheCluster"), "invalid input")
-			return nil, status.Error(codes.InvalidArgument, "must provide a GKMCacheCluster NodePublishVolume")
+			d.log.Error(fmt.Errorf("must provide a ClusterGKMCache"), "invalid input")
+			return nil, status.Error(codes.InvalidArgument, "must provide a ClusterGKMCache name")
 		} else {
 			d.log.Error(fmt.Errorf("must provide a GKMCache"), "invalid input")
-			return nil, status.Error(codes.InvalidArgument, "must provide a GKMCache NodePublishVolume")
+			return nil, status.Error(codes.InvalidArgument, "must provide a GKMCache name")
 		}
 	}
 
-	// Build up the directory name from the namespace and CRD name.
-	sourcePath := d.cacheDir
-	sourcePath = filepath.Join(sourcePath, crNamespace)
-	sourcePath = filepath.Join(sourcePath, crName)
-	if _, err := os.Stat(sourcePath); err != nil {
-		if os.IsNotExist(err) {
-			if clusterScoped {
-				d.log.Error(fmt.Errorf("GKMCacheCluster has not been created"), "invalid input", "name", crName)
-				return nil, status.Error(codes.InvalidArgument, "GKMCacheCluster has not been created NodePublishVolume")
-			} else {
-				d.log.Error(fmt.Errorf("GKMCache has not been created"),
-					"invalid input", "name", crName, "namespace", crNamespace)
-				return nil, status.Error(codes.InvalidArgument, "GKMCache has not been created NodePublishVolume")
+	// Check if the Kernel Cache is already mounted.
+	mounted, _ := database.IsTargetBindMount(req.TargetPath, d.log)
+	/*
+		if err != nil {
+			if !os.IsNotExist(err) {
+				d.log.Error(err, "unable to verify if targetPath already mounted",
+					"targetPath", req.TargetPath, "volumeId", req.VolumeId, "namespace", crNamespace, "name", crName)
+				return nil, status.Error(codes.InvalidArgument, "unable to verify if targetPath already mounted")
 			}
+		}
+	*/
+
+	// Code needs to be idempotent, so if already mounted, just return.
+	if mounted {
+		// Make sure the usage data exists
+		_, err := database.GetUsageDataByVolumeId(req.VolumeId, d.log)
+		if err != nil {
+			d.log.Error(fmt.Errorf("targetPath already mounted, but no usage data stored, continue to try to clean up"),
+				"internal error",
+				"targetPath", req.TargetPath,
+				"volumeId", req.VolumeId,
+				"namespace", crNamespace,
+				"name", crName)
 		} else {
-			d.log.Error(fmt.Errorf("unable to verify sourcePath"), "invalid input", "sourcePath", sourcePath)
-			return nil, status.Error(codes.InvalidArgument, "unable to verify sourcePath")
+			// Target Mounted and Usage exists, just return
+			d.log.Info("kernel cache already bind mounted",
+				"targetPath", req.TargetPath, "volumeId", req.VolumeId, "namespace", crNamespace, "name", crName)
+			return &csi.NodePublishVolumeResponse{}, nil
 		}
 	}
-	d.log.Info("found GKMCache CRD", "sourcePath", sourcePath)
+
+	// ELSE Target is not mounted yet, so process the request.
+
+	// Determine if Cache has been extracted and if so, build source directory.
+	cacheData, err := database.GetCacheFile(crNamespace, crName, d.log)
+	if err != nil {
+		if clusterScoped {
+			d.log.Error(fmt.Errorf("ClusterGKMCache has not been extracted"), "not ready",
+				"targetPath", req.TargetPath, "volumeId", req.VolumeId, "namespace", crNamespace, "name", crName)
+			return nil, status.Error(codes.InvalidArgument, "ClusterGKMCache has not been extracted")
+		} else {
+			d.log.Error(fmt.Errorf("GKMCache has not been extracted"), "not ready",
+				"targetPath", req.TargetPath, "volumeId", req.VolumeId, "namespace", crNamespace, "name", crName)
+			return nil, status.Error(codes.InvalidArgument, "GKMCache has not been extracted")
+		}
+	}
+	sourcePath, err := database.BuildDbDir(d.cacheDir, crNamespace, crName, cacheData.Digest, d.log)
+	if err != nil {
+		if clusterScoped {
+			d.log.Error(fmt.Errorf("ClusterGKMCache processing error"), "internal error",
+				"targetPath", req.TargetPath,
+				"volumeId", req.VolumeId,
+				"namespace", crNamespace,
+				"name", crName,
+				"digest", cacheData.Digest)
+			return nil, status.Error(codes.InvalidArgument, "ClusterGKMCache processing error")
+		} else {
+			d.log.Error(fmt.Errorf("GKMCache processing error"), "internal error",
+				"targetPath", req.TargetPath,
+				"volumeId", req.VolumeId,
+				"namespace", crNamespace,
+				"name", crName,
+				"digest", cacheData.Digest)
+			return nil, status.Error(codes.InvalidArgument, "GKMCache processing error")
+		}
+	}
+	if clusterScoped {
+		d.log.Info("found ClusterGKMCache extracted cache", "sourcePath", sourcePath)
+	} else {
+		d.log.Info("found GKMCache extracted cache", "sourcePath", sourcePath)
+	}
 
 	// Make sure the target directory is created. This is where the Kernel Cache will
 	// be mounted into the Pod.
 	if err := os.MkdirAll(req.TargetPath, 0755); err != nil {
-		d.log.Error(err, "failed to create target path", "volume_id", req.VolumeId, "targetPath", req.TargetPath)
+		d.log.Error(err, "failed to create target path",
+			"targetPath", req.TargetPath,
+			"volumeId", req.VolumeId,
+			"namespace", crNamespace,
+			"name", crName,
+			"digest", cacheData.Digest)
 		return nil, err
 	}
 
-	// Check if the Kernel Cache is already mounted.
-	mounted, err := utils.IsTargetBindMount(req.TargetPath, d.log)
-	if err != nil {
-		d.log.Error(fmt.Errorf("unable to verify if targetPath already mounted"),
-			"invalid input", "targetPath", req.TargetPath)
-		return nil, status.Error(codes.InvalidArgument, "unable to verify if targetPath already mounted")
-	}
-
-	// Code needs to be idempotent, so if already mounted, just return.
-	if mounted {
-		_, err := usage.GetUsageDataByVolumeId(req.VolumeId, d.log)
-		if err != nil {
-			size, err := utils.DirSize(sourcePath)
-			if err != nil {
-				size = 0
-				d.log.Error(err, "unable to get directory size", "sourcePath", sourcePath)
-			}
-
-			// Save off the VolumeId mapping to CRD Info
-			err = usage.AddUsageData(crNamespace, crName, req.VolumeId, size, d.log)
-			if err != nil {
-				d.log.Error(err, "unable to save usage data", "VolumeId", req.VolumeId)
-			}
-		}
-
-		d.log.Info("kernel cache already bind mounted", "sourcePath", sourcePath, "targetPath", req.TargetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
-	d.log.Info("bind mounting kernel cache", "sourcePath", sourcePath, "targetPath", req.TargetPath)
-
 	// Perform the bind mount
-	options := []string{"bind"}
-	if req.Readonly {
-		options = append(options, "ro")
-	}
-
-	if err := d.mounter.Mount(sourcePath, req.TargetPath, "", options); err != nil {
-		d.log.Error(fmt.Errorf("bind mount failed"), "invalid input", "sourcePath", sourcePath, "targetPath", req.TargetPath)
-		return nil, status.Error(codes.Internal, "bind mount failed")
+	d.log.Info("bind mounting kernel cache", "sourcePath", sourcePath, "targetPath", req.TargetPath)
+	if err := database.BindMount(sourcePath, req.TargetPath, req.Readonly, d.mounter, d.log); err != nil {
+		d.log.Error(err, "failed to bind mount target path",
+			"sourcePath", sourcePath,
+			"targetPath", req.TargetPath,
+			"volumeId", req.VolumeId,
+			"namespace", crNamespace,
+			"name", crName,
+			"digest", cacheData.Digest)
+		return nil, err
 	}
 
 	// Save off the VolumeId mapping to CRD Info
-	size, err := utils.DirSize(sourcePath)
+	size, err := database.DirSize(sourcePath)
 	if err != nil {
 		size = 0
-		d.log.Error(err, "unable to get directory size", "sourcePath", sourcePath)
+		d.log.Error(err, "unable to get directory size, continuing",
+			"sourcePath", sourcePath,
+			"targetPath", req.TargetPath,
+			"volumeId", req.VolumeId,
+			"namespace", crNamespace,
+			"name", crName,
+			"digest", cacheData.Digest)
 	}
 
-	err = usage.AddUsageData(crNamespace, crName, req.VolumeId, size, d.log)
+	// Add the Usage Data
+	err = database.AddUsageData(crNamespace, crName, cacheData.Digest, req.VolumeId, size, d.log)
 	if err != nil {
-		d.log.Error(err, "unable to save usage data", "VolumeId", req.VolumeId)
+		d.log.Error(err, "unable to save usage data",
+			"volumeId", req.VolumeId, "namespace", crNamespace, "name", crName, "digest", cacheData.Digest)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -187,36 +221,34 @@ func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublish
 		return nil, status.Error(codes.InvalidArgument, "must provide a TargetPath to NodeUnpublishVolume")
 	}
 
-	/* Delete Cache Data */
-	err := usage.DeleteUsageData(req.VolumeId, d.log)
-	if err != nil {
-		d.log.Error(err, "usage deletion failed, just continue", "VolumeId",
-			req.VolumeId, "TargetPath", req.TargetPath)
-	}
-
 	// Check if already mounted
-	// d.mounter.IsLikelyNotMountPoint() doesn't detect bind mounts, so manually search
-	// the list of mounts for the Target Path.
-	mounted, err := utils.IsTargetBindMount(req.TargetPath, d.log)
+	mounted, err := database.IsTargetBindMount(req.TargetPath, d.log)
 	if err != nil {
 		if os.IsNotExist(err) {
-			d.log.Info("targetPath does not exist, just continue", "VolumeId", req.VolumeId, "TargetPath", req.TargetPath,
-				"Mount", mounted)
+			d.log.Info("targetPath does not exist, just continue",
+				"VolumeId", req.VolumeId, "TargetPath", req.TargetPath, "Mount", mounted)
 		} else {
-			d.log.Error(fmt.Errorf("unable to verify if targetPath already mounted"),
-				"Internal Error", "targetPath", req.TargetPath)
-			return nil, status.Error(codes.InvalidArgument, "unable to verify if targetPath already mounted")
+			d.log.Error(fmt.Errorf("unable to verify if targetPath already mounted"), "Internal Error",
+				"VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
+			return nil, status.Error(codes.Aborted, "unable to verify if targetPath already mounted")
 		}
 	}
 
 	// Only attempt to unmount if it's mounted
 	if mounted {
 		if err := d.mounter.Unmount(req.TargetPath); err != nil {
-			d.log.Error(fmt.Errorf("umount failed"), "invalid input", "targetPath", req.TargetPath)
-			return nil, status.Error(codes.Internal, "umount failed")
+			d.log.Error(fmt.Errorf("umount failed"), "internal error",
+				"VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
+			return nil, status.Error(codes.Aborted, "umount failed")
 		}
 	} else {
 		d.log.Info("targetPath is not mounted, just continue", "VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
+	}
+
+	/* Delete Usage Data */
+	if err = database.DeleteUsageData(req.VolumeId, d.log); err != nil {
+		d.log.Error(err, "usage deletion failed, just continue",
+			"VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -255,10 +287,10 @@ func (d *Driver) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeS
 	}
 
 	/* Check if Cache Data was created */
-	usageData, err := usage.GetUsageDataByVolumeId(req.VolumeId, d.log)
+	usageData, err := database.GetUsageDataByVolumeId(req.VolumeId, d.log)
 	if err != nil {
 		d.log.Error(fmt.Errorf("could not map VolumeId to GKMCache"), "invalid input")
-		return nil, status.Error(codes.InvalidArgument, "could not map VolumeId to GKMCache NodeUnpublishVolume")
+		return nil, status.Error(codes.Aborted, "could not map VolumeId to GKMCache NodeUnpublishVolume")
 	}
 
 	d.log.Info("Node capacity statistics retrieved",

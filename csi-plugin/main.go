@@ -11,14 +11,16 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/redhat-et/GKM/pkg/database"
 	"github.com/redhat-et/GKM/pkg/gkm-csi-plugin/driver"
-	"github.com/redhat-et/GKM/pkg/gkm-csi-plugin/image"
+
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
 var versionInfo = flag.Bool("version", false, "Print the driver version")
 var testMode = flag.Bool("test", false, "Flag to indicate in a Test Mode. Creates a stubbed out Kubelet Server")
-var noGpu = flag.Bool("nogpu", false, "Flag to indicate in a test scenario and GPU is not present")
+
+//var noGpu = flag.Bool("nogpu", false, "Flag to indicate in a test scenario and GPU is not present")
 
 func main() {
 	// Process input data through environment variables
@@ -38,16 +40,12 @@ func main() {
 	if socketFilename == "" {
 		socketFilename = utils.DefaultSocketFilename
 	}
-	imagePort := os.Getenv("CSI_IMAGE_SERVER_PORT")
-	if imagePort == "" {
-		imagePort = utils.DefaultImagePort
-	}
 
 	// Parse command line variables
 	flag.Parse()
 
 	// Setup logging before anything else so code can log errors.
-	log := utils.InitializeLogging(logLevel)
+	log := database.InitializeLogging(logLevel)
 
 	// Process command line variables
 	if *versionInfo {
@@ -66,14 +64,6 @@ func main() {
 	}
 	log.Info("Created a new driver:", "driver", d)
 
-	// Setup Image Server, which receives OCI Image management requests from GKM
-	s, err := image.NewImageServer(nodeName, ns, imagePort, utils.DefaultCacheDir, *noGpu)
-	if err != nil {
-		log.Error(err, "Failed to create new Image Server object")
-		return
-	}
-	log.Info("Created a new Image Server:", "image", s)
-
 	// Create the context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -89,16 +79,6 @@ func main() {
 			}
 		}()
 	}
-
-	// Run the Image Server
-	go func() {
-		log.Info("Running the Image Server")
-
-		if err := s.Run(ctx); err != nil {
-			log.Error(err, "Image Server run failure")
-			return
-		}
-	}()
 
 	// Listen for termination requests
 	c := make(chan os.Signal, 1)

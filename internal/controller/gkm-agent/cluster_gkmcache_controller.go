@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package gkmagent
 
 import (
 	"context"
@@ -35,9 +35,10 @@ type ClusterGKMCacheReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcaches,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcaches/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcaches/finalizers,verbs=update
+// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcaches,verbs=get;list;watch
+// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcachenodes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcachenodes/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcachenodes/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -51,25 +52,26 @@ type ClusterGKMCacheReconciler struct {
 func (r *ClusterGKMCacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var clusterCache gkmv1alpha1.ClusterGKMCache
-	if err := r.Get(ctx, req.NamespacedName, &clusterCache); err != nil {
-		logger.Error(err, "unable to fetch ClusterGKMCache")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
+	/*
+		var clusterCache gkmv1alpha1.ClusterGKMCache
+		if err := r.Get(ctx, req.NamespacedName, &clusterCache); err != nil {
+			logger.Error(err, "unable to fetch ClusterGKMCache")
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
 
-	if isConditionTrue(clusterCache.Status.Conditions, "Ready") {
-		logger.Info("Cluster-wide cache already marked as Ready", "name", req.Name)
-		return ctrl.Result{}, nil
-	}
+		if isConditionTrue(clusterCache.Status.Conditions, "Ready") {
+			logger.Info("Cluster-wide cache already marked as Ready", "name", req.Name)
+			return ctrl.Result{}, nil
+		}
 
-	clusterCache.Status.LastUpdated = metav1.Now()
-	setClusterCondition(&clusterCache, "Ready", metav1.ConditionTrue, "CacheReady", "Cluster-wide cache ready for use")
+		clusterCache.Status.LastUpdated = metav1.Now()
+		setClusterCondition(&clusterCache, "Ready", metav1.ConditionTrue, "CacheReady", "Cluster-wide cache ready for use")
 
-	if err := r.Status().Update(ctx, &clusterCache); err != nil {
-		logger.Error(err, "failed to update cluster cache status")
-		return ctrl.Result{}, err
-	}
-
+		if err := r.Status().Update(ctx, &clusterCache); err != nil {
+			logger.Error(err, "failed to update cluster cache status")
+			return ctrl.Result{}, err
+		}
+	*/
 	logger.Info("Successfully reconciled cluster cache", "name", req.Name)
 	return ctrl.Result{}, nil
 }
