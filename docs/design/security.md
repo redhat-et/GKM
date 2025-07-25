@@ -5,6 +5,8 @@ that only trusted, signed GPU kernel cache images are used, that workloads
 consume validated resources, and that system components maintain strong
 ownership boundaries.
 
+---
+
 ## Image Signature Verification and Digest Trust
 
 To guarantee the integrity and provenance of kernel cache images, GKM uses
@@ -14,56 +16,55 @@ admission and controller logic.
 > **Note:** Integration with projects like Kyverno will be considered in the
 > future when it supports image digest mutation for Custom Resource Objects.
 
-### Components and Roles
+### Image Signature Verification and Digest Trust Components (and their Roles)
 
 <!-- markdownlint-disable  MD013 -->
-<!-- Teporarily disable MD013 - Line length to keep the table formatting  -->
+<!-- Temporarily disable MD013 - Line length to keep the table formatting  -->
 | Component                  | Responsibilities                                                                 |
 |----------------------------|-----------------------------------------------------------------------------------|
 | **Admission Webhook (Combined)** | - Verifies signatures<br>- Resolves image tag to digest<br>- Mutates trusted annotation<br>- Validates annotation tampering |
 | **GKM Operator**           | - Promotes trusted digest to `.status.resolvedDigest`<br>- Sets `.status.lastUpdated` |
-| **GKM Agent**              | - Watches `.status.resolvedDigest`<br>- Pulls image by digest<br>- Validates compatibility<br>- Updates `GKMCacheNode` status |
+| **GKM Agent**              | - Watches CR `gkm.io/resolvedDigest` annotations. <br>- Pulls image by digest<br>- Validates compatibility against GPU Hardware<br>- Updates `GKMCacheNode` status |
 
 <!-- markdownlint-enable  MD013 -->
 
-### Workflow
+### Workflow of Image Signature Verification and Digest Trust
 
-#### User Action
+#### Step 1: User Submits GKMCache CR
 
 User creates or updates a GKMCache or ClusterGKMCache with a new spec.image
 (e.g., `quay.io/cache:latest`)
 
-#### Combined Validation Admission Webhook Executes
+#### Step 2: Admission Webhook Verifies and Mutates
 
-##### Mutation Phase (on CREATE or UPDATE):
+This webhook operation is broken down into two phases:
 
-- Resolves the tag to a content digest (`sha256:...`).
-- Verifies the image signature using
-  [cosign](https://github.com/sigstore/cosign).
-- Adds a protected annotation to the CR:
+- **Phase 1 - Mutation (on CREATE or UPDATE)**:
+
+  - Resolves the tag to a content digest (`sha256:...`).
+  - Verifies the image signature using
+    [cosign](https://github.com/sigstore/cosign).
+  - Adds a protected annotation to the CR:
 
     ```yaml
     metadata:
-    annotations:
+      annotations:
         gkm.io/resolvedDigest: sha256:abc123...
     ```
 
     > **Note:** This annotation is considered *trusted system state*.
-    > The **Validating Admission Webhook** must be configured to
-    > reject any attempt by a user to add, modify, or remove this annotation.
+    > The **Validating Admission Webhook** must be configured to reject
+    > any attempt by a user to add, modify, or remove this annotation.
     > Only the GKM webhook or controller is authorized to manage this field.
 
-#### Validation Phase:
 
-Denies the request if:
+- **Phase 2 - Validation**: Denies the request if:
+  - The image is not signed or verification fails
+  - The user attempts to:
+    - Modify the `gkm.io/resolvedDigest` annotation directly
+  - Only trusted service accounts (e.g. the webhook itself) can mutate this annotation.
 
-- The image is not signed or verification fails
-- The user attempts to:
-  - Modify the `gkm.io/resolvedDigest` annotation directly
-- Only trusted service accounts (e.g. the webhook itself) can mutate
-  this annotation.
-
-### Operator Flow
+#### Step 3A: Operator Promotes Digest Annotation to CR Status
 
 The **GKM Operator**:
 
@@ -73,32 +74,41 @@ The **GKM Operator**:
 
     ```yaml
     status:
-    resolvedDigest: sha256:abc123...
-    lastUpdated: "2025-07-24T14:22:00Z"
+      resolvedDigest: sha256:abc123...
+      lastUpdated: "2025-07-24T14:22:00Z"
     ```
 
 - The operator does **not** reverify the signature.
 
-### GKM Agent Flow
+#### Step 3B: Agent Pulls Image and Validates Compatibility
 
 The **GKM Agent** (on each node):
 
-- Watches the `status.resolvedDigest` field.
-- Pulls the image by digest only (never by tag) and does not run any
-  further reverification tests.
-- Extracts kernel cache and performs GPU/driver compatibility checks.
-- Updates the local `GKMCacheNode` or `ClusterGKMCacheNode` CR with per-node status, including:
-    - Compatible GPU IDs
-    - Incompatibility reasons (if any)
-    - Last updated timestamp
+- Also watches `GKMCache` and `ClusterGKMCache` CRs for new or changed `spec.image`
+  or annotations.
+- When it finds a trusted annotation, it:
+  - Pulls the image by digest only (never by tag) and does not run any
+    further reverification tests.
+  - Extracts kernel cache and performs GPU/driver compatibility checks.
+  - Updates the local `GKMCacheNode` or `ClusterGKMCacheNode` CR with per-node status, including:
+      - Compatible GPU IDs
+      - Incompatibility reasons (if any)
+      - Last updated timestamp
 
-### Example Lifecycle
+> **Note**:  The agent does **not** reverify the signature.
 
-1. **User applies:**
+> **Note**:  On CR update, the agent checks if the Cache is already extracted on the node,
+> and whether or not it's in use. If a cache is already in use, the Agent might need to track
+> the usage of the old cache and do some form of garbage collection when it's no longer
+> in use.
+
+### Example Lifecycle of Image Signature Verification and Digest Trust
+
+1. **User** applies:
 
    ```yaml
    apiVersion: gkm.io/v1alpha1
-   kind: GKMCache
+   kind: GKMCache # Or ClusterGKMCache
    metadata:
      name: llama2
      namespace: ml-apps
@@ -106,18 +116,16 @@ The **GKM Agent** (on each node):
      image: quay.io/org/llama2:latest
    ```
 
-2. **Webhook:**
+2. **Webhook** Verifies and adds:
 
-   - Verifies and adds:
      ```yaml
      metadata:
        annotations:
          gkm.io/resolvedDigest: sha256:abc123...
      ```
 
-3. **Operator:**
+3. **Operator** Promotes:
 
-   - Promotes:
      ```yaml
      status:
        resolvedDigest: sha256:abc123...
@@ -126,13 +134,13 @@ The **GKM Agent** (on each node):
 
 4. **Agent:**
 
-   - Pulls and validates the image by digest
-   - Updates node-level cache status in `GKMCacheNode`
+   - Pulls and validates the image by digest from the annotation in the CR.
+   - Updates node-level cache status in `GKMCacheNode` or `ClusterGKMCacheNode`.
 
 ### Annotation Enforcement Summary
 
 <!-- markdownlint-disable  MD013 -->
-<!-- Teporarily disable MD013 - Line length to keep the table formatting  -->
+<!-- Temporarily disable MD013 - Line length to keep the table formatting  -->
 | Field                         | Who Can Write It              | Enforced By                    |
 |-------------------------------|-------------------------------|--------------------------------|
 | `metadata.annotations["gkm.io/resolvedDigest"]` | Only the Admission Webhook | Validating logic inside webhook |
@@ -147,3 +155,5 @@ The **GKM Agent** (on each node):
 - Runtime components pull by digest only
 - Digest is promoted to `.status` by a trusted controller
 - Nodes act on immutable, validated digests
+
+---

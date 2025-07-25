@@ -23,4 +23,8 @@ repos:
     rev: v1.37.1
     hooks:
       - id: yamllint
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.18.1
+    hooks:
+      - id: markdownlint-cli2-rules-docker
 exclude: ^vendor/.*|^config/*
