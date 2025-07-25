@@ -17,7 +17,7 @@ admission and controller logic.
 ### Components and Roles
 
 <!-- markdownlint-disable  MD013 -->
-<!-- Teporarily disable MD013 - Line length to keep the table formatting  -->
+<!-- Temporarily disable MD013 - Line length to keep the table formatting  -->
 | Component                  | Responsibilities                                                                 |
 |----------------------------|-----------------------------------------------------------------------------------|
 | **Admission Webhook (Combined)** | - Verifies signatures<br>- Resolves image tag to digest<br>- Mutates trusted annotation<br>- Validates annotation tampering |
@@ -35,25 +35,25 @@ User creates or updates a GKMCache or ClusterGKMCache with a new spec.image
 
 #### Combined Validation Admission Webhook Executes
 
-##### Mutation Phase (on CREATE or UPDATE):
+**Mutation Phase (on CREATE or UPDATE)**:
 
 - Resolves the tag to a content digest (`sha256:...`).
 - Verifies the image signature using
   [cosign](https://github.com/sigstore/cosign).
 - Adds a protected annotation to the CR:
 
-    ```yaml
-    metadata:
-    annotations:
-        gkm.io/resolvedDigest: sha256:abc123...
-    ```
+```yaml
+metadata:
+  annotations:
+    gkm.io/resolvedDigest: sha256:abc123...
+```
 
-    > **Note:** This annotation is considered *trusted system state*.
-    > The **Validating Admission Webhook** must be configured to
-    > reject any attempt by a user to add, modify, or remove this annotation.
-    > Only the GKM webhook or controller is authorized to manage this field.
+> **Note:** This annotation is considered *trusted system state*.
+> The **Validating Admission Webhook** must be configured to
+> reject any attempt by a user to add, modify, or remove this annotation.
+> Only the GKM webhook or controller is authorized to manage this field.
 
-#### Validation Phase:
+**Validation Phase**:
 
 Denies the request if:
 
@@ -73,8 +73,8 @@ The **GKM Operator**:
 
     ```yaml
     status:
-    resolvedDigest: sha256:abc123...
-    lastUpdated: "2025-07-24T14:22:00Z"
+      resolvedDigest: sha256:abc123...
+      lastUpdated: "2025-07-24T14:22:00Z"
     ```
 
 - The operator does **not** reverify the signature.
@@ -98,7 +98,7 @@ The **GKM Agent** (on each node):
 
    ```yaml
    apiVersion: gkm.io/v1alpha1
-   kind: GKMCache
+   kind: GKMCache # Or ClusterGKMCache
    metadata:
      name: llama2
      namespace: ml-apps
@@ -127,12 +127,13 @@ The **GKM Agent** (on each node):
 4. **Agent:**
 
    - Pulls and validates the image by digest
-   - Updates node-level cache status in `GKMCacheNode`
+   - Updates node-level cache status in `GKMCacheNode` or
+     `ClusterGKMCacheNode`
 
 ### Annotation Enforcement Summary
 
 <!-- markdownlint-disable  MD013 -->
-<!-- Teporarily disable MD013 - Line length to keep the table formatting  -->
+<!-- Temporarily disable MD013 - Line length to keep the table formatting  -->
 | Field                         | Who Can Write It              | Enforced By                    |
 |-------------------------------|-------------------------------|--------------------------------|
 | `metadata.annotations["gkm.io/resolvedDigest"]` | Only the Admission Webhook | Validating logic inside webhook |
