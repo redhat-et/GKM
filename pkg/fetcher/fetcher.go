@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/redhat-et/TKDK/mcv/pkg/constants"
@@ -69,10 +70,12 @@ func (f *fetcher) FetchImg(imgName string) (v1.Image, error) {
 }
 
 func fetchToTempTar(fetchFn func(io.Writer) error) (v1.Image, error) {
-	tmpDir, err := os.MkdirTemp("", constants.CacheDir)
-	if err != nil {
+	tmpDir := filepath.Join(constants.MCVBuildDir, constants.CacheDir)
+
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, err
 	}
+	logging.Debugf("cache tmp extract dir: %s", tmpDir)
 
 	tarballFilePath := path.Join(tmpDir, "tmp.tar")
 	tarballFile, err := os.Create(tarballFilePath)
