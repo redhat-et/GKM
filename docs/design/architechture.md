@@ -26,10 +26,10 @@ images.
 Applications can leverage TCV to package up their caches into container images
 and use [cosign](https://github.com/sigstore/cosign) to sign the images.
 GKM will then use Kubernetes to distribute the cache images to workloads on
-various nodes in a given cluster and use TCV to extract the caches from the images.
-Using GKM, TCV, cosign and Kubernetes to manage and distribute kernel images
-to containerized workloads ensures their validity before usage in containers and
-is crucial for performance, optimization and security.
+various nodes in a given cluster and use TCV to extract the caches from the
+images. Using GKM, TCV, cosign and Kubernetes to manage and distribute kernel
+images to containerized workloads ensures their validity before usage in
+containers and is crucial for performance, optimization and security.
 
 The GKM Operator focuses on:
 
@@ -143,13 +143,13 @@ GKM will support the following CRDs:
   Declares that workloads in a specific namespace intend to use a GPU kernel
   cache resource defined by an OCI image. This is a lightweight reference to
   a kernel cache image. The actual validation, extraction, and usage tracking
-  are handled by the GKM Operator, Agent and CSI driver. This CRD supports multi-tenancy
-  by scoping kernel cache declarations to specific namespaces.
+  are handled by the GKM Operator, Agent and CSI driver. This CRD supports
+  multi-tenancy by scoping kernel cache declarations to specific namespaces.
 
 - **ClusterGKMCache CRD:**
   Same as GKMCache, but used when the kernel resource is intended for
-  workloads across the entire cluster. Suitable for shared or system-wide kernel
-  caches.
+  workloads across the entire cluster. Suitable for shared or system-wide
+  kernel caches.
 
 - **GKMCacheNode CRD (namespaced):**
   A GKMCacheNode resource is created by the Agent to reflect
@@ -159,8 +159,8 @@ GKM will support the following CRDs:
 - **ClusterGKMCacheNode CRD:**
   Same as GKMCacheNode, but used when the corresponding kernel
   cache is defined using a ClusterGKMCache resource
-  A ClusterGKMCacheNode instance is created for each node for each ClusterGKMCache
-  instance.
+  A ClusterGKMCacheNode instance is created for each node for each
+  ClusterGKMCache instance.
 
 To increase security, the GKM Operator supports a namespace-scoped
 version of the GKMCache CRD.
@@ -184,19 +184,19 @@ of interest in a specific GPU kernel cache, represented by an OCI image.
 These resources inform the GKM system that workloads in the cluster may require
 access to the specified kernel cache.
 
-Users or application operators populate the image field, which points to a valid OCI
-image containing the precompiled kernel cache.
-Once specified, the operator resolves the image to its digest (e.g., sha256:...).
-This digest acts as the authoritative identifier throughout the system for validation,
-compatibility checks, cache extraction, and mounting.
+Users or application operators populate the image field, which points to a valid
+OCI image containing the precompiled kernel cache.
+Once specified, the operator resolves the image to its digest (e.g.,
+sha256:...). This digest acts as the authoritative identifier throughout the
+system for validation, compatibility checks, cache extraction, and mounting.
 
-This image is pulled by the GKM Agent as needed, and validated against the GPUs installed
-on given nodes.
-The actual management of image signatures, pull secrets, and validation policies is
-handled globally via GKM configuration (e.g., ConfigMap), not per resource.
+This image is pulled by the GKM Agent as needed, and validated against the GPUs
+installed on given nodes.
+The actual management of image signatures, pull secrets, and validation policies
+is handled globally via GKM configuration (e.g., ConfigMap), not per resource.
 
-GPU compatibility is assessed dynamically by the GKM Agent on a per-node, per-GPU basis.
-The CRD itself does not include any GPU-specific configuration.
+GPU compatibility is assessed dynamically by the GKM Agent on a per-node,
+per-GPU basis. The CRD itself does not include any GPU-specific configuration.
 
 Example of GKMCache CRD:
 
@@ -247,16 +247,18 @@ ClusterGKMCacheNode CR will be used instead.
 
 While nodes themselves are not namespaced, the namespace of the GKMCacheNode CR
 follows the scope of the kernel cache resource it reports on. This allows the
-operator to correctly associate status objects with their source cache definitions.
+operator to correctly associate status objects with their source cache
+definitions.
 
 This structure enables more efficient status tracking in environments with
-heterogeneous GPU configurations and supports CSI plugin queries via the GKM Agent.
+heterogeneous GPU configurations and supports CSI plugin queries via the GKM
+Agent.
 
 Summary of data reflected in the CRD:
 
 Labels:
 
-- gkm.node=<node-name>: Helps filter status CRs by node
+- `gkm.node=<node-name>`: Helps filter status CRs by node
 
 Annotations:
 
@@ -273,17 +275,19 @@ Status Fields:
 
 - gpus: A list describing each physical GPU on the node. Each entry
   includes:
-    - ids: GPU indices (e.g., [0, 1, 2, 3])
-    - gpuType: GPU model (e.g., nvidia-a100)
-    - driverVersion: Installed driver version
+
+  - ids: GPU indices (e.g., [0, 1, 2, 3])
+  - gpuType: GPU model (e.g., nvidia-a100)
+  - driverVersion: Installed driver version
 
 - caches: A map of kernel cache identifiers (e.g., cache-vllm-llama2)
   to their status. Each cache entry includes:
-    - digest: Resolved OCI digest of the cache image.
-    - compatibleGPUs: List of GPU sets where the cache is compatible.
-    - incompatibleGPUs: List of GPU sets where the cache is incompatible,
-      with structured reason and message fields.
-    - lastUpdated: Last timestamp this entry was refreshed.
+
+  - digest: Resolved OCI digest of the cache image.
+  - compatibleGPUs: List of GPU sets where the cache is compatible.
+  - incompatibleGPUs: List of GPU sets where the cache is incompatible,
+    with structured reason and message fields.
+  - lastUpdated: Last timestamp this entry was refreshed.
 
 This consolidated per-node, per-GPU view supports scalable monitoring and
 allows the CSI driver to consult the Agent instead of accessing the Kubernetes
@@ -341,8 +345,8 @@ Below is a rough flow when using GKM:
     to local host in known directory.
   - Collects GPU information, verifies kernel cache compatibility, and updates
     the status in the GKMCacheNode CR.
-- User or application creates a Pod referencing GKMCache CR in the Volume Mounts
-  section..
+- User or application creates a Pod referencing GKMCache CR in the Volume
+  Mounts section..
 - Kubelet call CSI Driver when pod is schedule on Node.
 - CSI Driver on each node:
   - Searches host in known directory for subdirectory with GKMCache CR name and
@@ -438,24 +442,24 @@ If compatible, the kernel cache will be move to the default directory:
 /var/lib/gkm/caches/<namespace>/<cr-name>/
 ```
 
-If the CR is cluster scoped (ClusterGKMCache), the `<namespace>` will be a fixed
-string like `cluster-scoped`.
-Note that this directory is not removed on server reboots so the extract cache is
-preserved.
+If the CR is cluster scoped (ClusterGKMCache), the `<namespace>` will be a
+fixed string like `cluster-scoped`.
+Note that this directory is not removed on server reboots so the extract cache
+is preserved.
 It will be up to the GKM Agent to remove stale data on power-up.
 
 When a pod needing the kernel cache is scheduled (see
 [Example Pod Spec Volume Request](#example-pod-spec-volume-request)
-below for example yaml), Kubelet will call the registered CSI Driver with the `volumeAttributes`
-from the pod spec, which includes the name of the CR and its namespace.
-The CSI driver will look in the known directory for a kernel cache directory with that
-name and namespace.
+below for example yaml), Kubelet will call the registered CSI Driver with the
+`volumeAttributes` from the pod spec, which includes the name of the CR and its
+namespace. The CSI driver will look in the known directory for a kernel cache
+directory with that name and namespace.
 If it exists, it will mount it in the pod.
 
 By default, the CSI driver mounts this cache directory as read-only into the
-requesting pod to maintain kernel integrity and enable safe sharing between pods.
-Applications requiring write access must opt-in by explicitly setting the `readOnly:`
-`false` flag in the volumeAttributes section of the pod spec.
+requesting pod to maintain kernel integrity and enable safe sharing between
+pods. Applications requiring write access must opt-in by explicitly setting the
+`readOnly: false` flag in the volumeAttributes section of the pod spec.
 
 #### Example Pod Spec Volume Request
 
@@ -503,11 +507,11 @@ To help the user with introspection and debugging, the GKM Agent will provide
 usage data in the GKMCacheNode CR.
 This data is only known by the CSI Driver, so the CSI Driver will also store
 usage data in the files.
-The GKM Agent will have Read-only access to the files, which it will periodically
-read.
+The GKM Agent will have Read-only access to the files, which it will
+periodically read.
 
-When a kernel cache is mounted in a pod, CSI Driver will record pod data in a file
-in a mirror directory for GKM Agent to pull usage data from.
+When a kernel cache is mounted in a pod, CSI Driver will record pod data in a
+file in a mirror directory for GKM Agent to pull usage data from.
 Note that this directory is removed on server reboots so data is cleaned up.
 
 ```console
@@ -516,6 +520,8 @@ Note that this directory is removed on server reboots so data is cleaned up.
 
 Example content of usage.json:
 
+<!-- markdownlint-disable  MD013 -->
+<!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```console
 {
   "pod-foo": [
@@ -531,6 +537,7 @@ Example content of usage.json:
   "pod-bar": [...]
 }
 ```
+<!-- markdownlint-enable  MD013 -->
 
 ## Design Considerations
 
@@ -544,8 +551,8 @@ management and reducing potential conflicts.
 
 ### Pros and Cons of Using a NodeStatus CRD
 
-A couple of Operators use the NodeStatus pattern of creating a Node specific CRD
-to track the status of a higher level CRD for a given Kubernetes Node.
+A couple of Operators use the NodeStatus pattern of creating a Node specific
+CRD to track the status of a higher level CRD for a given Kubernetes Node.
 In particular,
 [bpfman Operator](https://operatorhub.io/operator/bpfman-operator)
 [Security Profiles Operator](https://operatorhub.io/operator/security-profiles-operator)
@@ -554,26 +561,26 @@ Below are some Pros and Cons for using this pattern.
 
 #### Pros
 
-One of the reasons for using this pattern is that for a given CRD, work has to be
-done on every node (or a large subset of nodes) and because of potential hardware
-differences between nodes, the action may succeed on some nodes and fail on others.
-For large clusters with 100+ nodes, tracking success/failure, error message and
-small of amount of metadata for 100+ nodes in the status of one CRD get messy and
-hard for the user to consume.
+One of the reasons for using this pattern is that for a given CRD, work has to
+be done on every node (or a large subset of nodes) and because of potential
+hardware differences between nodes, the action may succeed on some nodes and
+fail on others. For large clusters with 100+ nodes, tracking success/failure,
+error message and small of amount of metadata for 100+ nodes in the status of
+one CRD get messy and hard for the user to consume.
 In addition, 100+ agents writing their status to a given CRD instance may not
 scale well.
 
-By keeping an overall status in the higher level CRD, with `Success` if all nodes
-succeeded and `Failure` if one or more nodes had a failure, and a list of nodes
-with failures, more detailed errors as well additional node metadata can be kept
-in Node specific CRD.
+By keeping an overall status in the higher level CRD, with `Success` if all
+nodes succeeded and `Failure` if one or more nodes had a failure, and a list of
+nodes with failures, more detailed errors as well additional node metadata can
+be kept in Node specific CRD.
 
 #### Cons
 
-One of the major drawbacks to using this pattern is that it is not very Kubernetes
-like.
-The user creates the higher level CRD, but then has to get any failure details from
-the Node specific CRD.
+One of the major drawbacks to using this pattern is that it is not very
+Kubernetes like.
+The user creates the higher level CRD, but then has to get any failure details
+from the Node specific CRD.
 
 To address the issue of scale,
 [Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
@@ -585,11 +592,11 @@ This needs to be investigated.
 For the initial implementation, the CSI Driver will store some pod metadata in
 a file on the host for the GKM Agent to poll.
 
-To ensure resilience and consistent state management, future enhancements may include
-utilizing a lightweight embedded database (such as Sled/SQLite/BoltDB) to maintain the
-current state of the kernel cache images. This allows the operator to recover
-seamlessly from failures or restarts without losing track of kernel cache
-image validation and metadata status.
+To ensure resilience and consistent state management, future enhancements may
+include utilizing a lightweight embedded database (such as Sled/SQLite/BoltDB)
+to maintain the current state of the kernel cache images. This allows the
+operator to recover seamlessly from failures or restarts without losing track
+of kernel cache image validation and metadata status.
 
 The database will be used to store:
 
@@ -604,7 +611,7 @@ consistency between the operator's in-memory data and the persistent storage.
 
 - Should validation be enforced strictly, or allow fallback for unverified
   images?
-    - Global configuration knob, `allow-unsigned-images` and `verify-enabled`?
+  - Global configuration knob, `allow-unsigned-images` and `verify-enabled`?
 - How to handle image updates during runtime?
 - Does GKM have to manage access to GPU? Can 20 different pods all load their
   kernels simultaneously? Use:
@@ -625,53 +632,59 @@ consistency between the operator's in-memory data and the persistent storage.
 ## Future Work
 
 - **Add metrics for kernel cache usage:**
-  Introduce Kernel metrics from GKM, including per-pod and per-node cache hit/miss ratios,
-  extraction times, and compatibility failures, and Kernel usage.
+  Introduce Kernel metrics from GKM, including per-pod and per-node cache
+  hit/miss ratios, extraction times, and compatibility failures, and Kernel
+  usage.
 
 - **Improve signature validation with additional cosign policy support:**
-  Add support for configurable cosign policies such as keyless verification, transparency
-  logs, and support for multiple signers or trusted keys to enhance supply chain security.
+  Add support for configurable cosign policies such as keyless verification,
+  transparency logs, and support for multiple signers or trusted keys to
+  enhance supply chain security.
 
 - **Introduce Just-In-Time (JIT) Kernel Cache Mode:**
-  To avoid the overhead and complexity of precompiling and distributing kernel images for
-  every possible GPU and driver combination, GKM will support a **JIT Kernel Cache Mode**.
-  In this mode:
+  To avoid the overhead and complexity of precompiling and distributing
+  kernel images for every possible GPU and driver combination, GKM will support
+  a **JIT Kernel Cache Mode**. In this mode:
 
-  - When a pod requiring a kernel cache is scheduled, and no prebuilt cache exists for the specific
-    hardware (GPU model, driver version), GKM will initiate an **on-cluster compilation** of the
-    necessary kernel.
+  - When a pod requiring a kernel cache is scheduled, and no prebuilt cache
+    exists for the specific hardware (GPU model, driver version), GKM will
+    initiate an **on-cluster compilation** of the necessary kernel.
   - This compilation can be triggered by the pod itself (when the model runs).
   - Once the cache is compiled and tuned for the specific hardware:
-    - The GKM Agent will **sign** the generated cache contents and **package** the cache using TCV
-      into a compliant OCI container image. It will also **sign** the container image.
-    - The image will be **pushed automatically** to a configurable container registry
-      (e.g., Quay, Harbor, or any OCI-compliant registry).
-    - The GKM Operator will **label** and **register** this image in a corresponding GKMCache
-      or ClusterGKMCache CR, including compatibility metadata.
-    - Subsequent workloads on similar hardware can reuse the newly created kernel image, avoiding
-      recompilation.
+    - The GKM Agent will **sign** the generated cache contents and **package**
+      the cache using TCV into a compliant OCI container image. It will also
+      **sign** the container image.
+    - The image will be **pushed automatically** to a configurable container
+      registry (e.g., Quay, Harbor, or any OCI-compliant registry).
+    - The GKM Operator will **label** and **register** this image in a
+      corresponding GKMCache or ClusterGKMCache CR, including compatibility
+      metadata.
+    - Subsequent workloads on similar hardware can reuse the newly created
+      kernel image, avoiding recompilation.
 
   **Benefits:**
 
-  - **One-time cost per hardware model**: Kernel cache compilation is performed once per unique
-    GPU/driver configuration in the cluster.
-  - **Reduced image sprawl**: Only kernel caches actually needed by running workloads are stored
-    and distributed.
-  - **Faster time-to-first-run**: Pods with compatible hardware benefit from prebuilt images
-    automatically in subsequent launches.
-  - **Scalable optimization**: New nodes or GPUs introduced into the cluster will generate their
-    own caches once, then use them persistently.
+  - **One-time cost per hardware model**: Kernel cache compilation is performed
+    once per unique GPU/driver configuration in the cluster.
+  - **Reduced image sprawl**: Only kernel caches actually needed by running
+    workloads are stored and distributed.
+  - **Faster time-to-first-run**: Pods with compatible hardware benefit from
+    prebuilt images automatically in subsequent launches.
+  - **Scalable optimization**: New nodes or GPUs introduced into the cluster
+    will generate their own caches once, then use them persistently.
 
   **Default Mode Behavior:**
 
-  This JIT Kernel Cache Mode is expected to be the **default operating mode**, with an option to
-  disable it for air-gapped or security-sensitive environments where all images must be pre-validated
-  and controlled externally.
+  This JIT Kernel Cache Mode is expected to be the **default operating mode**,
+  with an option to disable it for air-gapped or security-sensitive
+  environments where all images must be pre-validated and controlled
+  externally.
 
   **Configuration Considerations:**
 
-  - The push location (target registry) will be configurable via GKM ConfigMap or environment variable.
-  - Signing policies for JIT-generated images can be enforced using internal cosign keys or keyless
-    signing workflows.
-  - An optional retention policy can be configured to garbage-collect unused JIT kernel caches after a
-    specified TTL or number of image versions.
+  - The push location (target registry) will be configurable via GKM ConfigMap
+    or environment variable.
+  - Signing policies for JIT-generated images can be enforced using internal
+    cosign keys or keyless signing workflows.
+  - An optional retention policy can be configured to garbage-collect unused
+    JIT kernel caches after a specified TTL or number of image versions.

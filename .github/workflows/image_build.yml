@@ -5,16 +5,18 @@ name: image-build
 on: # yamllint disable-line rule:truthy
   pull_request:
     branches: ["*"]
-    paths-ignore:
-      - docs/**
-      - README.md
+    paths:
+      - "**/*.go"
+      - "**/Containerfile.*"
+      - config/**/*.yaml
   push:
     branches: [main]
     tags:
       - v*
-    paths-ignore:
-      - docs/**
-      - README.md
+    paths:
+      - "**/*.go"
+      - "**/Containerfile.*"
+      - config/**/*.yaml
 
 jobs:
   build-and-push-images:
