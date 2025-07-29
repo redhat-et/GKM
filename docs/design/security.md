@@ -19,14 +19,15 @@ admission and controller logic.
 ### Image Signature Verification and Digest Trust Components (and their Roles)
 
 <!-- markdownlint-disable  MD013 -->
+<!-- markdownlint-disable  MD033 -->
 <!-- Temporarily disable MD013 - Line length to keep the table formatting  -->
 | Component                  | Responsibilities                                                                 |
 |----------------------------|-----------------------------------------------------------------------------------|
 | **Admission Webhook (Combined)** | - Verifies signatures<br>- Resolves image tag to digest<br>- Mutates trusted annotation<br>- Validates annotation tampering |
 | **GKM Operator**           | - Promotes trusted digest to `.status.resolvedDigest`<br>- Sets `.status.lastUpdated` |
 | **GKM Agent**              | - Watches CR `gkm.io/resolvedDigest` annotations. <br>- Pulls image by digest<br>- Validates compatibility against GPU Hardware<br>- Updates `GKMCacheNode` status |
-
 <!-- markdownlint-enable  MD013 -->
+<!-- markdownlint-enable  MD033 -->
 
 ### Workflow of Image Signature Verification and Digest Trust
 
@@ -57,12 +58,12 @@ This webhook operation is broken down into two phases:
     > any attempt by a user to add, modify, or remove this annotation.
     > Only the GKM webhook or controller is authorized to manage this field.
 
-
 - **Phase 2 - Validation**: Denies the request if:
   - The image is not signed or verification fails
   - The user attempts to:
     - Modify the `gkm.io/resolvedDigest` annotation directly
-  - Only trusted service accounts (e.g. the webhook itself) can mutate this annotation.
+  - Only trusted service accounts (e.g. the webhook itself) can mutate this
+    annotation.
 
 #### Step 3A: Operator Promotes Digest Annotation to CR Status
 
@@ -84,23 +85,24 @@ The **GKM Operator**:
 
 The **GKM Agent** (on each node):
 
-- Also watches `GKMCache` and `ClusterGKMCache` CRs for new or changed `spec.image`
-  or annotations.
+- Also watches `GKMCache` and `ClusterGKMCache` CRs for new or changed
+  `spec.image` or annotations.
 - When it finds a trusted annotation, it:
   - Pulls the image by digest only (never by tag) and does not run any
     further reverification tests.
   - Extracts kernel cache and performs GPU/driver compatibility checks.
-  - Updates the local `GKMCacheNode` or `ClusterGKMCacheNode` CR with per-node status, including:
-      - Compatible GPU IDs
-      - Incompatibility reasons (if any)
-      - Last updated timestamp
+  - Updates the local `GKMCacheNode` or `ClusterGKMCacheNode` CR with per-node
+    status, including:
+    - Compatible GPU IDs
+    - Incompatibility reasons (if any)
+    - Last updated timestamp
 
 > **Note**:  The agent does **not** reverify the signature.
-
-> **Note**:  On CR update, the agent checks if the Cache is already extracted on the node,
-> and whether or not it's in use. If a cache is already in use, the Agent might need to track
-> the usage of the old cache and do some form of garbage collection when it's no longer
-> in use.
+>
+> **Note**:  On CR update, the agent checks if the Cache is already extracted
+> on the node, and whether or not it's in use. If a cache is already in use,
+> the Agent might need to track the usage of the old cache and do some form of
+> garbage collection when it's no longer in use.
 
 ### Example Lifecycle of Image Signature Verification and Digest Trust
 
@@ -135,7 +137,8 @@ The **GKM Agent** (on each node):
 4. **Agent:**
 
    - Pulls and validates the image by digest from the annotation in the CR.
-   - Updates node-level cache status in `GKMCacheNode` or `ClusterGKMCacheNode`.
+   - Updates node-level cache status in `GKMCacheNode` or
+     `ClusterGKMCacheNode`.
 
 ### Annotation Enforcement Summary
 

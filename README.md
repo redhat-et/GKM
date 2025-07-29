@@ -1,16 +1,20 @@
 # GPU-kernel-manager-operator
 
+<!-- markdownlint-disable  MD033 -->
 <img src="docs/images/gkm-logo.png" alt="gkm" width="20%" height="auto">
+<!-- markdownlint-enable  MD033 -->
 
 ## Description
+
 GPU Kernel Manager is a software stack that aims to deploy, manage and
 monitor GPU Kernels in a Kubernetes cluster.
-It will use the utilities developed in [TKDK](https://github.com/redhat-et/TKDK)
-to accomplish these goals.
+It will use the utilities developed in
+[TKDK](https://github.com/redhat-et/TKDK) to accomplish these goals.
 
 ## Getting Started
 
 ### Prerequisites
+
 - go version v1.22.0+
 - podman version 5.3.1+.
 - kubectl version v1.11.3+.
@@ -54,9 +58,8 @@ make destroy-kind
 
 ### Install Test Pod Using GKM
 
-There is an example yaml that creates a `GKMCache` custom resource (CR) instance
-which points an OCI Image with GPU Kernel Cache.
-Example:
+There is an example yaml that creates a `GKMCache` custom resource (CR)
+instance which points an OCI Image with GPU Kernel Cache. Example:
 
 ```yaml
 apiVersion: gkm.io/v1alpha1
@@ -67,8 +70,8 @@ spec:
   image: quay.io/mtahhan/flash-attention-rocm:latest
 ```
 
-The example yaml also includes a test pod that references the `GKMCache` CR instance.
-Example:
+The example yaml also includes a test pod that references the `GKMCache` CR
+instance. Example:
 
 ```yaml
 kind: Pod
@@ -100,23 +103,25 @@ spec:
 
 Pod Spec Highlights:
 
-* The `volumes:` named `kernel-volume` references the GKM CSI driver via
+- The `volumes:` named `kernel-volume` references the GKM CSI driver via
   `driver: csi.gkm.io` and references the GKM Cache CR via
   `csi.gkm.io/GKMCache: flash-attention-rocm`.
-* The `volumeMounts:` named `kernel-volume` maps the GPU Kernel Cache to the directory `/cache`
-  within the pod.
-* There is a Node Selector `gkm-test-node: "true"`.
+- The `volumeMounts:` named `kernel-volume` maps the GPU Kernel Cache to the
+  directory `/cache` within the pod.
+- There is a Node Selector `gkm-test-node: "true"`.
   The `make run-on-kind` command adds this label to node `kind-gpu-sim-worker`.
   This is help monitor logs while applying the pod.
 
-> **NOTE:** GKM is still a work in progress and the Agent and Operator are deployed but aren't
-> coded up to reconcile the CRDs.
+> **NOTE:** GKM is still a work in progress and the Agent and Operator are
+> deployed but aren't coded up to reconcile the CRDs.
 > To test, the OCI Image needs to be manually extracted to the node.
 > This is a temporary step.
 
-Because of the Node Selector, the test pod will be launched on node `kind-gpu-sim-worker`.
-Determine the CSI Plugin instant running on this node:
+Because of the Node Selector, the test pod will be launched on node
+`kind-gpu-sim-worker`. Determine the CSI Plugin instant running on this node:
 
+<!-- markdownlint-disable  MD013 -->
+<!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl get pods -n gkm-system -o wide
 NAME                                     READY   STATUS    RESTARTS   AGE    IP           NODE
@@ -126,10 +131,13 @@ gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          102m   10.
 gkm-csi-node-nd6qn                       2/2     Running   0          102m   10.89.0.67   kind-gpu-sim-worker2
 gkm-csi-node-tkkc8                       2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker  <-- HERE
 ```
+<!-- markdownlint-enable  MD013 -->
 
 Exec into the CSI Plugin on node `kind-gpu-sim-worker` and use the GKM Agent Stub.
 This calls `TCV` to extracts the OCI Image into a directory on the Node.
 
+<!-- markdownlint-disable  MD013 -->
+<!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl exec -it -n gkm-system -c gkm-csi-node-plugin gkm-csi-node-tkkc8 -- sh
 sh-5.2#
@@ -139,6 +147,7 @@ sh-5.2#
 sh-5.2# ls /run/gkm/caches/cluster-scoped/flash-attention-rocm/
 c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6  c880dcbe2ffa9f4c96a3c5ce87fbf0b61a04ee4c46f96ee728d2d1efb65133f6  e0a7f37fbe7bb678faad9ffe683ba5d53d92645aefa5b62195bc2683b9971485
 ```
+<!-- markdownlint-enable  MD013 -->
 
 Now the example yaml can be applied:
 
@@ -146,8 +155,11 @@ Now the example yaml can be applied:
 kubectl apply -f examples/flash-attention-rocm.yaml
 ```
 
-The `gkm-test-pod` should be running and the cache should be volume mounted in the pod:
+The `gkm-test-pod` should be running and the cache should be volume mounted in
+the pod:
 
+<!-- markdownlint-disable  MD013 -->
+<!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl get pods -n gkm-system
 NAME                                     READY   STATUS    RESTARTS   AGE
@@ -162,14 +174,16 @@ kubectl exec -it -n gkm-system gkm-test-pod -- sh
 sh-5.2# ls /cache/
 c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6  c880dcbe2ffa9f4c96a3c5ce87fbf0b61a04ee4c46f96ee728d2d1efb65133f6  e0a7f37fbe7bb678faad9ffe683ba5d53d92645aefa5b62195bc2683b9971485
 ```
+<!-- markdownlint-enable  MD013 -->
 
 ### Build and Run Private GKM Build
 
 By default, `Makefile` defaults to `quay.io/gkm/*` for pushing and pulling.
-For building private images and testing, set the environment variable `QUAY_USER` to override
-image repository.
+For building private images and testing, set the environment variable
+`QUAY_USER` to override image repository.
 
-**NOTE:** Make sure not to check-in `kustomization.yaml` files with overridden quay.io user account.
+> **Note:** Make sure not to check-in `kustomization.yaml` files with overridden
+> quay.io user account.
 
 Start by building and pushing the GKM images, then start `kind` cluster:
 
@@ -182,46 +196,40 @@ make run-on-kind
 
 ## Project Distribution
 
-Following are the steps to build the installer and distribute this project to users.
+Following are the steps to build the installer and distribute this project to
+users.
 
 1. Build the installer for the image built and published in the registry:
 
-```sh
-make build-installer IMG=quay.io/gkm/operator:latest
-```
+    ```sh
+    make build-installer IMG=quay.io/gkm/operator:latest
+    ```
 
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
+    > **Note:**  The makefile target mentioned above generates an 'install.yaml'
+    > file in the dist directory. This file contains all the resources built
+    > with Kustomize, which are necessary to install this project without
+    > its dependencies.
 
-2. Using the installer
+1. Using the installer
+    <!-- markdownlint-disable  MD033 -->
+    Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the
+    project, i.e.:
 
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/GPU-kernel-manager-operator/<tag or branch>/dist/install.yaml
-```
+    <!-- markdownlint-disable  MD013 -->
+    <!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
+    ```sh
+    kubectl apply -f https://raw.githubusercontent.com/<org>/GPU-kernel-manager-operator/<tag or branch>/dist/install.yaml
+    ```
+    <!-- markdownlint-enable  MD013 -->
+    <!-- markdownlint-enable  MD033 -->
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+// TODO(user): Add detailed information on how you would like others to
+contribute to this project
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+> **Note:** Run `make help` for more information on all potential `make`
+> targets.
 
-## License
-
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+More information can be found via the
+[Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
