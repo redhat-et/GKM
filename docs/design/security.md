@@ -59,11 +59,13 @@ This webhook operation is broken down into two phases:
     > Only the GKM webhook or controller is authorized to manage this field.
 
 - **Phase 2 - Validation**: Denies the request if:
+
   - The image is not signed or verification fails
   - The user attempts to:
     - Modify the `gkm.io/resolvedDigest` annotation directly
-  - Only trusted service accounts (e.g. the webhook itself) can mutate this
-    annotation.
+
+    > **Note:** Reminder only trusted service accounts (the webhook itself)
+    > can mutate this annotation.
 
 #### Step 3A: Operator Promotes Digest Annotation to CR Status
 
@@ -80,6 +82,12 @@ The **GKM Operator**:
     ```
 
 - The operator does **not** reverify the signature.
+
+> **Note**: The operator treats the `gkm.io/resolvedDigest` annotation as the
+> trusted source of truth and promotes it to `.status.resolvedDigest`. This
+> enables status tracking, audit, and observability. The annotation is used
+> for faster downstream consumption by agents, while `.status` serves as a
+> system record.
 
 #### Step 3B: Agent Pulls Image and Validates Compatibility
 
@@ -151,6 +159,10 @@ The **GKM Agent** (on each node):
 | `spec.image`                  | User-provided input           | Mutating webhook handles digest resolution |
 <!-- markdownlint-enable  MD013 -->
 
+> **Note:** Even though agents read the `gkm.io/resolvedDigest` annotation for
+> fast reaction, it is still treated as a trusted field and must be immutable
+> by users. Webhook enforcement is required to maintain this trust boundary.
+
 ### Security Guarantees
 
 - Digest is verified and resolved at admission time
@@ -158,5 +170,31 @@ The **GKM Agent** (on each node):
 - Runtime components pull by digest only
 - Digest is promoted to `.status` by a trusted controller
 - Nodes act on immutable, validated digests
+
+### Trust Model Notes
+
+This security model assumes:
+
+- The **GKM webhook is trusted** to verify image signatures and resolve image
+  tags to digests.
+- The **image registry** is trusted to serve content correctly by digest
+  (i.e., content-addressable integrity).
+- The **digest is immutable** and is treated as an attestation of verified
+  content.
+- The **GKM Operator is trusted** to promote verified state from annotation
+  to `.status`, and does not reverify signatures.
+- The **Validating Admission Webhook is critical** — if missing or
+  misconfigured, users could bypass digest verification by injecting
+  annotations.
+
+> **Note:** The webhook must explicitly check `userInfo` in admission requests
+> to prevent unauthorized entities from modifying trusted annotations. RBAC
+> alone is insufficient — webhook logic is needed to enforce write restrictions
+> on annotations like `gkm.io/resolvedDigest`.
+>
+> **Note:** GKM Agents do not reverify image signatures post-pull. This is
+> consistent with common Kubernetes security patterns (e.g., Kyverno, GKE
+> Flux, Tekton Chains), where verification happens once at admission and
+> runtime behaviour is locked to verified digests.
 
 ---
