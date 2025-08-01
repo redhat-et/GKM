@@ -89,6 +89,13 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.operator.log.level
+          - name: HOME
+            value: /run/gkm
+          - name: MUTATION_SIGNING_KEY
+            valueFrom:
+              secretKeyRef:
+                name: gkm-webhook-key
+                key: MUTATION_SIGNING_KEY
         livenessProbe:
           httpGet:
             path: /healthz
@@ -114,6 +121,8 @@ spec:
           - name: cert
             mountPath: /tmp/k8s-webhook-server/serving-certs
             readOnly: true
+          - name: sigstore-cache
+            mountPath: /var/run/gkm
 
       - name: csi-provisioner
         image: k8s.gcr.io/sig-storage/csi-provisioner:v2.2.0
@@ -150,4 +159,6 @@ spec:
           secret:
             secretName: webhook-server-cert
         - name: socket-dir
+          emptyDir: {}
+        - name: sigstore-cache
           emptyDir: {}

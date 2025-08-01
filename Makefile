@@ -293,7 +293,7 @@ else
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize prepare-deploy webhook-secret-file ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) apply -f -
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
@@ -339,6 +339,18 @@ get-example-images:
 .PHONY: deploy-webhook-certs
 deploy-webhook-certs:
 	$(KUBECTL) apply -k config/webhook
+
+.PHONY: webhook-secret-file
+webhook-secret-file:
+	@mkdir -p config/secret
+	@[ -s config/secret/mutation.env ] || \
+	  (echo 'Generating config/secret/mutation.env'; \
+	   printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env)
+
+.PHONY: rotate-webhook-secret
+rotate-webhook-secret:
+	@printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env
+	$(KUSTOMIZE) build config/secret | $(KUBECTL) apply -f -
 
 .PHONY: get-cert-manager-images
 get-cert-manager-images:

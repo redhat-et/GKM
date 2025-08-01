@@ -1,0 +1,19 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+webhooks:
+  - name: mgkmcache.kb.io
+    timeoutSeconds: 30
+  - name: mclustergkmcache.kb.io
+    timeoutSeconds: 30
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+  - name: vgkmcache.kb.io
+    timeoutSeconds: 30
+  - name: vclustergkmcache.kb.io
+    timeoutSeconds: 30
