@@ -41,9 +41,11 @@ COPY --from=builder /workspace/config/csi-plugin/csi-driver.yaml /csi-driver.yam
 # Install required runtime libraries for CGO (GPGME and others)
 RUN apt-get update && \
     apt-get install -y \
+        ca-certificates \
         libgpgme11 \
         libbtrfs0 \
         libseccomp2 && \
+        update-ca-certificates && \
     apt-get clean
 
 # Run as non-root user
