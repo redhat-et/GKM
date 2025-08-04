@@ -35,9 +35,9 @@ var (
 // Configuration structs
 type TCVConfig struct {
 	TCVNamespace     string
-	EnabledGPU       bool
+	EnabledGPU       *bool
 	KubeConfig       string
-	EnabledBaremetal bool
+	EnabledBaremetal *bool
 }
 
 type Config struct {
@@ -91,32 +91,32 @@ func Initialize(baseDir string) (*Config, error) {
 }
 
 func getTCVConfig() TCVConfig {
+	var gpu, bm *bool
+
+	// GPU: default to true unless explicitly set to "false"
+	if val, exists := os.LookupEnv("ENABLE_GPU"); exists {
+		b := strings.EqualFold(val, "true")
+		gpu = &b
+	} else {
+		b := true // default to true
+		gpu = &b
+	}
+
+	if val, exists := os.LookupEnv("ENABLE_BAREMETAL"); exists {
+		b := strings.EqualFold(val, "true")
+		bm = &b
+	} else {
+		b := false
+		bm = &b
+	}
+
 	return TCVConfig{
+		EnabledGPU:       gpu,
+		EnabledBaremetal: bm,
 		TCVNamespace:     getConfig("KEPLER_NAMESPACE", defaultNamespace),
-		EnabledGPU:       getBoolConfig("ENABLE_GPU", false),
-		EnabledBaremetal: getBoolConfig("ENABLE_BAREMETAL", false),
 		KubeConfig:       getConfig("KUBE_CONFIG", defaultKubeConfig),
 	}
 }
-
-// Helper functions
-func getBoolConfig(configKey string, defaultBool bool) bool {
-	defaultValue := "false"
-	if defaultBool {
-		defaultValue = "true"
-	}
-	return strings.ToLower(getConfig(configKey, defaultValue)) == "true"
-}
-
-// TODO: enable in the future
-// func getIntConfig(configKey string, defaultInt int) int {
-// 	defaultValue := strconv.Itoa(defaultInt)
-// 	value, err := strconv.Atoi(getConfig(configKey, defaultValue))
-// 	if err == nil {
-// 		return value
-// 	}
-// 	return defaultInt
-// }
 
 // getConfig returns the value of the key by first looking in the environment
 // and then in the config file if it exists or else returns the default value.
@@ -136,8 +136,8 @@ func getConfig(key, defaultValue string) string {
 }
 
 func logBoolConfigs() {
-	logging.Infof("ENABLE_GPU: %t", instance.TCV.EnabledGPU)
-	logging.Infof("ENABLE_BAREMETAL: %t", instance.TCV.EnabledBaremetal)
+	logging.Infof("ENABLE_GPU: %t", IsGPUEnabled())
+	logging.Infof("ENABLE_BAREMETAL: %t", IsBaremetalEnabled())
 }
 
 func LogConfigs() {
@@ -145,14 +145,14 @@ func LogConfigs() {
 	logBoolConfigs()
 }
 
-// SetEnabledGPU enables the exposure of gpu metrics
 func SetEnabledGPU(enabled bool) {
-	instance.TCV.EnabledGPU = enabled
+	b := enabled
+	instance.TCV.EnabledGPU = &b
 }
 
-// SetEnabledBaremetal enables the exposure of gpu metrics
 func SetEnabledBaremetal(enabled bool) {
-	instance.TCV.EnabledBaremetal = enabled
+	b := enabled
+	instance.TCV.EnabledBaremetal = &b
 }
 
 // SetKubeConfig set kubeconfig file
@@ -165,9 +165,15 @@ func KubeConfig() string {
 }
 
 func IsGPUEnabled() bool {
-	return instance.TCV.EnabledGPU
+	if instance.TCV.EnabledGPU != nil {
+		return *instance.TCV.EnabledGPU
+	}
+	return false
 }
 
 func IsBaremetalEnabled() bool {
-	return instance.TCV.EnabledBaremetal
+	if instance.TCV.EnabledBaremetal != nil {
+		return *instance.TCV.EnabledBaremetal
+	}
+	return false
 }
