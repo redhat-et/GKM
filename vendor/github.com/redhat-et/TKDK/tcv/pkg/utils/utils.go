@@ -40,19 +40,11 @@ func HasApp(app string) bool {
 	return true
 }
 
-func CleanupTmpDirs() error {
-	tmpDirPrefixes := []string{
-		constants.BuildahCacheDirPrefix,
-		constants.DockerCacheDirPrefix,
-		constants.PodmanCacheDirPrefix,
-	}
+func CleanupTCVDirs() error {
+	cmd := exec.Command("rm", "-rf", constants.TCVTmpDir)
 
-	for _, prefix := range tmpDirPrefixes {
-		cmd := exec.Command("rm", "-rf", "/tmp/"+prefix)
-
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to delete /tmp/%s: %w", prefix, err)
-		}
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to delete %s: %w", constants.TCVTmpDir, err)
 	}
 
 	logging.Info("Temporary directories successfully deleted.")
