@@ -1,4 +1,4 @@
-FROM golang:1.24 AS csi-builder
+FROM public.ecr.aws/docker/library/golang:1.24.4 AS csi-builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -20,7 +20,7 @@ RUN make build-csi
 RUN make build-agent-stub
 
 
-FROM golang:1.24 AS tcv-builder
+FROM public.ecr.aws/docker/library/golang:1.24.4 AS tcv-builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -36,9 +36,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
-RUN git clone https://github.com/redhat-et/TKDK.git  --depth 1
+RUN git clone https://github.com/redhat-et/TKDK.git
 
 WORKDIR /workspace/TKDK/tcv
+RUN git checkout tcv/v1.1.1
 RUN pwd && ls -al
 
 # Build TCV
