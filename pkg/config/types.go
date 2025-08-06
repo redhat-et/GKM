@@ -18,6 +18,7 @@ package config
 
 const (
 	envEnableGPU       = "ENABLE_GPU"
+	envSkipPrecheck    = "SKIP_PRECHECK"
 	envEnableBaremetal = "ENABLE_BAREMETAL"
 	envKubeConfig      = "KUBE_CONFIG"
 	envKeplerNamespace = "KEPLER_NAMESPACE"

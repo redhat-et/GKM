@@ -21,6 +21,7 @@ type MCVConfig struct {
 	EnabledGPU       *bool
 	KubeConfig       string
 	EnabledBaremetal *bool
+	SkipPrecheck     *bool
 }
 
 type Config struct {
@@ -71,6 +72,7 @@ func Instance() *Config {
 func getMCVConfig(confDir string) MCVConfig {
 	return MCVConfig{
 		EnabledGPU:       parseBoolEnv(envEnableGPU, true),
+		SkipPrecheck:     parseBoolEnv(envSkipPrecheck, false),
 		EnabledBaremetal: parseBoolEnv(envEnableBaremetal, false),
 		MCVNamespace:     getConfig(envKeplerNamespace, defaultNamespace, confDir),
 		KubeConfig:       getConfig(envKubeConfig, defaultKubeConfig, confDir),
@@ -111,6 +113,11 @@ func SetEnabledGPU(enabled bool) {
 	instance.MCV.EnabledGPU = &b
 }
 
+func SetSkipPrecheck(enabled bool) {
+	b := enabled
+	instance.MCV.SkipPrecheck = &b
+}
+
 func SetEnabledBaremetal(enabled bool) {
 	b := enabled
 	instance.MCV.EnabledBaremetal = &b
@@ -126,6 +133,10 @@ func KubeConfig() string {
 
 func IsGPUEnabled() bool {
 	return instance.MCV.EnabledGPU != nil && *instance.MCV.EnabledGPU
+}
+
+func IsSkipPrecheckEnabled() bool {
+	return instance.MCV.SkipPrecheck != nil && *instance.MCV.SkipPrecheck
 }
 
 func IsBaremetalEnabled() bool {

@@ -1,9 +1,14 @@
+// Package client provides high-level APIs for extracting Kernel caches
+// from OCI images, detecting system GPU and accelerator hardware, and
+// running compatibility checks between system GPUs and image metadata.
 package client
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/jaypipes/ghw"
 	"github.com/redhat-et/TKDK/mcv/pkg/accelerator"
 	"github.com/redhat-et/TKDK/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/TKDK/mcv/pkg/config"
@@ -14,15 +19,86 @@ import (
 	logging "github.com/sirupsen/logrus"
 )
 
+// Options encapsulates configurable settings for cache extraction operations.
 type Options struct {
-	ImageName       string
-	CacheDir        string
-	EnableGPU       *bool
-	LogLevel        string
-	EnableBaremetal *bool
+	ImageName       string // The name of the OCI image (e.g., quay.io/user/image:tag)
+	CacheDir        string // Path to store the cache; for triton defaults to ~/.triton/cache
+	EnableGPU       *bool  // Whether to enable GPU logic (nil = auto-detect, false = disable, true = force)
+	LogLevel        string // Logging level: debug, info, warning, error
+	EnableBaremetal *bool  // If true, enables full hardware checks including kernel dummy key validation (for baremetal envs only)
+	SkipPrecheck    *bool  // If true, skips summary-level preflight GPU compatibility checks
 }
 
-// ExtractCache pulls and extracts the cache image using the provided options
+// xPU wraps CPU and GPU info
+type xPU struct {
+	CPU *ghw.CPUInfo
+	Acc *ghw.AcceleratorInfo
+}
+
+// GetXPUInfo returns combined CPU and accelerator information (e.g., GPUs,
+// FPGAs) for the current system using the ghw library. Used for diagnostics
+// or --hw-info output.
+func GetXPUInfo() (*xPU, error) {
+	cpuInfo, accInfo, err := getSystemHW()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get hardware info: %w", err)
+	}
+	return &xPU{
+		CPU: cpuInfo,
+		Acc: accInfo,
+	}, nil
+}
+
+func getSystemHW() (cpuInfo *ghw.CPUInfo, accInfo *ghw.AcceleratorInfo, err error) {
+	cpuInfo, errCPU := ghw.CPU()
+	if errCPU != nil {
+		logging.Error("failed to get CPU info:", errCPU)
+	} else {
+		logging.Debug(cpuInfo)
+	}
+
+	accInfo, errAcc := ghw.Accelerator()
+	if errAcc != nil {
+		logging.Error("failed to get accelerator info:", errAcc)
+	} else {
+		for _, device := range accInfo.Devices {
+			logging.Debug(device)
+		}
+	}
+
+	err = errors.Join(errCPU, errAcc)
+	return
+}
+
+// PrintXPUInfo logs or prints system CPU and accelerator (GPU) info
+// in a human-readable format for CLI users.
+func PrintXPUInfo(xpu *xPU) {
+	fmt.Println("=== CPU Information ===")
+	for _, proc := range xpu.CPU.Processors {
+		fmt.Printf("Vendor: %s, Model: %s, Cores: %d, Threads: %d\n",
+			proc.Vendor, proc.Model, proc.NumCores, proc.NumThreads)
+	}
+
+	fmt.Println("\n=== Accelerator Information ===")
+	if xpu.Acc == nil || len(xpu.Acc.Devices) == 0 {
+		fmt.Println("No Accelerator detected.")
+	} else {
+		for i, device := range xpu.Acc.Devices {
+			fmt.Printf("Accelerator %d:\n", i)
+			fmt.Printf("  Address: %s\n", device.Address)
+			if device.PCIDevice != nil {
+				fmt.Printf("  Vendor: %s\n", device.PCIDevice.Vendor.Name)
+				fmt.Printf("  Product: %s\n", device.PCIDevice.Product.Name)
+			} else {
+				fmt.Println("  PCI device information unavailable")
+			}
+		}
+	}
+}
+
+// ExtractCache pulls and extracts a kernel cache from the specified OCI image.
+// It uses the provided options to configure behavior such as GPU checks, logging, and
+// output directory. If GPU checks are enabled, it also verifies hardware compatibility.
 func ExtractCache(opts Options) error {
 	if opts.ImageName == "" {
 		return fmt.Errorf("image name must be specified")
@@ -40,6 +116,13 @@ func ExtractCache(opts Options) error {
 		config.SetEnabledGPU(*opts.EnableGPU)
 		if !*opts.EnableGPU {
 			logging.Debug("GPU checks disabled via client options")
+		}
+	}
+
+	if opts.SkipPrecheck != nil {
+		config.SetSkipPrecheck(*opts.SkipPrecheck)
+		if !*opts.SkipPrecheck {
+			logging.Debug("preflight checks disabled via client options")
 		}
 	}
 
@@ -64,15 +147,30 @@ func ExtractCache(opts Options) error {
 	return fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
 
-// GetSystemGPUInfo initializes the GPU accelerator and returns the list of available GPU devices
+// GetSystemGPUInfo returns a list of GPU devices with detailed information
+// (e.g., backend, architecture, PTX, etc.).
+//
+// If GPU support is not explicitly enabled, it auto-detects hardware
+// accelerators and enables GPU logic if supported hardware is found.
 func GetSystemGPUInfo() ([]devices.TritonGPUInfo, error) {
 	if _, err := config.Initialize(config.ConfDir); err != nil {
 		return nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
-	// Assume GPU is enabled if we're requesting GPU info
+	// Auto-detect accelerator hardware if GPU is not already enabled
 	if !config.IsGPUEnabled() {
-		logging.Debug("Forcing ENABLE_GPU=true to retrieve GPU info")
+		accInfo, err := ghw.Accelerator()
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
+		}
+
+		if accInfo == nil || len(accInfo.Devices) == 0 {
+			logging.Warn("No hardware accelerator found. GPU support will be disabled.")
+			config.SetEnabledGPU(false)
+			return nil, fmt.Errorf("no hardware accelerator present")
+		}
+
+		logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(accInfo.Devices))
 		config.SetEnabledGPU(true)
 	}
 
@@ -94,42 +192,35 @@ func GetSystemGPUInfo() ([]devices.TritonGPUInfo, error) {
 	return info, nil
 }
 
-func PreflightCheck(imageName string) error {
+// PreflightCheck performs a compatibility check between the system’s detected GPUs
+// and the image’s embedded metadata (via summary label). This is a lightweight check
+// (label-only) intended to quickly identify supported GPUs for a given image.
+//
+// Returns slices of matched and unmatched GPUs, along with any error encountered.
+func PreflightCheck(imageName string) (matched, unmatched []devices.TritonGPUInfo, err error) {
 	// Initialize config
-	if _, err := config.Initialize(config.ConfDir); err != nil {
-		return fmt.Errorf("failed to initialize config: %w", err)
+	if _, err = config.Initialize(config.ConfDir); err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
-	// Ensure GPU is enabled
-	if !config.IsGPUEnabled() {
-		logging.Debug("Forcing ENABLE_GPU=true for preflight check")
-		config.SetEnabledGPU(true)
-	}
-
-	// Create accelerator
-	acc, err := accelerator.New(config.GPU, true)
+	// Get device info (handles detection + accelerator setup)
+	devInfo, err := GetSystemGPUInfo()
 	if err != nil {
-		return fmt.Errorf("failed to initialize GPU accelerator: %w", err)
+		return nil, nil, fmt.Errorf("failed to get system GPU info: %w", err)
 	}
-	accelerator.GetRegistry().MustRegister(acc)
 
 	// Fetch the image
 	img, err := fetcher.NewImgFetcher().FetchImg(imageName)
 	if err != nil {
-		return fmt.Errorf("failed to fetch image: %w", err)
+		return nil, nil, fmt.Errorf("failed to fetch image: %w", err)
 	}
 
-	// Get GPU device info
-	devInfo, err := preflightcheck.GetAllGPUInfo(acc)
+	// Run the compatibility check
+	matched, unmatched, err = preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo)
 	if err != nil {
-		return fmt.Errorf("failed to get GPU info: %w", err)
-	}
-
-	// Run the summary label check
-	if err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo); err != nil {
-		return fmt.Errorf("preflight check failed: %w", err)
+		return matched, unmatched, fmt.Errorf("preflight check failed: %w", err)
 	}
 
 	logging.Info("Preflight GPU compatibility check passed.")
-	return nil
+	return matched, unmatched, nil
 }

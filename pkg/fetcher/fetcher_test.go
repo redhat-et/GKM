@@ -17,7 +17,7 @@ type mockDockerClient struct {
 	shouldFail bool
 }
 
-func (m *mockDockerClient) ImageSave(ctx context.Context, images []string, options ...client.ImageSaveOption) (io.ReadCloser, error) {
+func (m *mockDockerClient) ImageSave(ctx context.Context, imgs []string, options ...client.ImageSaveOption) (io.ReadCloser, error) {
 	if m.shouldFail {
 		return nil, errors.New("mock docker failure")
 	}

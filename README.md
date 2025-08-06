@@ -292,7 +292,9 @@ tlog entry created with index: 215011903
 Pushing signature to: quay.io/mtahhan/01-vector-add-cache
 ```
 
-## Client API
+## MCV Client API
+
+### Extracting a Cache from a Container Image
 
 An example snippet of how to use the client API to extract a Cache
 from a container image is shown below.
@@ -302,16 +304,18 @@ import (
     "github.com/redhat-et/TKDK/mcv/pkg/client"
 )
 
-func main() {
-    enableGPU := false // for real use case should be true... or will default to true if not set
-    enableBaremetal := false
+package main
 
+import (
+    "github.com/redhat-et/TKDK/mcv/pkg/client"
+)
+
+func main() {
     err := client.ExtractCache(client.Options{
         ImageName:       "quay.io/mtahhan/01-vector-add-cache:latest",
         CacheDir:        "/tmp/testcache",
-        EnableGPU:       &enableGPU,
         LogLevel:        "debug",
-        EnableBaremetal: &enableBaremetal,
+        EnableBaremetal: nil, // or false if explicitly desired
     })
     if err != nil {
         panic(err)
@@ -319,7 +323,9 @@ func main() {
 }
 ```
 
-You can also use the TKDK client API to retrieve details about the system's
+### Detecting System GPU Devices
+
+You can also use the MCV client API to retrieve details about the system's
 available GPUs:
 
 ```go
@@ -346,5 +352,58 @@ func main() {
 
     fmt.Println("Detected GPU Devices:")
     fmt.Println(string(output))
+}
+```
+
+### Retrieving Full System Hardware Info (CPU, GPU, Accelerator)
+
+```go
+package main
+
+import (
+    "log"
+
+    "github.com/redhat-et/TKDK/mcv/pkg/client"
+)
+
+func main() {
+    xpu, err := client.GetXPUInfo()
+    if err != nil {
+        log.Fatalf("Failed to get system hardware info: %v", err)
+    }
+
+    client.PrintXPUInfo(xpu)
+}
+```
+
+### Checking Image Compatibility with Host GPUs
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/redhat-et/TKDK/mcv/pkg/client"
+)
+
+func main() {
+    matched, unmatched, err := client.PreflightCheck("quay.io/mtahhan/01-vector-add-cache:latest")
+    if err != nil {
+        log.Fatalf("Preflight check failed: %v", err)
+    }
+
+    fmt.Printf("Compatible GPUs: %d\n", len(matched))
+    for i, gpu := range matched {
+        fmt.Printf("  MATCH %d: Backend=%s, Arch=%s, WarpSize=%d, PTX=%s\n",
+            i, gpu.Backend, gpu.Arch, gpu.WarpSize, gpu.PTXVersion)
+    }
+
+    fmt.Printf("Incompatible GPUs: %d\n", len(unmatched))
+    for i, gpu := range unmatched {
+        fmt.Printf("  NO-MATCH %d: Backend=%s, Arch=%s, WarpSize=%d, PTX=%s\n",
+            i, gpu.Backend, gpu.Arch, gpu.WarpSize, gpu.PTXVersion)
+    }
 }
 ```

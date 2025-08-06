@@ -164,14 +164,18 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 		return fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 
-	if config.IsGPUEnabled() {
+	if config.IsSkipPrecheckEnabled() {
+		logging.Info("Skipping preflight GPU compatibility checks (--skip-precheck enabled)")
+	}
+
+	if config.IsGPUEnabled() && !config.IsSkipPrecheckEnabled() {
 		devInfo, err = preflightcheck.GetAllGPUInfo(e.acc)
 		if err != nil {
 			return fmt.Errorf("failed to get GPU info: %w", err)
 		}
 
 		// Summary check first (labels only)
-		if err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo); err != nil {
+		if _, _, err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo); err != nil {
 			return fmt.Errorf("summary check failed: %w", err)
 		}
 	}
@@ -205,11 +209,11 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 
 	// Full manifest compatibility check (after extraction)
 	manifestPath := filepath.Join(constants.MCVManifestDir, constants.ManifestFileName)
-	if config.IsGPUEnabled() {
+	if config.IsGPUEnabled() && config.IsBaremetalEnabled() {
 		if err := preflightcheck.CompareTritonCacheManifestToGPU(manifestPath, devInfo); err != nil {
 			for _, dir := range extractedDirs {
-				if err = os.RemoveAll(dir); err != nil {
-					logging.Warnf("Failed to clean up extracted kernel dir %s: %v", dir, err)
+				if rmErr := os.RemoveAll(dir); rmErr != nil {
+					logging.Warnf("Failed to clean up extracted kernel dir %s: %v", dir, rmErr)
 				}
 			}
 			return fmt.Errorf("manifest check failed: %w", err)

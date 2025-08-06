@@ -14,18 +14,22 @@ import (
 	logging "github.com/sirupsen/logrus"
 )
 
+type TritonManifest struct {
+	Triton []cache.TritonImageData `json:"triton"`
+}
+
 func CompareTritonCacheManifestToGPU(manifestPath string, devInfo []devices.TritonGPUInfo) error {
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return fmt.Errorf("failed to read manifest file: %w", err)
 	}
 
-	var entries []cache.TritonImageData
-	if err := json.Unmarshal(data, &entries); err != nil {
+	var manifest TritonManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
 		return fmt.Errorf("failed to parse manifest JSON: %w", err)
 	}
 
-	return CompareTritonEntriesToGPU(entries, devInfo)
+	return CompareTritonEntriesToGPU(manifest.Triton, devInfo)
 }
 
 func CompareTritonEntriesToGPU(entries []cache.TritonImageData, devInfo []devices.TritonGPUInfo) error {
@@ -94,39 +98,52 @@ func CompareTritonEntriesToGPU(entries []cache.TritonImageData, devInfo []device
 	return fmt.Errorf("no compatible GPU found")
 }
 
-func CompareTritonSummaryLabelToGPU(img v1.Image, devInfo []devices.TritonGPUInfo) error {
+func CompareTritonSummaryLabelToGPU(img v1.Image, devInfo []devices.TritonGPUInfo) (matched, unmatched []devices.TritonGPUInfo, err error) {
 	configFile, err := img.ConfigFile()
 	if err != nil {
-		return fmt.Errorf("failed to get image config: %w", err)
+		return nil, nil, fmt.Errorf("failed to get image config: %w", err)
 	}
 
 	labels := configFile.Config.Labels
 	if labels == nil {
-		return errors.New("image has no labels")
+		return nil, nil, errors.New("image has no labels")
 	}
 
 	summaryStr, ok := labels["cache.triton.image/summary"]
 	if !ok {
-		return errors.New("image missing cache summary label")
+		return nil, nil, errors.New("image missing cache summary label")
 	}
 
 	var summary cache.TritonSummary
-	if err := json.Unmarshal([]byte(summaryStr), &summary); err != nil {
-		return fmt.Errorf("failed to parse summary label: %w", err)
+	if err = json.Unmarshal([]byte(summaryStr), &summary); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse summary label: %w", err)
 	}
 
-	for _, target := range summary.Targets {
-		for _, gpu := range devInfo {
-			if target.Backend == gpu.Backend &&
-				target.Arch == gpu.Arch &&
-				target.WarpSize == gpu.WarpSize {
-				logging.Debugf("Summary preflight match found: %+v", target)
-				return nil
+	for _, gpu := range devInfo {
+		isMatch := false
+		for _, target := range summary.Targets {
+			backendMatches := target.Backend == gpu.Backend
+			archMatches := target.Arch == gpu.Arch
+			warpMatches := target.WarpSize == gpu.WarpSize
+
+			if backendMatches && archMatches && warpMatches {
+				isMatch = true
+				break
 			}
+		}
+
+		if isMatch {
+			matched = append(matched, gpu)
+		} else {
+			unmatched = append(unmatched, gpu)
 		}
 	}
 
-	return fmt.Errorf("no compatible GPU found from summary preflight check")
+	if len(matched) == 0 {
+		err = fmt.Errorf("no compatible GPU found from summary preflight check")
+	}
+
+	return matched, unmatched, err
 }
 
 func GetAllGPUInfo(acc accelerator.Accelerator) ([]devices.TritonGPUInfo, error) {
