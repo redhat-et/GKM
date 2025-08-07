@@ -359,7 +359,9 @@ deploy-on-kind: manifests kustomize deploy-cert-manager ## Deploy operator and a
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
 	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
 	cd config/configMap && \
-	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	  $(SED) \
+	      -e '/literals:/a\  - gkm.nogpu=true' \
+	      -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
 	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -

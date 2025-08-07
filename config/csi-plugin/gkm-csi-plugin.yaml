@@ -37,8 +37,16 @@ spec:
           image: quay.io/gkm/gkm-csi-plugin:latest
           imagePullPolicy: "Always"
           env:
+            - name: NO_GPU
+              valueFrom:
+                configMapKeyRef:
+                  name: gkm-config
+                  key: gkm.nogpu
             - name: GO_LOG
-              value: info
+              valueFrom:
+                configMapKeyRef:
+                  name: gkm-config
+                  key: gkm.operator.log.level
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
             - name: KUBE_NODE_NAME

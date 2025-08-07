@@ -27,9 +27,6 @@ const (
 	// images.
 	ClusterScopedSubDir = "cluster-scoped"
 
-	// TcvBinary is the location on the host of the TCV binary.
-	TcvBinary = "tcv"
-
 	// Name of the GKM ConfigMap that is used to control how GKM is Deployed and Functions.
 	GKMConfigName = "gkm-config"
 
@@ -42,7 +39,7 @@ const (
 	// GKMCache and ClusterGKMCache Annotations
 	GMKCacheAnnotationResolvedDigest = "gkm.io/resolvedDigest"
 
-	// GKMCache and ClusterGKMCache LAbels
+	// GKMCache and ClusterGKMCache Labels
 	GMKCacheLabelHostname = "kubernetes.io/hostname"
 	GMKCacheLabelOwnedBy  = "gkm.io/ownedByCache"
 
@@ -56,6 +53,14 @@ const (
 	// NamespaceGkmCacheFinalizer is the finalizer that holds a GKMCacheNode from deletion
 	// until GkmCache is deleted and cleanup can be performed.
 	NamespaceGkmCacheFinalizer = "gkm.io.namespacegkmcachefinalizer/finalizer"
+
+	// ConfigMap Indexes
+	ConfigMapIndexOperatorLogLevel = "gkm.operator.log.level"
+	ConfigMapIndexAgentImage       = "gkm.agent.image"
+	ConfigMapIndexAgentLogLevel    = "gkm.agent.log.level"
+	ConfigMapIndexCsiImage         = "gkm.csi.image"
+	ConfigMapIndexCsiLogLevel      = "gkm.csi.log.level"
+	ConfigMapIndexNoGpu            = "gkm.nogpu"
 
 	// Duration for Kubernetes to Retry a failed request
 	RetryDurationOperator = 5 * time.Second

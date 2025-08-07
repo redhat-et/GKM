@@ -39,4 +39,4 @@ ENV PATH="$PATH:/usr/sbin"
 # Run as non-root user
 USER 65532:65532
 
-ENTRYPOINT ["gkm-csi-plugin", "--nogpu"]
+ENTRYPOINT ["gkm-csi-plugin"]
