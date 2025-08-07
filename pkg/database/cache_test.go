@@ -70,11 +70,13 @@ func TestExtractCache(t *testing.T) {
 			require.NoError(t, err)
 		}()
 
+		noGpu := true
+
 		// Instance 1: Cluster Scoped
 		t1 := TestData{
 			CrNamespace: "",
 			CrName:      "yellowKernel",
-			Digest:      "22ae699979cf58ab990960c799d32e44b1c38fc2681461f187122ea045b3cf9a",
+			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -82,7 +84,7 @@ func TestExtractCache(t *testing.T) {
 		t2 := TestData{
 			CrNamespace: "",
 			CrName:      "Red.Kernel",
-			Digest:      "22ae699979cf58ab990960c799d32e44b1c38fc2681461f187122ea045b3cf9a",
+			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -90,7 +92,7 @@ func TestExtractCache(t *testing.T) {
 		t3 := TestData{
 			CrNamespace: "blue",
 			CrName:      "blue_Kernel",
-			Digest:      "22ae699979cf58ab990960c799d32e44b1c38fc2681461f187122ea045b3cf9a",
+			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -98,7 +100,7 @@ func TestExtractCache(t *testing.T) {
 		t4 := TestData{
 			CrNamespace: "blue",
 			CrName:      "light-Blue-Kernel",
-			Digest:      "22ae699979cf58ab990960c799d32e44b1c38fc2681461f187122ea045b3cf9a",
+			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -106,7 +108,7 @@ func TestExtractCache(t *testing.T) {
 		t5 := TestData{
 			CrNamespace: "green",
 			CrName:      "greenKernel",
-			Digest:      "22ae699979cf58ab990960c799d32e44b1c38fc2681461f187122ea045b3cf9a",
+			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -114,7 +116,7 @@ func TestExtractCache(t *testing.T) {
 		t6 := TestData{
 			CrNamespace: "purple",
 			CrName:      "purpleKernel",
-			Digest:      "22ae699979cf58ab990960c799d32e44b1c38fc2681461f187122ea045b3cf9a",
+			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -130,7 +132,7 @@ func TestExtractCache(t *testing.T) {
 
 		// CREATE and READ Cache
 		t.Logf("TEST: Instance 1 - Cluster - ExtractCache() - Should Succeed")
-		err = ExtractCache(t1.CrNamespace, t1.CrName, t1.Image, t1.Digest, log)
+		err = ExtractCache(t1.CrNamespace, t1.CrName, t1.Image, t1.Digest, noGpu, log)
 		t.Logf("Instance 1 - Cluster - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
@@ -140,7 +142,7 @@ func TestExtractCache(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 2 - Cluster - ExtractCache() - Same Image but different Name - Should Succeed")
-		err = ExtractCache(t2.CrNamespace, t2.CrName, t2.Image, t2.Digest, log)
+		err = ExtractCache(t2.CrNamespace, t2.CrName, t2.Image, t2.Digest, noGpu, log)
 		t.Logf("Instance 2 - Cluster - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
@@ -150,7 +152,7 @@ func TestExtractCache(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 3 - Namespace - ExtractCache() - Should Succeed")
-		err = ExtractCache(t3.CrNamespace, t3.CrName, t3.Image, t3.Digest, log)
+		err = ExtractCache(t3.CrNamespace, t3.CrName, t3.Image, t3.Digest, noGpu, log)
 		t.Logf("Instance 3 - Namespace - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
@@ -160,7 +162,7 @@ func TestExtractCache(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 4 - Namespace - ExtractCache() - Same Namespace but Different Name - Should Succeed")
-		err = ExtractCache(t4.CrNamespace, t4.CrName, t4.Image, t4.Digest, log)
+		err = ExtractCache(t4.CrNamespace, t4.CrName, t4.Image, t4.Digest, noGpu, log)
 		t.Logf("Instance 4 - Namespace - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
@@ -170,7 +172,7 @@ func TestExtractCache(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 5 - Namespace - ExtractCache() - Different Namespace - Should Succeed")
-		err = ExtractCache(t5.CrNamespace, t5.CrName, t5.Image, t5.Digest, log)
+		err = ExtractCache(t5.CrNamespace, t5.CrName, t5.Image, t5.Digest, noGpu, log)
 		t.Logf("Instance 5 - Namespace - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
@@ -191,7 +193,7 @@ func TestExtractCache(t *testing.T) {
 		// DELETE Cache
 		t.Logf("TEST: Instance 1 - Cluster - RemoveCache() - Should Succeed")
 		_, err = RemoveCache(t1.CrNamespace, t1.CrName, t1.Digest, log)
-		t.Logf("Instance 1 - Cluster - ExtractCache() err: %v", err)
+		t.Logf("Instance 1 - Cluster - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
 		installedList, err = GetInstalledCacheList(log)
@@ -201,7 +203,7 @@ func TestExtractCache(t *testing.T) {
 
 		t.Logf("TEST: Instance 2 - Cluster - RemoveCache() - Should Succeed")
 		_, err = RemoveCache(t2.CrNamespace, t2.CrName, t2.Digest, log)
-		t.Logf("Instance 2 - Cluster - ExtractCache() err: %v", err)
+		t.Logf("Instance 2 - Cluster - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
 		installedList, err = GetInstalledCacheList(log)
@@ -211,7 +213,7 @@ func TestExtractCache(t *testing.T) {
 
 		t.Logf("TEST: Instance 3 - Namespace - RemoveCache() - Should Succeed")
 		_, err = RemoveCache(t3.CrNamespace, t3.CrName, t3.Digest, log)
-		t.Logf("Instance 3 - Namespace - ExtractCache() err: %v", err)
+		t.Logf("Instance 3 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
 		installedList, err = GetInstalledCacheList(log)
@@ -221,7 +223,7 @@ func TestExtractCache(t *testing.T) {
 
 		t.Logf("TEST: Instance 4 - Namespace - RemoveCache() - Should Succeed")
 		_, err = RemoveCache(t4.CrNamespace, t4.CrName, t4.Digest, log)
-		t.Logf("Instance 4 - Namespace - ExtractCache() err: %v", err)
+		t.Logf("Instance 4 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
 		installedList, err = GetInstalledCacheList(log)
@@ -231,7 +233,7 @@ func TestExtractCache(t *testing.T) {
 
 		t.Logf("TEST: Instance 5 - Namespace - RemoveCache() - Should Succeed")
 		_, err = RemoveCache(t5.CrNamespace, t5.CrName, t5.Digest, log)
-		t.Logf("Instance 5 - Namespace - ExtractCache() err: %v", err)
+		t.Logf("Instance 5 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
 		installedList, err = GetInstalledCacheList(log)
@@ -241,7 +243,7 @@ func TestExtractCache(t *testing.T) {
 
 		t.Logf("TEST: Instance 6 - Namespace - RemoveCache() - Nonexistent Cache - Should Fail")
 		_, err = RemoveCache(t6.CrNamespace, t6.CrName, t6.Digest, log)
-		t.Logf("Instance 6 - Namespace - ExtractCache() err: %v", err)
+		t.Logf("Instance 6 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
 		installedList, err = GetInstalledCacheList(log)

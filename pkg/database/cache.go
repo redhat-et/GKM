@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	mcvClient "github.com/redhat-et/TKDK/tcv/pkg/client"
+	mcvClient "github.com/redhat-et/TKDK/mcv/pkg/client"
 
 	"github.com/redhat-et/GKM/pkg/utils"
 )
@@ -49,7 +49,7 @@ type CacheKey struct {
 	Digest    string
 }
 
-func ExtractCache(crNamespace, crName, image, digest string, log logr.Logger) error {
+func ExtractCache(crNamespace, crName, image, digest string, noGpu bool, log logr.Logger) error {
 	// Replace the tag in the Image URL with the Digest. Webhook has verified
 	// the image and so pull from the resolved digest.
 	updatedImage := replaceUrlTag(image, digest)
@@ -70,15 +70,13 @@ func ExtractCache(crNamespace, crName, image, digest string, log logr.Logger) er
 		return err
 	}
 
-	enableGPU := false // for real use case should be true... or will default to true if not set
-	enableBaremetal := false
-
+	// For testing, like in a KIND Cluster, a real GPU may not be available.
+	enableGPU := !noGpu
 	err = mcvClient.ExtractCache(mcvClient.Options{
-		ImageName:       updatedImage,
-		CacheDir:        cacheDir,
-		EnableGPU:       &enableGPU,
-		LogLevel:        "debug",
-		EnableBaremetal: &enableBaremetal,
+		ImageName: updatedImage,
+		CacheDir:  cacheDir,
+		EnableGPU: &enableGPU,
+		LogLevel:  "info",
 	})
 	if err != nil {
 		log.Error(err, "unable to extract cache", "namespace", crNamespace, "name", crName, "image", updatedImage)

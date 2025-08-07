@@ -12,10 +12,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/mount-utils"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/redhat-et/GKM/pkg/utils"
 )
@@ -196,32 +193,4 @@ func IsDirEmpty(inputDir, ignoreFile string) bool {
 		}
 	}
 	return true // Directory is empty
-}
-
-func InitializeLogging(logLevel string) logr.Logger {
-	var opts zap.Options
-
-	// Setup logging
-	switch logLevel {
-	case "info":
-		opts = zap.Options{
-			Development: false,
-		}
-	case "debug":
-		opts = zap.Options{
-			Development: true,
-		}
-	case "trace":
-		opts = zap.Options{
-			Development: true,
-			Level:       zapcore.Level(-2),
-		}
-	default:
-		opts = zap.Options{
-			Development: false,
-		}
-	}
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	return ctrl.Log.WithName("gkm-csi")
 }

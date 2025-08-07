@@ -15,7 +15,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -25,8 +24,7 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -37,12 +35,32 @@ func init() {
 }
 
 func main() {
+	// Process inputs from Environment Variables. These are set in the Agent DaemonSet Yaml by pulling
+	// values from the gkm-config ConfigMap Object.
+	logLevel := os.Getenv("GO_LOG")
+	setupLog := utils.InitializeLogging(logLevel, "setup", flag.CommandLine)
+	setupLog.Info("Logging", "Level", logLevel)
+
+	noGpu := false
+	if os.Getenv("NO_GPU") == "true" {
+		noGpu = true
+		setupLog.Info("No-GPU set to true")
+	}
+
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	if nodeName == "" {
+		setupLog.Error(fmt.Errorf("KUBE_NODE_NAME env var not set"), "Couldn't determine current node")
+		os.Exit(1)
+	}
+
+	// Process inputs from Commandline
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -53,13 +71,7 @@ func main() {
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -111,17 +123,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	nodeName := os.Getenv("KUBE_NODE_NAME")
-	if nodeName == "" {
-		setupLog.Error(fmt.Errorf("KUBE_NODE_NAME env var not set"), "Couldn't determine current node")
-		os.Exit(1)
-	}
-
 	if err = (&gkmagent.GKMCacheReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		CacheDir: utils.DefaultCacheDir,
 		NodeName: nodeName,
+		NoGpu:    noGpu,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMCache")
 		os.Exit(1)

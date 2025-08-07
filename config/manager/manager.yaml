@@ -65,19 +65,30 @@ spec:
         # seccompProfile:
         #   type: RuntimeDefault
       containers:
-      - command:
+      - name: manager
+        command:
         - /operator
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: quay.io/gkm/operator:latest
         imagePullPolicy: IfNotPresent
-        name: manager
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
             - "ALL"
+        env:
+          - name: NO_GPU
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.nogpu
+          - name: GO_LOG
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.operator.log.level
         livenessProbe:
           httpGet:
             path: /healthz

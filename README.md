@@ -112,11 +112,6 @@ Pod Spec Highlights:
   The `make run-on-kind` command adds this label to node `kind-gpu-sim-worker`.
   This is help monitor logs while applying the pod.
 
-> **NOTE:** GKM is still a work in progress and the Agent and Operator are
-> deployed but aren't coded up to reconcile the CRDs.
-> To test, the OCI Image needs to be manually extracted to the node.
-> This is a temporary step.
-
 Because of the Node Selector, the test pod will be launched on node
 `kind-gpu-sim-worker`. Determine the CSI Plugin instant running on this node:
 

@@ -46,6 +46,7 @@ type GKMCacheReconciler struct {
 	Logger   logr.Logger
 	CacheDir string
 	NodeName string
+	NoGpu    bool
 
 	currCache     *gkmv1alpha1.GKMCache
 	currCacheNode *gkmv1alpha1.GKMCacheNode
@@ -195,6 +196,7 @@ func (r *GKMCacheReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 					r.currCache.Name,
 					r.currCache.Spec.Image,
 					digest,
+					r.NoGpu,
 					r.Logger,
 				); err != nil {
 					// Error returned calling MCV to extract the Cache.
