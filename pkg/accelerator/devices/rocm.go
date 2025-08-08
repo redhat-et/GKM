@@ -131,6 +131,7 @@ func (r *gpuROCm) Init() error {
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal / (1024 * 1024),
 				Backend:           "hip",
+				ID:                gpuID,
 			},
 			Summary: DeviceSummary{
 				ID:            strconv.Itoa(gpuID),

@@ -6,7 +6,6 @@ import (
 
 	"github.com/containers/buildah"
 	"github.com/containers/storage/pkg/unshare"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/TKDK/mcv/pkg/client"
 	"github.com/redhat-et/TKDK/mcv/pkg/config"
 	"github.com/redhat-et/TKDK/mcv/pkg/imgbuild"
@@ -141,18 +140,14 @@ func handleCheckCompat(imageName string) {
 
 	if len(matched) > 0 {
 		logging.Infof("Compatible GPU(s) found (%d):", len(matched))
-		for i, gpu := range matched {
-			printGPUInfo("MATCH", i, &gpu)
-		}
+		logging.Infof("IDs: %v", matched)
 	} else {
 		logging.Warn("No compatible GPUs found for the image.")
 	}
 
 	if len(unmatched) > 0 {
 		logging.Infof("Incompatible GPU(s) found (%d):", len(unmatched))
-		for i, gpu := range unmatched {
-			printGPUInfo("NO-MATCH", i, &gpu)
-		}
+		logging.Infof("IDs: %v", unmatched)
 	}
 
 	if err != nil || len(matched) == 0 {
@@ -160,16 +155,6 @@ func handleCheckCompat(imageName string) {
 		os.Exit(exitExtractError)
 	}
 	os.Exit(exitNormal)
-}
-
-func printGPUInfo(prefix string, index int, gpu *devices.TritonGPUInfo) {
-	if gpu.Backend == "cuda" && gpu.PTXVersion != 0 {
-		logging.Infof("  %s %d: Backend=%s, Arch=%s, WarpSize=%d, PTX=%d",
-			prefix, index, gpu.Backend, gpu.Arch, gpu.WarpSize, gpu.PTXVersion)
-	} else {
-		logging.Infof("  %s %d: Backend=%s, Arch=%s, WarpSize=%d",
-			prefix, index, gpu.Backend, gpu.Arch, gpu.WarpSize)
-	}
 }
 
 func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
@@ -216,7 +201,7 @@ func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
 		LogLevel:        logLevel,
 		EnableBaremetal: &baremetalFlag,
 	}
-	if err := client.ExtractCache(opts); err != nil {
+	if _, _, err := client.ExtractCache(opts); err != nil {
 		logging.Errorf("Error extracting image: %v", err)
 		os.Exit(exitExtractError)
 	}

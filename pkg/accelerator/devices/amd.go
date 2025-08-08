@@ -272,6 +272,7 @@ func (r *gpuAMD) Init() error {
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal,
 				Backend:           "hip",
+				ID:                gpuID,
 			},
 			Summary: DeviceSummary{
 				ID:            strconv.Itoa(gpuID),

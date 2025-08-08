@@ -77,29 +77,33 @@ func PrintXPUInfo(xpu *xPU) {
 // ExtractCache pulls and extracts a kernel cache from the specified OCI image.
 // It uses the provided options to configure behavior such as GPU checks, logging, and
 // output directory. If GPU checks are enabled, it also verifies hardware compatibility.
-func ExtractCache(opts Options) error {
+func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 	if opts.ImageName == "" {
-		return fmt.Errorf("image name must be specified")
+		return nil, nil, fmt.Errorf("image name must be specified")
 	}
 
 	if _, err := config.Initialize(config.ConfDir); err != nil {
-		return fmt.Errorf("failed to initialize config: %w", err)
+		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
 	if err := logformat.ConfigureLogging(opts.LogLevel); err != nil {
-		return fmt.Errorf("error configuring logging: %v", err)
+		return nil, nil, fmt.Errorf("error configuring logging: %v", err)
 	}
 
-	if opts.EnableGPU != nil {
-		config.SetEnabledGPU(*opts.EnableGPU)
-		if !*opts.EnableGPU {
-			logging.Debug("GPU checks disabled via client options")
-		}
+	// Auto-detect accelerator hardware if GPU is not already enabled
+	accInfo, err := ghw.Accelerator()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
+	}
+	if accInfo == nil || len(accInfo.Devices) == 0 {
+		config.SetEnabledGPU(false)
+	} else {
+		config.SetEnabledGPU(true)
 	}
 
 	if opts.SkipPrecheck != nil {
 		config.SetSkipPrecheck(*opts.SkipPrecheck)
-		if !*opts.SkipPrecheck {
+		if *opts.SkipPrecheck {
 			logging.Debug("preflight checks disabled via client options")
 		}
 	}
@@ -111,18 +115,38 @@ func ExtractCache(opts Options) error {
 		}
 	}
 
+	// If caller asked to skip preflight, do not run it here or downstream.
+	// Otherwise, run it ONCE here, and then set SkipPrecheck=true so downstream won’t repeat it.
+	shouldRunPreflight := config.IsGPUEnabled() && !config.IsSkipPrecheckEnabled()
+	if shouldRunPreflight {
+		matchedIDs, unmatchedIDs, err = PreflightCheck(opts.ImageName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("preflight check failed: %w", err)
+		}
+		// Prevent duplicate preflight inside extract
+		config.SetSkipPrecheck(true)
+		logging.WithFields(logging.Fields{
+			"matched":   matchedIDs,
+			"unmatched": unmatchedIDs,
+		}).Info("Preflight completed")
+	} else if config.IsSkipPrecheckEnabled() {
+		logging.Debug("Skipping preflight (requested by options)")
+	} else if !config.IsSkipPrecheckEnabled() {
+		logging.Debug("Skipping preflight (GPU disabled)")
+	}
+
 	cacheDir := opts.CacheDir
 	if cacheDir == "" {
 		cacheDir = constants.TritonCacheDir // default from init()
 	}
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return fmt.Errorf("failed to create cache dir: %w", err)
+		return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
 	}
 	constants.TritonCacheDir = cacheDir
 
 	logging.Infof("Using Triton cache directory: %s", constants.TritonCacheDir)
 
-	return fetcher.New().FetchAndExtractCache(opts.ImageName)
+	return nil, nil, fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
 
 // GetSystemGPUInfo returns a summary of GPU devices with information
@@ -139,7 +163,6 @@ func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-
 	accInfo, err := ghw.Accelerator()
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
@@ -170,7 +193,7 @@ func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 	return summary, nil
 }
 
-// PrintGPUFleetSummary prints the fleet summary in a human-friendly form.
+// PrintGPUSummary prints the fleet summary in a human-friendly form.
 func PrintGPUSummary(summary *devices.GPUFleetSummary) {
 	if summary == nil || len(summary.GPUs) == 0 {
 		fmt.Println("No GPUs found.")
@@ -190,7 +213,7 @@ func PrintGPUSummary(summary *devices.GPUFleetSummary) {
 // (label-only) intended to quickly identify supported GPUs for a given image.
 //
 // Returns slices of matched and unmatched GPUs, along with any error encountered.
-func PreflightCheck(imageName string) (matched, unmatched []devices.TritonGPUInfo, err error) {
+func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error) {
 	// Initialize config
 	if _, err = config.Initialize(config.ConfDir); err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
@@ -217,11 +240,23 @@ func PreflightCheck(imageName string) (matched, unmatched []devices.TritonGPUInf
 	}
 
 	// Run the compatibility check
-	matched, unmatched, err = preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo)
+	matched, unmatched, err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo)
 	if err != nil {
-		return matched, unmatched, fmt.Errorf("preflight check failed: %w", err)
+		return nil, nil, fmt.Errorf("preflight check failed: %w", err)
 	}
 
+	// Convert matched/unmatched TritonGPUInfo slices into GPU IDs
+	matchedIDs = extractGPUIDs(matched)
+	unmatchedIDs = extractGPUIDs(unmatched)
+
 	logging.Info("Preflight GPU compatibility check passed.")
-	return matched, unmatched, nil
+	return matchedIDs, unmatchedIDs, nil
+}
+
+func extractGPUIDs(infos []devices.TritonGPUInfo) []int {
+	ids := make([]int, 0, len(infos))
+	for _, ti := range infos {
+		ids = append(ids, ti.ID)
+	}
+	return ids
 }

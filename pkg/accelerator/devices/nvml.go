@@ -136,6 +136,7 @@ func (n *gpuNvml) Init() (err error) {
 		}
 
 		tritonInfo, err := getNVMLTritonGPUInfo(device)
+		tritonInfo.ID = gpuID
 		if err != nil {
 			return err
 		}

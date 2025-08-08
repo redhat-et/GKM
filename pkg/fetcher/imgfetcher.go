@@ -164,10 +164,6 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 		return fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 
-	if config.IsSkipPrecheckEnabled() {
-		logging.Info("Skipping preflight GPU compatibility checks (--skip-precheck enabled)")
-	}
-
 	if config.IsGPUEnabled() && !config.IsSkipPrecheckEnabled() {
 		devInfo, err = preflightcheck.GetAllGPUInfo(e.acc)
 		if err != nil {
