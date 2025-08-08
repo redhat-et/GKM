@@ -140,8 +140,8 @@ func (n *gpuNvml) Init() (err error) {
 		if err != nil {
 			return err
 		}
-		prodName, _ := GetProductName(gpuID)              //TODO error checking in the future
-		driverVersion, _ := nvml.SystemGetDriverVersion() //TODO error checking in the future
+		prodName, _ := GetProductName(gpuID)              // TODO error checking in the future
+		driverVersion, _ := nvml.SystemGetDriverVersion() // TODO error checking in the future
 		dev := GPUDevice{
 			ID:         gpuID,
 			TritonInfo: tritonInfo,
@@ -214,7 +214,8 @@ func (n *gpuNvml) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 func (n *gpuNvml) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 	var allTritonInfo []TritonGPUInfo
 
-	for gpuID, dev := range n.devices {
+	for gpuID := range n.devices {
+		dev := n.devices[gpuID]
 		allTritonInfo = append(allTritonInfo, dev.TritonInfo)
 		logging.Infof("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}

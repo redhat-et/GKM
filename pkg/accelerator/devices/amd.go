@@ -261,7 +261,7 @@ func (r *gpuAMD) Init() error {
 	for gpuID, info := range gpuInfoList.GPUInfo {
 		memTotal := calculateMemoryMB(info.VRAM.Size.Value, info.VRAM.Size.Unit)
 		name := "card" + strconv.Itoa(gpuID)
-		prodName, _ := GetProductName(gpuID) //TODO error checking in the future
+		prodName, _ := GetProductName(gpuID) // TODO error checking in the future
 		r.devices[gpuID] = GPUDevice{
 			ID: gpuID,
 			TritonInfo: TritonGPUInfo{
@@ -356,7 +356,8 @@ func getAMDListInfo(ctx context.Context) (map[int]*AMDListInfo, error) {
 
 func (r *gpuAMD) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 	var allTritonInfo []TritonGPUInfo
-	for gpuID, dev := range r.devices {
+	for gpuID := range r.devices {
+		dev := r.devices[gpuID]
 		allTritonInfo = append(allTritonInfo, dev.TritonInfo)
 		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}
@@ -373,7 +374,8 @@ func (r *gpuAMD) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 
 func (r *gpuAMD) GetAllSummaries() ([]DeviceSummary, error) {
 	var allAccInfo []DeviceSummary
-	for gpuID, dev := range r.devices {
+	for gpuID := range r.devices {
+		dev := r.devices[gpuID]
 		allAccInfo = append(allAccInfo, dev.Summary)
 		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}

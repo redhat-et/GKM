@@ -82,11 +82,11 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		return nil, nil, fmt.Errorf("image name must be specified")
 	}
 
-	if _, err := config.Initialize(config.ConfDir); err != nil {
+	if _, err = config.Initialize(config.ConfDir); err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
-	if err := logformat.ConfigureLogging(opts.LogLevel); err != nil {
+	if err = logformat.ConfigureLogging(opts.LogLevel); err != nil {
 		return nil, nil, fmt.Errorf("error configuring logging: %v", err)
 	}
 

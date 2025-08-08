@@ -120,7 +120,7 @@ func (r *gpuROCm) Init() error {
 	for gpuID, info := range gpuInfoList.GPUInfo {
 		memTotal, _ := strconv.ParseUint(info.VRAMTotalMemory, 10, 64)
 		name := "card" + strconv.Itoa(gpuID)
-		prodName, _ := GetProductName(gpuID) //TODO error checking in the future
+		prodName, _ := GetProductName(gpuID) // TODO error checking in the future
 		r.devices[gpuID] = GPUDevice{
 			ID: gpuID,
 			TritonInfo: TritonGPUInfo{
@@ -224,7 +224,8 @@ func getROCmSystemInfo(ctx context.Context) (*ROCMSystemInfo, error) {
 // GetAllGPUInfo returns a list of GPU info for all devices
 func (r *gpuROCm) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 	var allTritonInfo []TritonGPUInfo
-	for gpuID, dev := range r.devices {
+	for gpuID := range r.devices {
+		dev := r.devices[gpuID]
 		allTritonInfo = append(allTritonInfo, dev.TritonInfo)
 		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}
@@ -242,7 +243,8 @@ func (r *gpuROCm) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 
 func (r *gpuROCm) GetAllSummaries() ([]DeviceSummary, error) {
 	var allAccInfo []DeviceSummary
-	for gpuID, dev := range r.devices {
+	for gpuID := range r.devices {
+		dev := r.devices[gpuID]
 		allAccInfo = append(allAccInfo, dev.Summary)
 		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}

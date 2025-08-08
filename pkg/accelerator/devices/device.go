@@ -64,10 +64,10 @@ type Device interface {
 	// Shutdown stops the metric device
 	Shutdown() bool
 	// GetGPUInfo returns the triton info for a specific GPU
-	GetGPUInfo(gpuID int) (TritonGPUInfo, error) //TODO rename
+	GetGPUInfo(gpuID int) (TritonGPUInfo, error) // TODO rename
 	GetSummary(gpuID int) (DeviceSummary, error)
 	// GetAllGPUInfo returns the triton info for a all GPUs on the host
-	GetAllGPUInfo() ([]TritonGPUInfo, error) //TODO rename
+	GetAllGPUInfo() ([]TritonGPUInfo, error) // TODO rename
 	GetAllSummaries() ([]DeviceSummary, error)
 }
 
