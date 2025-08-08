@@ -57,4 +57,5 @@ type TritonGPUInfo struct {
 type GPUDevice struct {
 	ID         int
 	TritonInfo TritonGPUInfo
+	Summary    DeviceSummary
 }

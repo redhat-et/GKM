@@ -78,3 +78,11 @@ func (d *MockDevice) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 func (d *MockDevice) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 	return []TritonGPUInfo{}, nil
 }
+
+func (d *MockDevice) GetAllSummaries() ([]DeviceSummary, error) {
+	return []DeviceSummary{}, nil
+}
+
+func (d *MockDevice) GetSummary(gpuID int) (DeviceSummary, error) {
+	return DeviceSummary{}, nil
+}

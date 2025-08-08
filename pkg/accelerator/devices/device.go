@@ -17,6 +17,8 @@ package devices
 
 import (
 	"errors"
+	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/redhat-et/TKDK/mcv/pkg/config"
@@ -62,9 +64,27 @@ type Device interface {
 	// Shutdown stops the metric device
 	Shutdown() bool
 	// GetGPUInfo returns the triton info for a specific GPU
-	GetGPUInfo(gpuID int) (TritonGPUInfo, error)
+	GetGPUInfo(gpuID int) (TritonGPUInfo, error) //TODO rename
+	GetSummary(gpuID int) (DeviceSummary, error)
 	// GetAllGPUInfo returns the triton info for a all GPUs on the host
-	GetAllGPUInfo() ([]TritonGPUInfo, error)
+	GetAllGPUInfo() ([]TritonGPUInfo, error) //TODO rename
+	GetAllSummaries() ([]DeviceSummary, error)
+}
+
+type DeviceSummary struct {
+	ID            string
+	DriverVersion string
+	ProductName   string
+}
+
+type GPUFleetSummary struct {
+	GPUs []GPUGroup `json:"gpus" yaml:"gpus"`
+}
+
+type GPUGroup struct {
+	GPUType       string `json:"gpuType" yaml:"gpuType"`
+	DriverVersion string `json:"driverVersion" yaml:"driverVersion"`
+	IDs           []int  `json:"ids" yaml:"ids"`
 }
 
 // Registry gets the default device Registry instance
@@ -169,4 +189,55 @@ func Startup(a string) Device {
 	// The device type is unsupported
 	logging.Errorf("unsupported Device")
 	return nil
+}
+
+// SummarizeGPUs starts the currently-registered GPU device, collects all
+// summaries, coalesces them into your desired output shape, and returns it.
+func SummarizeGPUs() (*GPUFleetSummary, error) {
+	dev := Startup(config.GPU)
+	if dev == nil {
+		return nil, errors.New("no GPU device available")
+	}
+	defer dev.Shutdown()
+
+	summaries, err := dev.GetAllSummaries()
+	if err != nil {
+		return nil, err
+	}
+
+	// Group by (ProductName, DriverVersion)
+	type key struct {
+		product string
+		driver  string
+	}
+	groups := map[key]*GPUGroup{}
+
+	for _, s := range summaries {
+		idInt, _ := strconv.Atoi(s.ID) // IDs are strings in DeviceSummary; best-effort parse
+
+		k := key{product: s.ProductName, driver: s.DriverVersion}
+		if _, ok := groups[k]; !ok {
+			groups[k] = &GPUGroup{
+				GPUType:       s.ProductName,
+				DriverVersion: s.DriverVersion,
+				IDs:           []int{},
+			}
+		}
+		groups[k].IDs = append(groups[k].IDs, idInt)
+	}
+
+	// Build deterministic, sorted output
+	out := &GPUFleetSummary{GPUs: make([]GPUGroup, 0, len(groups))}
+	for _, g := range groups {
+		sort.Ints(g.IDs)
+		out.GPUs = append(out.GPUs, *g)
+	}
+	sort.Slice(out.GPUs, func(i, j int) bool {
+		if out.GPUs[i].GPUType == out.GPUs[j].GPUType {
+			return out.GPUs[i].DriverVersion < out.GPUs[j].DriverVersion
+		}
+		return out.GPUs[i].GPUType < out.GPUs[j].GPUType
+	})
+
+	return out, nil
 }

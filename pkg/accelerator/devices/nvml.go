@@ -139,10 +139,14 @@ func (n *gpuNvml) Init() (err error) {
 		if err != nil {
 			return err
 		}
-
+		prodName, _ := GetProductName(gpuID)              //TODO error checking in the future
+		driverVersion, _ := nvml.SystemGetDriverVersion() //TODO error checking in the future
 		dev := GPUDevice{
 			ID:         gpuID,
 			TritonInfo: tritonInfo,
+			Summary: DeviceSummary{ID: strconv.Itoa(gpuID),
+				ProductName:   prodName,
+				DriverVersion: driverVersion},
 		}
 
 		n.devices[gpuID] = dev
@@ -225,4 +229,14 @@ func nvmlErrorString(errno nvml.Return) string {
 		return "ERROR_LIBRARY_NOT_FOUND"
 	}
 	return fmt.Sprintf("Error %d", errno)
+}
+
+// GetAllSummaries implements Device.
+func (n *gpuNvml) GetAllSummaries() ([]DeviceSummary, error) {
+	panic("unimplemented")
+}
+
+// GetSummary implements Device.
+func (n *gpuNvml) GetSummary(gpuID int) (DeviceSummary, error) {
+	panic("unimplemented")
 }

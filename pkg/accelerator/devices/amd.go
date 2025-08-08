@@ -261,6 +261,7 @@ func (r *gpuAMD) Init() error {
 	for gpuID, info := range gpuInfoList.GPUInfo {
 		memTotal := calculateMemoryMB(info.VRAM.Size.Value, info.VRAM.Size.Unit)
 		name := "card" + strconv.Itoa(gpuID)
+		prodName, _ := GetProductName(gpuID) //TODO error checking in the future
 		r.devices[gpuID] = GPUDevice{
 			ID: gpuID,
 			TritonInfo: TritonGPUInfo{
@@ -271,6 +272,11 @@ func (r *gpuAMD) Init() error {
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal,
 				Backend:           "hip",
+			},
+			Summary: DeviceSummary{
+				ID:            strconv.Itoa(gpuID),
+				ProductName:   prodName,
+				DriverVersion: gpuInfoList.GPUInfo[gpuID].Driver.Version,
 			},
 		}
 	}
@@ -362,4 +368,21 @@ func (r *gpuAMD) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 		return TritonGPUInfo{}, fmt.Errorf("GPU device %d not found", gpuID)
 	}
 	return dev.TritonInfo, nil
+}
+
+func (r *gpuAMD) GetAllSummaries() ([]DeviceSummary, error) {
+	var allAccInfo []DeviceSummary
+	for gpuID, dev := range r.devices {
+		allAccInfo = append(allAccInfo, dev.Summary)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
+	}
+	return allAccInfo, nil
+}
+
+func (r *gpuAMD) GetSummary(gpuID int) (DeviceSummary, error) {
+	dev, exists := r.devices[gpuID]
+	if !exists {
+		return DeviceSummary{}, fmt.Errorf("GPU device %d not found", gpuID)
+	}
+	return dev.Summary, nil
 }

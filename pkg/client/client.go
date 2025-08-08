@@ -4,7 +4,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -39,7 +38,7 @@ type xPU struct {
 // FPGAs) for the current system using the ghw library. Used for diagnostics
 // or --hw-info output.
 func GetXPUInfo() (*xPU, error) {
-	cpuInfo, accInfo, err := getSystemHW()
+	cpuInfo, accInfo, err := devices.GetSystemHW()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hardware info: %w", err)
 	}
@@ -47,27 +46,6 @@ func GetXPUInfo() (*xPU, error) {
 		CPU: cpuInfo,
 		Acc: accInfo,
 	}, nil
-}
-
-func getSystemHW() (cpuInfo *ghw.CPUInfo, accInfo *ghw.AcceleratorInfo, err error) {
-	cpuInfo, errCPU := ghw.CPU()
-	if errCPU != nil {
-		logging.Error("failed to get CPU info:", errCPU)
-	} else {
-		logging.Debug(cpuInfo)
-	}
-
-	accInfo, errAcc := ghw.Accelerator()
-	if errAcc != nil {
-		logging.Error("failed to get accelerator info:", errAcc)
-	} else {
-		for _, device := range accInfo.Devices {
-			logging.Debug(device)
-		}
-	}
-
-	err = errors.Join(errCPU, errAcc)
-	return
 }
 
 // PrintXPUInfo logs or prints system CPU and accelerator (GPU) info
@@ -147,32 +125,32 @@ func ExtractCache(opts Options) error {
 	return fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
 
-// GetSystemGPUInfo returns a list of GPU devices with detailed information
-// (e.g., backend, architecture, PTX, etc.).
+// GetSystemGPUInfo returns a summary of GPU devices with information
+//
+//	gpuType: e.g. nvidia-a100
+//	driverVersion: e.g. 535.43.02
+//	ids: e.g. [0, 1, 2, 3, 4, 5, 6, 7]
 //
 // If GPU support is not explicitly enabled, it auto-detects hardware
 // accelerators and enables GPU logic if supported hardware is found.
-func GetSystemGPUInfo() ([]devices.TritonGPUInfo, error) {
+func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 	if _, err := config.Initialize(config.ConfDir); err != nil {
 		return nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if !config.IsGPUEnabled() {
-		accInfo, err := ghw.Accelerator()
-		if err != nil {
-			return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
-		}
 
-		if accInfo == nil || len(accInfo.Devices) == 0 {
-			logging.Warn("No hardware accelerator found. GPU support will be disabled.")
-			config.SetEnabledGPU(false)
-			return nil, fmt.Errorf("no hardware accelerator present")
-		}
-
-		logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(accInfo.Devices))
-		config.SetEnabledGPU(true)
+	accInfo, err := ghw.Accelerator()
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
 	}
+
+	if accInfo == nil || len(accInfo.Devices) == 0 {
+		return nil, fmt.Errorf("no hardware accelerator present")
+	}
+
+	logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(accInfo.Devices))
+	config.SetEnabledGPU(true)
 
 	// Initialize the GPU accelerator
 	acc, err := accelerator.New(config.GPU, true)
@@ -184,12 +162,27 @@ func GetSystemGPUInfo() ([]devices.TritonGPUInfo, error) {
 	accelerator.GetRegistry().MustRegister(acc)
 
 	// Fetch GPU device information
-	info, err := preflightcheck.GetAllGPUInfo(acc)
+	summary, err := devices.SummarizeGPUs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GPU info: %w", err)
 	}
 
-	return info, nil
+	return summary, nil
+}
+
+// PrintGPUFleetSummary prints the fleet summary in a human-friendly form.
+func PrintGPUSummary(summary *devices.GPUFleetSummary) {
+	if summary == nil || len(summary.GPUs) == 0 {
+		fmt.Println("No GPUs found.")
+		return
+	}
+
+	fmt.Println("GPU Fleet:")
+	for _, g := range summary.GPUs {
+		fmt.Printf("  - GPU Type: %s\n", g.GPUType)
+		fmt.Printf("    Driver Version: %s\n", g.DriverVersion)
+		fmt.Printf("    IDs: %v\n", g.IDs)
+	}
 }
 
 // PreflightCheck performs a compatibility check between the system’s detected GPUs
@@ -203,8 +196,16 @@ func PreflightCheck(imageName string) (matched, unmatched []devices.TritonGPUInf
 		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
+	// Initialize the GPU accelerator
+	acc, err := accelerator.New(config.GPU, true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
+	}
+
+	// Register the accelerator
+	accelerator.GetRegistry().MustRegister(acc)
 	// Get device info (handles detection + accelerator setup)
-	devInfo, err := GetSystemGPUInfo()
+	devInfo, err := preflightcheck.GetAllGPUInfo(acc)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get system GPU info: %w", err)
 	}

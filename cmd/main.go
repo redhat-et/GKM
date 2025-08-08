@@ -45,7 +45,7 @@ func main() {
 
 func buildRootCommand() *cobra.Command {
 	var imageName, cacheDirName, logLevel string
-	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag bool
+	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "mcv",
@@ -57,7 +57,7 @@ func buildRootCommand() *cobra.Command {
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			handleRunCommand(imageName, cacheDirName, logLevel, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag)
+			handleRunCommand(imageName, cacheDirName, logLevel, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag)
 		},
 	}
 
@@ -69,14 +69,19 @@ func buildRootCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&baremetalFlag, "baremetal", "b", false, "Run baremetal preflight checks")
 	cmd.Flags().BoolVar(&noGPUFlag, "no-gpu", false, "Disable GPU logic for testing")
 	cmd.Flags().BoolVar(&hwInfoFlag, "hw-info", false, "Display system hardware info")
+	cmd.Flags().BoolVar(&gpuInfoFlag, "gpu-info", false, "Display GPU info")
 	cmd.Flags().BoolVar(&checkCompatFlag, "check-compat", false, "Check system GPU compatibility with a given image")
 
 	return cmd
 }
 
-func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag bool) {
+func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag bool) {
 	if hwInfoFlag {
 		handleHWInfo()
+	}
+
+	if gpuInfoFlag {
+		handleGPUInfo()
 	}
 
 	if checkCompatFlag {
@@ -110,6 +115,16 @@ func handleHWInfo() {
 		os.Exit(exitLogError)
 	}
 	client.PrintXPUInfo(xpu)
+	os.Exit(exitNormal)
+}
+
+func handleGPUInfo() {
+	summary, err := client.GetSystemGPUInfo()
+	if err != nil {
+		logging.Errorf("Error getting system hardware: %v", err)
+		os.Exit(exitLogError)
+	}
+	client.PrintGPUSummary(summary)
 	os.Exit(exitNormal)
 }
 
