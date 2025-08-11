@@ -35,7 +35,7 @@ spec:
         # GKM Node Plugin
         - name: gkm-csi-node-plugin
           image: quay.io/gkm/gkm-csi-plugin:latest
-          imagePullPolicy: "Always"
+          imagePullPolicy: IfNotPresent
           env:
             - name: NO_GPU
               valueFrom:
