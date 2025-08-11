@@ -29,7 +29,7 @@ COPY internal/controller/ internal/controller/
 COPY vendor/ vendor/
 
 # Build the binary with CGO enabled
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod vendor -o /workspace/agent cmd/main.go
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -mod vendor -o /workspace/agent cmd/main.go
 
 # Use a minimal Ubuntu base image that supports CGO binaries
 FROM public.ecr.aws/docker/library/ubuntu:22.04

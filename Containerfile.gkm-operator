@@ -30,7 +30,7 @@ COPY config/csi-plugin/csi-driver.yaml config/csi-plugin/csi-driver.yaml
 COPY vendor/ vendor/
 
 # Build the binary with CGO enabled
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -mod vendor -o /workspace/operator cmd/main.go
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -mod vendor -o /workspace/operator cmd/main.go
 
 # Use a minimal Ubuntu base image that supports CGO binaries
 FROM public.ecr.aws/docker/library/ubuntu:22.04

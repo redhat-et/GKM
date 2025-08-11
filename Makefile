@@ -12,6 +12,10 @@ else
 SED ?= gsed
 endif
 
+ARCH=$(shell go env GOARCH)
+# Define CONTAINER_FLAGS and include ARCH as an argument
+CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
+
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 
@@ -269,7 +273,6 @@ deploy: manifests kustomize ## Deploy controller and agent to the K8s cluster sp
 	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 	@echo "Deployment of operator and agent completed."
 
 .PHONY: undeploy
@@ -353,8 +356,13 @@ kind-load-images: get-example-images ## Load images into the Kind cluster
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${CSI_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
+
+.PHONY: tmp-cleanup
+tmp-cleanup:
+	@hack/tmp-cleanup.sh
+
 .PHONY: deploy-on-kind
-deploy-on-kind: manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
+deploy-on-kind: tmp-cleanup manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
 	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
