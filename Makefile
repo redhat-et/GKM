@@ -94,6 +94,18 @@ CONTAINER_TOOL ?= $(shell basename ${CONTAINER_TOOL_PATH})
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# set GOENV
+ifeq ($(shell uname),Darwin)
+export CGO_LDFLAGS += -Wl,-no_warn_duplicate_libraries
+endif
+
+GOOS := $(shell go env GOOS)
+GOARCH := $(shell go env GOARCH)
+CGO_ENABLED ?= 1
+GO_BUILD_FLAGS = GOOS=$(GOOS) \
+				 GOARCH=$(GOARCH) \
+				 $(if $(strip $(CGO_LDFLAGS)),CGO_LDFLAGS=$(CGO_LDFLAGS))
+
 .PHONY: all
 all: build
 
@@ -160,15 +172,15 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build-gkm-operator
 build-gkm-operator:
-	go build -o bin/gkm-operator ./cmd
+	${GO_BUILD_FLAGS} CGO_ENABLED=$(CGO_ENABLED) go build -o bin/gkm-operator ./cmd
 
 .PHONY: build-gkm-agent
 build-gkm-agent:
-	go build -o bin/gkm-agent ./agent
+	${GO_BUILD_FLAGS} CGO_ENABLED=$(CGO_ENABLED) go build -o bin/gkm-agent ./agent
 
 .PHONY: build-csi
 build-csi:
-	go build -o bin/gkm-csi-plugin ./csi-plugin
+	${GO_BUILD_FLAGS} CGO_ENABLED=$(CGO_ENABLED) go build -o bin/gkm-csi-plugin ./csi-plugin
 
 .PHONY: build
 build: manifests generate fmt vet build-gkm-operator build-gkm-agent build-csi ## Build all binaries.
@@ -372,6 +384,7 @@ deploy-on-kind: tmp-cleanup manifests kustomize deploy-cert-manager ## Deploy op
 	      -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
+	## NOTE: config/kind-gpu is an overlay of config/default
 	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -
 	@echo "Add label gkm-test-node= to node kind-gpu-sim-worker."
 	kubectl label node kind-gpu-sim-worker gkm-test-node=true
