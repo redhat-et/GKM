@@ -1,7 +1,5 @@
 # Build the agent binary
 FROM public.ecr.aws/docker/library/golang:1.24.4 AS builder
-ARG TARGETOS
-ARG TARGETARCH
 
 WORKDIR /workspace
 
@@ -22,20 +20,21 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 
 # Copy the go source
-COPY agent/main.go cmd/main.go
+COPY agent/main.go agent/main.go
 COPY api/ api/
 COPY pkg/ pkg/
 COPY internal/controller/ internal/controller/
 COPY vendor/ vendor/
+COPY Makefile Makefile
 
-# Build the binary with CGO enabled
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -mod vendor -o /workspace/agent cmd/main.go
+# Build the agent binary
+RUN make build-gkm-agent
 
 # Use a minimal Ubuntu base image that supports CGO binaries
 FROM public.ecr.aws/docker/library/ubuntu:22.04
 
 # Copy the binary from the builder
-COPY --from=builder /workspace/agent /agent
+COPY --from=builder /workspace/bin/gkm-agent /agent
 
 # Install required runtime libraries for CGO
 RUN apt-get update && \

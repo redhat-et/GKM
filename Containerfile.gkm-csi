@@ -1,6 +1,4 @@
 FROM public.ecr.aws/docker/library/golang:1.24.4 AS csi-builder
-ARG TARGETOS
-ARG TARGETARCH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgpgme-dev \
