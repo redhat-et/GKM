@@ -11,3 +11,4 @@ data:
   ## Can be configured at runtime
   gkm.agent.image: quay.io/gkm/agent:latest
   gkm.csi.image: quay.io/gkm/gkm-csi-plugin:latest
+  gkm.nogpu: false

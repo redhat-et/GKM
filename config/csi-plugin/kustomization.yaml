@@ -3,6 +3,9 @@ kind: Kustomization
 resources:
 - gkm-csi-plugin.yaml
 images:
+- name: agent
+  newName: quay.io/gkm/gkm-csi-plugin
+  newTag: latest
 - name: quay.io/gkm/gkm-csi-plugin
   newName: quay.io/gkm/gkm-csi-plugin
   newTag: latest
