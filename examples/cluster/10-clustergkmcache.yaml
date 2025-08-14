@@ -1,0 +1,7 @@
+---
+apiVersion: gkm.io/v1alpha1
+kind: ClusterGKMCache
+metadata:
+  name: flash-attention-rocm
+spec:
+  image: quay.io/mtahhan/flash-attention-rocm:latest

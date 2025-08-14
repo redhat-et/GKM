@@ -40,19 +40,28 @@ const (
 	GMKCacheAnnotationResolvedDigest = "gkm.io/resolvedDigest"
 
 	// GKMCache and ClusterGKMCache Labels
-	GMKCacheLabelHostname = "kubernetes.io/hostname"
-	GMKCacheLabelOwnedBy  = "gkm.io/ownedByCache"
+	GKMCacheLabelHostname = "kubernetes.io/hostname"
 
 	// GKMOperatorFinalizer is the finalizer that holds a ConfigMap from deletion until
 	// cleanup can be performed.
 	GKMOperatorFinalizer = "gkm.io.operator/finalizer"
 
-	// ClusterGkmCacheFinalizer is the finalizer that holds a ClusterGKMCacheNode from deletion
-	// until ClusterGkmCache is deleted and cleanup can be performed.
-	ClusterGkmCacheFinalizer = "gkm.io.clustergkmcachefinalizer/finalizer"
-	// NamespaceGkmCacheFinalizer is the finalizer that holds a GKMCacheNode from deletion
-	// until GkmCache is deleted and cleanup can be performed.
-	NamespaceGkmCacheFinalizer = "gkm.io.namespacegkmcachefinalizer/finalizer"
+	// ClusterGkmCacheFinalizer is the finalizer that holds a ClusterGKMCache from deletion
+	// until ClusterGkmCacheNode is cleaned up.
+	ClusterGkmCacheFinalizer = "gkm.io.clustergkmcachenode/finalizer"
+
+	// GkmCacheFinalizer is the finalizer that holds a GKMCache from deletion until
+	// GkmCacheNode is cleaned up.
+	GkmCacheFinalizer = "gkm.io.gkmcachenode/finalizer"
+
+	// The GkmCacheNode Finalizer is the finalizer that holds a GKMCacheNode from deletion
+	// until GkmCache is deleted and cleanup can be performed. Since GkmCacheNode tracks
+	// multiple GKMCache, the finalizer is "gkm.io.<GKMCacheName>/finalizer".
+	GkmCacheNodeFinalizerPrefix    = "gkm.io."
+	GkmCacheNodeFinalizerSubstring = "/finalizer"
+
+	// GKMCacheNode Constants
+	GKMCacheNodeNamePrefix = "gkmcachenode-"
 
 	// ConfigMap Indexes
 	ConfigMapIndexOperatorLogLevel = "gkm.operator.log.level"
@@ -63,10 +72,12 @@ const (
 	ConfigMapIndexNoGpu            = "gkm.nogpu"
 
 	// Duration for Kubernetes to Retry a failed request
-	RetryDurationOperator = 5 * time.Second
+	RetryOperatorConfigMapFailure = 5 * time.Second
+	RetryOperatorFailure          = 10 * time.Second // Retry if there was an internal error
 
 	// Durations to Retry Agent Reconcile
-	RetryAgentFailure   = 10 * time.Second // Retry if there was an internal error
-	RetryAgentNextStep  = 1 * time.Second  // KubeAPI call updated object so restart Reconcile
-	RetryAgentUsagePoll = 5 * time.Second  // Polling Cache to refresh GKMCacheNode Status usage data
+	RetryAgentFailure          = 10 * time.Second // Retry if there was an internal error
+	RetryAgentNextStep         = 1 * time.Second  // KubeAPI call updated object so restart Reconcile
+	RetryAgentUsagePoll        = 5 * time.Second  // Polling Cache to refresh GKMCacheNode Status usage data
+	RetryAgentNodeStatusUpdate = 1 * time.Second  // Status Updates not kicking Reconcile
 )

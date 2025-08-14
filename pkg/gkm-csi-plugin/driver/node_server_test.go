@@ -259,7 +259,15 @@ func createCacheImageFiles(tstData TestData, log logr.Logger) error {
 	}
 	file.Close()
 
-	if err := database.ExportForTestWriteCacheFile(tstData.CrNamespace, tstData.CrName, tstData.Image, tstData.Digest, log); err != nil {
+	if err := database.ExportForTestWriteCacheFile(
+		tstData.CrNamespace,
+		tstData.CrName,
+		tstData.Image,
+		tstData.Digest,
+		false, // rmDigest
+		45000, // size
+		log,
+	); err != nil {
 		return err
 	}
 

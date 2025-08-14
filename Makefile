@@ -69,7 +69,7 @@ CSI_IMG ?=quay.io/$(QUAY_USER)/gkm-csi-plugin:$(IMAGE_TAG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
-CONFIG_PATH ?= config/default
+DEPLOY_PATH ?= config/default
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -277,10 +277,20 @@ prepare-deploy:
 	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
 	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
+ifdef NO_GPU
 	cd config/configMap && \
-	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	         -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
-	         kustomization.yaml.env > kustomization.yaml
+	  $(SED) \
+	    -e '/literals:/a\  - gkm.nogpu=true' \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	    -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+	    kustomization.yaml.env > kustomization.yaml
+else
+	cd config/configMap && \
+	  $(SED) \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	    -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+	    kustomization.yaml.env > kustomization.yaml
+endif
 
 .PHONY: deploy
 deploy: manifests kustomize prepare-deploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
@@ -292,12 +302,24 @@ undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specifie
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
+.PHONY: deploy-examples
+deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/config.
+	@echo "Create Namespace based GKMCache"
+	$(KUBECTL) apply -f examples/namespace/
+
+.PHONY: undeploy-examples
+undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.
+	@echo "Remove Namespace based GKMCache"
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/namespace/
+
+
 ##@ Kind Cluster Management
 
 KIND_GPU_SIM_SCRIPT := https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh
 KIND_CLUSTER_NAME ?= kind-gpu-sim
 
 # GPU Type (either "rocm" or "nvidia")
+# In a KIND Cluster, NO_GPU is true and GPU_TYPE is the simulated GPU type.
 GPU_TYPE ?= rocm
 
 # This Makefile may use docker, but when running the KIND cluster with a
@@ -347,19 +369,13 @@ deploy-cert-manager: get-cert-manager-images
 	$(KUBECTL) wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
 
 .PHONY: setup-kind
-setup-kind: ## Create a Kind GPU cluster
+setup-kind:
 	@echo "Creating Kind GPU cluster with GPU type: $(GPU_TYPE) and cluster name: $(KIND_CLUSTER_NAME)"
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) created successfully."
 
-.PHONY: destroy-kind
-destroy-kind: ## Delete the Kind GPU cluster
-	@echo "Deleting Kind GPU cluster: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
-
 .PHONY: kind-load-images
-kind-load-images: get-example-images ## Load images into the Kind cluster
+kind-load-images: get-example-images
 	@echo "Loading operator image ${OPERATOR_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
@@ -375,12 +391,8 @@ tmp-cleanup:
 
 .PHONY: deploy-on-kind
 deploy-on-kind: tmp-cleanup manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
-	cd config/configMap && \
-	  $(SED) \
-	      -e '/literals:/a\  - gkm.nogpu=true' \
-		  kustomization.yaml.env > kustomization.yaml
 	## NOTE: config/kind-gpu is an overlay of config/default
-	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu
+	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
 	@echo "Add label gkm-test-node= to node kind-gpu-sim-worker."
 	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 
@@ -395,6 +407,12 @@ undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
 .PHONY: run-on-kind
 run-on-kind: destroy-kind setup-kind kind-load-images deploy-on-kind ## Setup Kind cluster, load images, and deploy
 	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
+
+.PHONY: destroy-kind
+destroy-kind: ## Delete the Kind GPU cluster
+	@echo "Deleting Kind GPU cluster: $(KIND_CLUSTER_NAME)"
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
 
 ##@ Dependencies
 
