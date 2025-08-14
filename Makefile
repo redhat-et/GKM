@@ -16,12 +16,6 @@ ARCH=$(shell go env GOARCH)
 # Define CONTAINER_FLAGS and include ARCH as an argument
 CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 
-## Tool Binaries
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-
-## Tool Versions
-KUSTOMIZE_VERSION ?= v5.6.0
-
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -74,6 +68,8 @@ AGENT_IMG ?=quay.io/$(QUAY_USER)/agent:$(IMAGE_TAG)
 CSI_IMG ?=quay.io/$(QUAY_USER)/gkm-csi-plugin:$(IMAGE_TAG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
+
+CONFIG_PATH ?= config/default
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -276,21 +272,25 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Deployment
-.PHONY: deploy
-deploy: manifests kustomize ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image agent=${AGENT_IMG}
-	cd config/csi-plugin && $(KUSTOMIZE) edit set image agent=${CSI_IMG}
+.PHONY: prepare-deploy
+prepare-deploy:
+	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
+	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
 	cd config/configMap && \
 	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
-		  kustomization.yaml.env > kustomization.yaml
-	@echo "Deployment of operator and agent completed."
+	         -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+	         kustomization.yaml.env > kustomization.yaml
+
+.PHONY: deploy
+deploy: manifests kustomize prepare-deploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) apply -f -
+	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-	@echo "Undeployment of operator and agent completed."
+	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
 ##@ Kind Cluster Management
 
@@ -316,7 +316,7 @@ get-example-images:
 
 .PHONY: deploy-webhook-certs
 deploy-webhook-certs:
-	kubectl apply -k config/webhook
+	$(KUBECTL) apply -k config/webhook
 
 .PHONY: get-cert-manager-images
 get-cert-manager-images:
@@ -331,20 +331,20 @@ get-cert-manager-images:
 .PHONY: deploy-cert-manager
 deploy-cert-manager: get-cert-manager-images
 	@echo "Installing cert-manager base manifests from upstream..."
-	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
 	@echo "Checking for Kind cluster..."
-	@if [[ "$$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')" =~ "kind" ]]; then \
+	@if [[ "$$($(KUBECTL) get nodes -o jsonpath='{.items[*].metadata.name}')" =~ "kind" ]]; then \
 		echo "Kind detected – applying Kind-specific cert-manager patches..."; \
-		kubectl patch deployment -n cert-manager cert-manager --patch-file=config/kind-gpu/patch-cert-manager-controller.yaml; \
-		kubectl patch deployment -n cert-manager cert-manager-cainjector --patch-file=config/kind-gpu/patch-cert-manager-cainjector.yaml; \
-		kubectl patch deployment -n cert-manager cert-manager-webhook --patch-file=config/kind-gpu/patch-cert-manager-webhook.yaml; \
+		$(KUBECTL) patch deployment -n cert-manager cert-manager --patch-file=config/kind-gpu/patch-cert-manager-controller.yaml; \
+		$(KUBECTL) patch deployment -n cert-manager cert-manager-cainjector --patch-file=config/kind-gpu/patch-cert-manager-cainjector.yaml; \
+		$(KUBECTL) patch deployment -n cert-manager cert-manager-webhook --patch-file=config/kind-gpu/patch-cert-manager-webhook.yaml; \
 	else \
 		echo "Non-Kind cluster – skipping GPU patching for cert-manager."; \
 	fi
 	@echo "Waiting for cert-manager deployment to become available..."
-	kubectl wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager
-	kubectl wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager-webhook
-	kubectl wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
+	$(KUBECTL) wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager
+	$(KUBECTL) wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager-webhook
+	$(KUBECTL) wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
 
 .PHONY: setup-kind
 setup-kind: ## Create a Kind GPU cluster
@@ -375,28 +375,21 @@ tmp-cleanup:
 
 .PHONY: deploy-on-kind
 deploy-on-kind: tmp-cleanup manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
-	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
 	cd config/configMap && \
 	  $(SED) \
 	      -e '/literals:/a\  - gkm.nogpu=true' \
-	      -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
 	## NOTE: config/kind-gpu is an overlay of config/default
-	$(KUSTOMIZE) build config/kind-gpu | kubectl apply -f -
+	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu
 	@echo "Add label gkm-test-node= to node kind-gpu-sim-worker."
-	kubectl label node kind-gpu-sim-worker gkm-test-node=true
-	@echo "Deployment on Kind GPU cluster completed."
-
+	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 
 .PHONY: undeploy-on-kind
 undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
-	@echo "Undeploying operator and agent from Kind GPU cluster: $(KIND_CLUSTER_NAME)"
-	$(KUSTOMIZE) build config/kind-gpu | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(MAKE) undeploy DEPLOY_PATH=config/kind-gpu ignore-not-found=$(ignore-not-found)
 	@echo "Undeploy cert-manager"
-	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
+	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node- 2>/dev/null || true
 	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
 
 .PHONY: run-on-kind
@@ -418,7 +411,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.4.3
+KUSTOMIZE_VERSION ?= v5.6.0
 CONTROLLER_TOOLS_VERSION ?= v0.16.1
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.59.1
