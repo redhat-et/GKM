@@ -170,13 +170,15 @@ func main() {
 			setupLog.Error(err, "unable to create controller", "controller", "GKMCache")
 			os.Exit(1)
 		}
-		if err = (&gkmoperator.GKMCacheNodeReconciler{
-			Client: mgr.GetClient(),
-			Scheme: mgr.GetScheme(),
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "GKMCacheNode")
-			os.Exit(1)
-		}
+	*/
+	if err = (&gkmoperator.GKMCacheOperatorReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GKMCacheOperator")
+		os.Exit(1)
+	}
+	/*
 		if err = (&gkmoperator.ClusterGKMCacheReconciler{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),

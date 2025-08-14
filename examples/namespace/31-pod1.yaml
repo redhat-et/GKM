@@ -1,21 +1,9 @@
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gkm-test-cl-scoped
----
-apiVersion: gkm.io/v1alpha1
-kind: ClusterGKMCache
-metadata:
-  name: flash-attention-rocm
-spec:
-  image: quay.io/mtahhan/flash-attention-rocm:latest
----
 kind: Pod
 apiVersion: v1
 metadata:
-  name: gkm-test-pod
-  namespace: gkm-test-cl-scoped
+  name: gkm-test-pod-1
+  namespace: gkm-test-ns-scoped
 spec:
   tolerations:
     - key: gpu
@@ -38,3 +26,4 @@ spec:
         driver: csi.gkm.io
         volumeAttributes:
           csi.gkm.io/GKMCache: flash-attention-rocm
+          csi.gkm.io/namespace: gkm-test-ns-scoped

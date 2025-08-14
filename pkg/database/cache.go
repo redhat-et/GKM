@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/go-logr/logr"
-	mcvClient "github.com/redhat-et/TKDK/mcv/pkg/client"
+	mcvClient "github.com/redhat-et/MCU/mcv/pkg/client"
 
 	"github.com/redhat-et/GKM/pkg/utils"
 )
@@ -28,6 +29,7 @@ import (
 // used to read and manage the cache files.
 
 var defaultCacheDir string
+var cacheLock sync.Mutex
 
 func init() {
 	initializeCachePath(utils.DefaultCacheDir)
@@ -40,23 +42,14 @@ func initializeCachePath(value string) {
 	defaultCacheDir = value
 }
 
-// GetInstalledCacheList() reads the files on the host and returns
-// a map of the installed caches. Map is indexed by Namespace, Name
-// and Digest and the value stored in the map ignored (a bool always set to true).
-type CacheKey struct {
-	Namespace string
-	Name      string
-	Digest    string
-}
-
-func ExtractCache(crNamespace, crName, image, digest string, noGpu bool, log logr.Logger) error {
+func ExtractCache(crNamespace, crName, image, digest string, noGpu bool, log logr.Logger) (matchedIDs, unmatchedIDs []int, err error) {
 	// Replace the tag in the Image URL with the Digest. Webhook has verified
 	// the image and so pull from the resolved digest.
 	updatedImage := replaceUrlTag(image, digest)
 	if updatedImage == "" {
 		err := fmt.Errorf("unable to update image tag with digest")
 		log.Error(err, "invalid image or digest", "image", image, "digest", digest)
-		return err
+		return nil, nil, err
 	}
 
 	// Build Cache Directory string from namespace, name and digest
@@ -67,12 +60,15 @@ func ExtractCache(crNamespace, crName, image, digest string, noGpu bool, log log
 			"name", crName,
 			"image", image,
 			"digest", digest)
-		return err
+		return nil, nil, err
 	}
+
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
 
 	// For testing, like in a KIND Cluster, a real GPU may not be available.
 	enableGPU := !noGpu
-	err = mcvClient.ExtractCache(mcvClient.Options{
+	matchedIds, unmatchedIds, err := mcvClient.ExtractCache(mcvClient.Options{
 		ImageName: updatedImage,
 		CacheDir:  cacheDir,
 		EnableGPU: &enableGPU,
@@ -82,26 +78,50 @@ func ExtractCache(crNamespace, crName, image, digest string, noGpu bool, log log
 		log.Error(err, "unable to extract cache", "namespace", crNamespace, "name", crName, "image", updatedImage)
 
 		// Cleanup created directories
-		_, _ = RemoveCache(crNamespace, crName, digest, log)
-		return err
+		removeDirectories(crNamespace, crName, digest, log)
+		return nil, nil, err
+	}
+	log.Info("Cache Extracted", "matchedIds", matchedIds, "unmatchedIds", unmatchedIds)
+
+	// Save off the VolumeId mapping to CRD Info
+	size, err := DirSize(cacheDir)
+	if err != nil {
+		size = 0
+		log.Error(err, "unable to get directory size, continuing",
+			"cacheDir", cacheDir,
+			"namespace", crNamespace,
+			"name", crName,
+			"digest", digest)
 	}
 
 	// Cache was successfully extracted, so write/update Cache file, which contains metadata
 	// about the cache.
-	if err = writeCacheFile(crNamespace, crName, image, digest, log); err != nil {
+	if err = writeCacheFile(crNamespace, crName, image, digest, false, size, log); err != nil {
 		log.Error(err, "unable to write cache file",
 			"namespace", crNamespace,
 			"name", crName,
 			"digest", digest)
-		return err
+		return nil, nil, err
 	}
 
-	return nil
+	return matchedIds, unmatchedIds, nil
 }
 
-func GetInstalledCacheList(log logr.Logger) (*map[CacheKey]bool, error) {
+type CacheKey struct {
+	Namespace string
+	Name      string
+	Digest    string
+}
+
+// GetExtractedCacheList() reads the files on the host and returns
+// a map of the extracted caches. Map is indexed by Namespace, Name
+// and Digest and the value stored in the map ignored (a bool always set to true).
+func GetExtractedCacheList(log logr.Logger) (*map[CacheKey]bool, error) {
 	list := make(map[CacheKey]bool)
 	var key CacheKey
+
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
 
 	// Walk the directory looking for the expanded cache, should be something like:
 	//   /var/lib/gkm/caches/<Namespace>/<Name>/<Digest>/<CacheDirs/...
@@ -127,7 +147,7 @@ func GetInstalledCacheList(log logr.Logger) (*map[CacheKey]bool, error) {
 					// Found Name
 					key.Name = currDir
 				} else {
-					log.Info("GetInstalledCacheList(): Error on Name",
+					log.Info("GetExtractedCacheList(): Error on Name",
 						"Path", path,
 						"Parent", currDir,
 						"key.Namespace", key.Namespace,
@@ -150,7 +170,7 @@ func GetInstalledCacheList(log logr.Logger) (*map[CacheKey]bool, error) {
 
 					list[tmpKey] = true
 				} else {
-					log.Info("GetInstalledCacheList(): Error on Digest",
+					log.Info("GetExtractedCacheList(): Error on Digest",
 						"Path", path,
 						"Parent", currDir,
 						"key.Namespace", key.Namespace,
@@ -165,6 +185,13 @@ func GetInstalledCacheList(log logr.Logger) (*map[CacheKey]bool, error) {
 	})
 
 	return &list, nil // Directory is not empty
+}
+
+func GetCacheFile(crNamespace, crName string, log logr.Logger) (*CacheData, error) {
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
+	return readCacheFile(crNamespace, crName, log)
 }
 
 // RemoveCache attempts to remove the extracted cache directories/files from
@@ -193,6 +220,13 @@ func RemoveCache(crNamespace, crName, digest string, log logr.Logger) (bool, err
 		return inUse, fmt.Errorf("kernel cache still in use: %w", err)
 	}
 
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
+	return inUse, removeDirectories(crNamespace, crName, digest, log)
+}
+
+func removeDirectories(crNamespace, crName, digest string, log logr.Logger) error {
 	// Build Cache Directory string from namespace, name and digest
 	cacheDir, err := BuildDbDir(defaultCacheDir, crNamespace, crName, digest, log)
 	if err != nil {
@@ -200,7 +234,7 @@ func RemoveCache(crNamespace, crName, digest string, log logr.Logger) (bool, err
 			"namespace", crNamespace,
 			"name", crName,
 			"digest", digest)
-		return inUse, err
+		return err
 	}
 
 	// Remove the Digest directory and the associated extracted cache
@@ -213,7 +247,7 @@ func RemoveCache(crNamespace, crName, digest string, log logr.Logger) (bool, err
 			"namespace", crNamespace,
 			"name", crName,
 			"digest", digest)
-		return inUse, err
+		return err
 	}
 
 	// Remove the Digest from path, leaving "/var/lib/gkm/caches/<Namespace>/<Name>""
@@ -225,7 +259,7 @@ func RemoveCache(crNamespace, crName, digest string, log logr.Logger) (bool, err
 		log.V(1).Info("Deleting GKMCache Name directory", "directory", l1Path)
 		err := os.RemoveAll(l1Path)
 		if err != nil {
-			return inUse, fmt.Errorf("unable to remove GKMCache Name directory %s: %w", l1Path, err)
+			return fmt.Errorf("unable to remove GKMCache Name directory %s: %w", l1Path, err)
 		}
 
 		// Remove the Name from path, leaving "/var/lib/gkm/caches/<Namespace>"
@@ -235,7 +269,7 @@ func RemoveCache(crNamespace, crName, digest string, log logr.Logger) (bool, err
 			log.V(1).Info("Deleting GKMCache Namespace directory", "directory", l2Path)
 			err := os.RemoveAll(l2Path)
 			if err != nil {
-				return inUse, fmt.Errorf("unable to remove GKMCache Namespace directory %s: %w", l2Path, err)
+				return fmt.Errorf("unable to remove GKMCache Namespace directory %s: %w", l2Path, err)
 			}
 		} else {
 			log.V(1).Info("GKMCache Namespace directory not empty", "directory", l2Path)
@@ -244,28 +278,27 @@ func RemoveCache(crNamespace, crName, digest string, log logr.Logger) (bool, err
 		log.V(1).Info("GKMCache directory not empty", "directory", l1Path)
 
 		// Read the Cache File
-		cache, err := GetCacheFile(crNamespace, crName, log)
+		cache, err := readCacheFile(crNamespace, crName, log)
 		if err != nil {
 			log.Error(err, "unable to read cache file",
 				"directory", defaultCacheDir,
 				"namespace", crNamespace,
 				"name", crName,
-				"digest", digest,
-				"err", err)
-			return inUse, err
-		} else if cache.Digest == digest {
-			// Update Cache file, which contains metadata about the cache, removing current Digest.
-			if err = writeCacheFile(crNamespace, crName, cache.Image, "", log); err != nil {
-				log.Error(err, "unable to rewrite cache file",
-					"namespace", crNamespace,
-					"name", crName,
-					"digest", digest)
-				return inUse, err
-			}
+				"digest", digest)
+			return err
+		}
+
+		// Update Cache file, which contains metadata about the cache, removing current Digest.
+		if err = writeCacheFile(crNamespace, crName, cache.Image, digest, true, 0, log); err != nil {
+			log.Error(err, "unable to rewrite cache file",
+				"namespace", crNamespace,
+				"name", crName,
+				"digest", digest)
+			return err
 		}
 	}
 
-	return inUse, nil
+	return nil
 }
 
 func replaceUrlTag(imageURL, digest string) string {
@@ -285,13 +318,30 @@ func replaceUrlTag(imageURL, digest string) string {
 }
 
 type CacheData struct {
-	Digest string `json:"digest"`
-	Image  string `json:"image"`
+	ResolvedDigest string           `json:"resolvedDigest"`
+	Image          string           `json:"image"`
+	Sizes          map[string]int64 `json:"sizes"`
+}
+
+func readCacheFile(crNamespace, crName string, log logr.Logger) (*CacheData, error) {
+	// Build filepath string from namespace and name (Note: No Digest)
+	//  (e.g., "/var/lib/gkm/caches/<Namespace>/<Name>/cache.json")
+	cacheFile, err := BuildDbDir(defaultCacheDir, crNamespace, crName, "", log)
+	if err != nil {
+		return nil, err
+	}
+	cacheFile = filepath.Join(cacheFile, utils.CacheFilename)
+	var cache CacheData
+	if err = loadJSONFromCacheFile(cacheFile, &cache); err != nil {
+		return nil, fmt.Errorf("not found")
+	}
+
+	return &cache, nil
 }
 
 var ExportForTestWriteCacheFile = writeCacheFile
 
-func writeCacheFile(crNamespace, crName, image, digest string, log logr.Logger) error {
+func writeCacheFile(crNamespace, crName, image, digest string, rmDigest bool, size int64, log logr.Logger) error {
 	// Build filepath string from namespace and name (Note: No Digest)
 	//  (e.g., "/var/lib/gkm/caches/<Namespace>/<Name>/cache.json")
 	cacheFile, err := BuildDbDir(defaultCacheDir, crNamespace, crName, "", log)
@@ -301,18 +351,19 @@ func writeCacheFile(crNamespace, crName, image, digest string, log logr.Logger) 
 	cacheFile = filepath.Join(cacheFile, utils.CacheFilename)
 
 	var cache CacheData
+	cache.Sizes = make(map[string]int64)
 	if err = loadJSONFromCacheFile(cacheFile, &cache); err != nil {
-		cache.Digest = digest
-		cache.Image = image
+		// Unable to read from file. If removing, just return, else populate with input data.
+		if rmDigest {
+			return nil
+		}
 	} else {
-		if cache.Digest != digest {
-			log.Info("writeCacheFile(): Updating Digest",
+		// Cache file found, so log data that changed
+		if cache.ResolvedDigest != digest {
+			log.Info("writeCacheFile(): Updating ResolvedDigest",
 				"crNamespace", crNamespace,
 				"crName", crName,
 				"digest", digest)
-			cache.Digest = digest
-
-			// TBD: Need to see if old digest directory can be deleted.
 		}
 		if cache.Image != image {
 			log.Info("writeCacheFile(): Updating Image",
@@ -320,7 +371,19 @@ func writeCacheFile(crNamespace, crName, image, digest string, log logr.Logger) 
 				"crName", crName,
 				"digest", digest,
 				"image", image)
-			cache.Image = image
+		}
+	}
+
+	cache.Image = image
+	if rmDigest {
+		if cache.ResolvedDigest == digest {
+			cache.ResolvedDigest = ""
+		}
+		delete(cache.Sizes, digest)
+	} else {
+		cache.ResolvedDigest = digest
+		if size != 0 {
+			cache.Sizes[digest] = size
 		}
 	}
 
@@ -335,22 +398,6 @@ func writeCacheFile(crNamespace, crName, image, digest string, log logr.Logger) 
 	}
 
 	return nil
-}
-
-func GetCacheFile(crNamespace, crName string, log logr.Logger) (*CacheData, error) {
-	// Build filepath string from namespace and name (Note: No Digest)
-	//  (e.g., "/var/lib/gkm/caches/<Namespace>/<Name>/cache.json")
-	cacheFile, err := BuildDbDir(defaultCacheDir, crNamespace, crName, "", log)
-	if err != nil {
-		return nil, err
-	}
-	cacheFile = filepath.Join(cacheFile, utils.CacheFilename)
-	var cache CacheData
-	if err = loadJSONFromCacheFile(cacheFile, &cache); err != nil {
-		return nil, fmt.Errorf("not found")
-	}
-
-	return &cache, nil
 }
 
 func loadJSONFromCacheFile(filename string, cache *CacheData) error {

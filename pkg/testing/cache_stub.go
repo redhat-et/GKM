@@ -73,7 +73,7 @@ func ExtractCacheImage(cacheDir, crNamespace, crName, digest, image string, log 
 	}
 	file.Close()
 
-	if err := database.ExportForTestWriteCacheFile(crNamespace, crName, image, digest, log); err != nil {
+	if err := database.ExportForTestWriteCacheFile(crNamespace, crName, image, digest, false, 45000, log); err != nil {
 		return err
 	}
 
