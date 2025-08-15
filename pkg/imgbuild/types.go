@@ -1,6 +1,6 @@
 package imgbuild
 
-import "github.com/redhat-et/TKDK/mcv/pkg/cache"
+import "github.com/redhat-et/MCU/mcv/pkg/cache"
 
 const DockerfileTemplate = `FROM scratch
 LABEL org.opencontainers.image.title={{ .ImageTitle }}

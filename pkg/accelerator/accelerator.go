@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
 	logging "github.com/sirupsen/logrus"
 )
 

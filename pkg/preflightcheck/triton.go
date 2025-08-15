@@ -7,10 +7,10 @@ import (
 	"os"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/TKDK/mcv/pkg/cache"
-	"github.com/redhat-et/TKDK/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/MCU/mcv/pkg/cache"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 

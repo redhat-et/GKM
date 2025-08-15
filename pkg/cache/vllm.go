@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/redhat-et/TKDK/mcv/pkg/constants"
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
 )
 
 // VLLMCache represents a VLLM-style compile cache (e.g., torch_inductor or fxgraph)

@@ -1,4 +1,4 @@
-module github.com/redhat-et/TKDK/mcv
+module github.com/redhat-et/MCU/mcv
 
 go 1.24.0
 

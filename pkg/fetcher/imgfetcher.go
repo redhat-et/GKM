@@ -32,12 +32,12 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/TKDK/mcv/pkg/config"
-	"github.com/redhat-et/TKDK/mcv/pkg/constants"
-	"github.com/redhat-et/TKDK/mcv/pkg/preflightcheck"
-	"github.com/redhat-et/TKDK/mcv/pkg/utils"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/MCU/mcv/pkg/preflightcheck"
+	"github.com/redhat-et/MCU/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 

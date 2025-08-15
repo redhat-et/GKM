@@ -8,13 +8,13 @@ import (
 	"os"
 
 	"github.com/jaypipes/ghw"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator"
-	"github.com/redhat-et/TKDK/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/TKDK/mcv/pkg/config"
-	"github.com/redhat-et/TKDK/mcv/pkg/constants"
-	"github.com/redhat-et/TKDK/mcv/pkg/fetcher"
-	"github.com/redhat-et/TKDK/mcv/pkg/logformat"
-	"github.com/redhat-et/TKDK/mcv/pkg/preflightcheck"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
+	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/MCU/mcv/pkg/fetcher"
+	"github.com/redhat-et/MCU/mcv/pkg/logformat"
+	"github.com/redhat-et/MCU/mcv/pkg/preflightcheck"
 	logging "github.com/sirupsen/logrus"
 )
 

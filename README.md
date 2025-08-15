@@ -301,13 +301,13 @@ from a container image is shown below.
 
 ```go
 import (
-    "github.com/redhat-et/TKDK/mcv/pkg/client"
+    "github.com/redhat-et/MCU/mcv/pkg/client"
 )
 
 package main
 
 import (
-    "github.com/redhat-et/TKDK/mcv/pkg/client"
+    "github.com/redhat-et/MCU/mcv/pkg/client"
 )
 
 func main() {
@@ -336,7 +336,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/redhat-et/TKDK/mcv/pkg/client"
+    "github.com/redhat-et/MCU/mcv/pkg/client"
 )
 
 func main() {
@@ -363,7 +363,7 @@ package main
 import (
     "log"
 
-    "github.com/redhat-et/TKDK/mcv/pkg/client"
+    "github.com/redhat-et/MCU/mcv/pkg/client"
 )
 
 func main() {
@@ -385,7 +385,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/redhat-et/TKDK/mcv/pkg/client"
+    "github.com/redhat-et/MCU/mcv/pkg/client"
 )
 
 func main() {

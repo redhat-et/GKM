@@ -39,7 +39,7 @@ GOARCH := $(shell go env GOARCH)
 GOENV = GO111MODULE="" \
 				GOOS=$(GOOS) \
 				GOARCH=$(GOARCH)
-PKG_BUILD="github.com/redhat-et/TKDK/mcv/pkg/build"
+PKG_BUILD="github.com/redhat-et/MCU/mcv/pkg/build"
 LDFLAGS := $(LDFLAGS) \
 		-X $(PKG_BUILD).Version=$(VERSION) \
 		-X $(PKG_BUILD).Revision=$(GIT_SHA) \
@@ -94,7 +94,7 @@ clean_build_local: ## Clean local build directory
 format:
 	@echo "******     Go Format     ******"
 	@echo
-	go fmt github.com/redhat-et/TKDK/mcv...
+	go fmt github.com/redhat-et/MCU/mcv...
 	@echo
 	@echo
 

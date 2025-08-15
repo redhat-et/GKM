@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/redhat-et/TKDK/mcv/pkg/config"
-	"github.com/redhat-et/TKDK/mcv/pkg/utils"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 

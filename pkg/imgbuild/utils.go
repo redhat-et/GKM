@@ -10,9 +10,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/redhat-et/TKDK/mcv/pkg/cache"
-	"github.com/redhat-et/TKDK/mcv/pkg/constants"
-	"github.com/redhat-et/TKDK/mcv/pkg/utils"
+	"github.com/redhat-et/MCU/mcv/pkg/cache"
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/MCU/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 

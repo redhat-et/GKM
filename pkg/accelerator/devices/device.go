@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/redhat-et/TKDK/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 )
