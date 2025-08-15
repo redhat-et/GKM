@@ -19,15 +19,15 @@ By providing a pre-tuned kernel cache as a directory in a container that can
 be consumed by Triton or vLLM at runtime, we aim to optimize model loading,
 performance and reduce latency in containerized workloads.
 
-Triton Cache Vault (TCV) is a utility developed under
-[TKDK](https://github.com/redhat-et/TKDK).
-TCV packages Triton Kernel Caches and vLLM caches into OCI-compliant container
+Model Cache Vault (MCV) is a utility developed under
+[MCU](https://github.com/redhat-et/MCU).
+MCV packages GPU Kernel Caches and vLLM caches into OCI-compliant container
 images.
-Applications can leverage TCV to package up their caches into container images
+Applications can leverage MCV to package up their caches into container images
 and use [cosign](https://github.com/sigstore/cosign) to sign the images.
 GKM will then use Kubernetes to distribute the cache images to workloads on
-various nodes in a given cluster and use TCV to extract the caches from the
-images. Using GKM, TCV, cosign and Kubernetes to manage and distribute kernel
+various nodes in a given cluster and use MCV to extract the caches from the
+images. Using GKM, MCV, cosign and Kubernetes to manage and distribute kernel
 images to containerized workloads ensures their validity before usage in
 containers and is crucial for performance, optimization and security.
 
@@ -652,7 +652,7 @@ consistency between the operator's in-memory data and the persistent storage.
   - This compilation can be triggered by the pod itself (when the model runs).
   - Once the cache is compiled and tuned for the specific hardware:
     - The GKM Agent will **sign** the generated cache contents and **package**
-      the cache using TCV into a compliant OCI container image. It will also
+      the cache using MCV into a compliant OCI container image. It will also
       **sign** the container image.
     - The image will be **pushed automatically** to a configurable container
       registry (e.g., Quay, Harbor, or any OCI-compliant registry).

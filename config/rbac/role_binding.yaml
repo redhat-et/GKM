@@ -70,7 +70,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: agent-role
+  name: gkm-agent-role
 subjects:
   - kind: ServiceAccount
     name: agent

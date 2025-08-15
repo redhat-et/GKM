@@ -131,7 +131,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 			return nil, status.Error(codes.InvalidArgument, "GKMCache has not been extracted")
 		}
 	}
-	sourcePath, err := database.BuildDbDir(d.cacheDir, crNamespace, crName, cacheData.Digest, d.log)
+	sourcePath, err := database.BuildDbDir(d.cacheDir, crNamespace, crName, cacheData.ResolvedDigest, d.log)
 	if err != nil {
 		if clusterScoped {
 			d.log.Error(fmt.Errorf("ClusterGKMCache processing error"), "internal error",
@@ -139,7 +139,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 				"volumeId", req.VolumeId,
 				"namespace", crNamespace,
 				"name", crName,
-				"digest", cacheData.Digest)
+				"digest", cacheData.ResolvedDigest)
 			return nil, status.Error(codes.InvalidArgument, "ClusterGKMCache processing error")
 		} else {
 			d.log.Error(fmt.Errorf("GKMCache processing error"), "internal error",
@@ -147,7 +147,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 				"volumeId", req.VolumeId,
 				"namespace", crNamespace,
 				"name", crName,
-				"digest", cacheData.Digest)
+				"digest", cacheData.ResolvedDigest)
 			return nil, status.Error(codes.InvalidArgument, "GKMCache processing error")
 		}
 	}
@@ -165,7 +165,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 			"volumeId", req.VolumeId,
 			"namespace", crNamespace,
 			"name", crName,
-			"digest", cacheData.Digest)
+			"digest", cacheData.ResolvedDigest)
 		return nil, err
 	}
 
@@ -178,28 +178,21 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 			"volumeId", req.VolumeId,
 			"namespace", crNamespace,
 			"name", crName,
-			"digest", cacheData.Digest)
+			"digest", cacheData.ResolvedDigest)
 		return nil, err
 	}
 
-	// Save off the VolumeId mapping to CRD Info
-	size, err := database.DirSize(sourcePath)
-	if err != nil {
+	// Pull the Size from Cache Data and store in the Usage Data.
+	size, ok := cacheData.Sizes[cacheData.ResolvedDigest]
+	if !ok {
 		size = 0
-		d.log.Error(err, "unable to get directory size, continuing",
-			"sourcePath", sourcePath,
-			"targetPath", req.TargetPath,
-			"volumeId", req.VolumeId,
-			"namespace", crNamespace,
-			"name", crName,
-			"digest", cacheData.Digest)
 	}
 
 	// Add the Usage Data
-	err = database.AddUsageData(crNamespace, crName, cacheData.Digest, req.VolumeId, size, d.log)
+	err = database.AddUsageData(crNamespace, crName, cacheData.ResolvedDigest, req.VolumeId, size, d.log)
 	if err != nil {
 		d.log.Error(err, "unable to save usage data",
-			"volumeId", req.VolumeId, "namespace", crNamespace, "name", crName, "digest", cacheData.Digest)
+			"volumeId", req.VolumeId, "namespace", crNamespace, "name", crName, "digest", cacheData.ResolvedDigest)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -240,6 +233,8 @@ func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublish
 			d.log.Error(fmt.Errorf("umount failed"), "internal error",
 				"VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
 			return nil, status.Error(codes.Aborted, "umount failed")
+		} else {
+			d.log.Info("targetPath has been unmounted", "VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
 		}
 	} else {
 		d.log.Info("targetPath is not mounted, just continue", "VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
@@ -249,6 +244,8 @@ func (d *Driver) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublish
 	if err = database.DeleteUsageData(req.VolumeId, d.log); err != nil {
 		d.log.Error(err, "usage deletion failed, just continue",
 			"VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
+	} else {
+		d.log.Info("usage data deleted", "VolumeId", req.VolumeId, "TargetPath", req.TargetPath)
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil

@@ -76,7 +76,7 @@ func (r *GKMConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if updated := controllerutil.AddFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer); updated {
 			if err := r.Update(ctx, gkmConfigMap); err != nil {
 				r.Logger.Error(err, "failed adding gkm-operator finalizer to GKM ConfigMap")
-				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryDurationOperator}, nil
+				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
 			}
 		}
 		return r.ReconcileGKMConfigMap(ctx, req, gkmConfigMap)
@@ -136,8 +136,8 @@ func (r *GKMConfigMapReconciler) ReconcileGKMConfigMap(ctx context.Context, req 
 		); err == nil {
 			r.Logger.Info("Deleting GKM CSIDriver object")
 			if err := r.Delete(ctx, gkmCsiDriver); err != nil {
-				r.Logger.Error(err, "Failed to delete Bpfman csi driver")
-				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryDurationOperator}, nil
+				r.Logger.Error(err, "Failed to delete GKM CSIDriver object")
+				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
 			}
 		}
 
@@ -145,7 +145,7 @@ func (r *GKMConfigMapReconciler) ReconcileGKMConfigMap(ctx context.Context, req 
 		err := r.Update(ctx, gkmConfigMap)
 		if err != nil {
 			r.Logger.Error(err, "failed removing gkm-operator finalizer from GKM ConfigMap")
-			return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryDurationOperator}, nil
+			return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
 		}
 
 		return ctrl.Result{}, nil
@@ -154,7 +154,7 @@ func (r *GKMConfigMapReconciler) ReconcileGKMConfigMap(ctx context.Context, req 
 	return ctrl.Result{}, nil
 }
 
-// Only reconcile on bpfman-config configmap events.
+// Only reconcile on GKM ConfigMap events.
 func gkmConfigPredicate() predicate.Funcs {
 	return predicate.Funcs{
 		GenericFunc: func(e event.GenericEvent) bool {

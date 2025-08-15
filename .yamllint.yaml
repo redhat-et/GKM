@@ -12,5 +12,5 @@ rules:
       - ^.*:$
     quote-type: double
 ignore:
-  - tcv/_output/*
-  - tcv/vendor/*
+  - bin/*
+  - vendor/*

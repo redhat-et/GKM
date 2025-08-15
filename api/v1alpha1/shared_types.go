@@ -61,3 +61,128 @@ type GKMCacheStatus struct {
 	// updated.
 	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
 }
+
+// GpuStatus defines the status of an individual GPU on a node.
+type GpuStatus struct {
+	GpuType       string `json:"gpuType,omitempty"`
+	DriverVersion string `json:"driverVersion,omitempty"`
+	GpuList       []int  `json:"ids,omitempty"`
+}
+
+// CacheStatus defines the status of an individual kernel cache for a given digest .on a node
+type CacheStatus struct {
+	CompGpuList   []int              `json:"compatibleGPUs,omitempty"`
+	IncompGpuList []int              `json:"incompatibleGPUs,omitempty"`
+	Conditions    []metav1.Condition `json:"conditions,omitempty"`
+	LastUpdated   metav1.Time        `json:"lastUpdated"`
+	VolumeSize    int64              `json:"volumeSize,omitempty"`
+	VolumeIds     []string           `json:"volumeIds,omitempty"`
+}
+
+// GKMCacheNodeStatus defines the observed state of GKMCacheNode
+type GKMCacheNodeStatus struct {
+	NodeName      string                            `json:"nodeName"`
+	GpuStatuses   []GpuStatus                       `json:"gpus,omitempty"`
+	CacheStatuses map[string]map[string]CacheStatus `json:"caches,omitempty"`
+}
+
+// GkmCacheNodeConditionType is used to indicate the status of a GKM Cache
+// on a given node.
+type GkmCacheNodeConditionType string
+
+const (
+	// GkmCacheNodeCondPending indicates that GKM has not yet completed
+	// reconciling the GKM Cache on the given node.
+	GkmCacheNodeCondPending GkmCacheNodeConditionType = "Pending"
+
+	// GkmCacheNodeCondExtracted indicates that the GKM Cache has been
+	// successfully extracted as requested on the given node.
+	GkmCacheNodeCondExtracted GkmCacheNodeConditionType = "Extracted"
+
+	// GkmCacheNodeCondRunning indicates that the GKM Cache has been
+	// successfully extracted and is being used by a Pod on the given node.
+	GkmCacheNodeCondRunning GkmCacheNodeConditionType = "Running"
+
+	// GkmCacheNodeCondOutdated indicates that the GKM Cache has been
+	// successfully extracted and is being used by a Pod on the given node
+	// but a newer image digest exists.
+	GkmCacheNodeCondOutdated GkmCacheNodeConditionType = "Outdated"
+
+	// GkmCacheNodeCondError indicates that an error has occurred on the given
+	// node while attempting to apply the configuration described in the CRD.
+	GkmCacheNodeCondError GkmCacheNodeConditionType = "Error"
+
+	// GkmCacheNodeCondUnloadError indicates that the GKM Cache was marked
+	// for deletion, but removing GK Cache was unsuccessful on the
+	// given node.
+	GkmCacheNodeCondUnloadError GkmCacheNodeConditionType = "UnloadError"
+)
+
+// Condition is a helper method to promote any given GkmCacheNodeConditionType to a
+// full metav1.Condition in an opinionated fashion.
+func (b GkmCacheNodeConditionType) Condition() metav1.Condition {
+	cond := metav1.Condition{}
+
+	switch b {
+	case GkmCacheNodeCondPending:
+		condType := string(GkmCacheNodeCondPending)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Pending",
+			Message: "Not yet complete",
+		}
+	case GkmCacheNodeCondExtracted:
+		condType := string(GkmCacheNodeCondExtracted)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Extracted",
+			Message: "The Kernel Cache has been extracted onto the host",
+		}
+	case GkmCacheNodeCondRunning:
+		condType := string(GkmCacheNodeCondRunning)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Running",
+			Message: "The Kernel Cache has been extracted and is in use by one or more pods",
+		}
+	case GkmCacheNodeCondOutdated:
+		condType := string(GkmCacheNodeCondOutdated)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Outdated",
+			Message: "The Kernel Cache is in use by one or more pods but newer version exists",
+		}
+	case GkmCacheNodeCondError:
+		condType := string(GkmCacheNodeCondError)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Error",
+			Message: "An error occurred trying to extract the Kernel Cache",
+		}
+	case GkmCacheNodeCondUnloadError:
+		condType := string(GkmCacheNodeCondUnloadError)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Unload Error",
+			Message: "An error occurred trying to remove the extracted Kernel Cache",
+		}
+	}
+	return cond
+}
+
+// IsConditionSet loops through the slice of conditions (should only be one) and determines if the input
+// GkmCacheNodeConditionType is set.
+func (b GkmCacheNodeConditionType) IsConditionSet(conditions []metav1.Condition) bool {
+	for _, condition := range conditions {
+		if condition.Type == string(b) {
+			return true
+		}
+	}
+	return false
+}

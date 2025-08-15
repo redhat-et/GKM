@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/go-logr/logr"
 
@@ -24,6 +25,7 @@ import (
 // Functions in this file are used to manage the usage files.
 
 var defaultUsageDir string
+var usageLock sync.Mutex
 
 func init() {
 	initializeUsagePath(utils.DefaultUsageDir)
@@ -55,6 +57,9 @@ func GetUsageDataByVolumeId(volumeId string, log logr.Logger) (*UsageData, error
 	var usage UsageData
 
 	usagePath := defaultUsageDir
+
+	usageLock.Lock()
+	defer usageLock.Unlock()
 
 	var fileFound = errors.New("file found")
 	err := filepath.WalkDir(usagePath, func(path string, d fs.DirEntry, err error) error {
@@ -93,6 +98,9 @@ func GetUsageData(crNamespace, crName, digest string, log logr.Logger) (*UsageDa
 	}
 	usagePath = filepath.Join(usagePath, utils.UsageFilename)
 
+	usageLock.Lock()
+	defer usageLock.Unlock()
+
 	var usage UsageData
 	if err = loadJSONFromUsageFile(usagePath, &usage); err != nil {
 		return nil, fmt.Errorf("not found")
@@ -119,6 +127,9 @@ func AddUsageData(crNamespace, crName, digest, volumeId string, size int64, log 
 		return err
 	}
 	usagePath := filepath.Join(parentDir, utils.UsageFilename)
+
+	usageLock.Lock()
+	defer usageLock.Unlock()
 
 	// Check to see if cache is already created
 	var curUsage UsageData
@@ -176,6 +187,9 @@ func AddUsageData(crNamespace, crName, digest, volumeId string, size int64, log 
 
 func DeleteUsageData(volumeId string, log logr.Logger) error {
 	usagePath := defaultUsageDir
+
+	usageLock.Lock()
+	defer usageLock.Unlock()
 
 	var fileFound = errors.New("file found")
 	err := filepath.WalkDir(usagePath, func(path string, d fs.DirEntry, err error) error {

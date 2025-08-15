@@ -120,74 +120,74 @@ func TestExtractCache(t *testing.T) {
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
-		// TEST: No Instances - Call GetInstalledCacheList() to retrieve list - Success.
-		t.Logf("TEST: No Instance Calling GetInstalledCacheList() to Succeed")
-		installedList, err := GetInstalledCacheList(log)
-		t.Logf("Instance 1 - Cluster - GetInstalledCacheList() err: %v currList: %v", err, installedList)
+		// TEST: No Instances - Call GetExtractedCacheList() to retrieve list - Success.
+		t.Logf("TEST: No Instance Calling GetExtractedCacheList() to Succeed")
+		extractedList, err := GetExtractedCacheList(log)
+		t.Logf("Instance 1 - Cluster - GetExtractedCacheList() err: %v currList: %v", err, extractedList)
 		require.NoError(t, err)
 		// Find Instance should fail
-		err = findInstance(t1, installedList, log)
+		err = findInstance(t1, extractedList, log)
 		require.Error(t, err)
-		require.Equal(t, len(*installedList), 0)
+		require.Equal(t, len(*extractedList), 0)
 
 		// CREATE and READ Cache
 		t.Logf("TEST: Instance 1 - Cluster - ExtractCache() - Should Succeed")
-		err = ExtractCache(t1.CrNamespace, t1.CrName, t1.Image, t1.Digest, noGpu, log)
+		_, _, err = ExtractCache(t1.CrNamespace, t1.CrName, t1.Image, t1.Digest, noGpu, log)
 		t.Logf("Instance 1 - Cluster - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t1, installedList, log)
+		err = findInstance(t1, extractedList, log)
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 2 - Cluster - ExtractCache() - Same Image but different Name - Should Succeed")
-		err = ExtractCache(t2.CrNamespace, t2.CrName, t2.Image, t2.Digest, noGpu, log)
+		_, _, err = ExtractCache(t2.CrNamespace, t2.CrName, t2.Image, t2.Digest, noGpu, log)
 		t.Logf("Instance 2 - Cluster - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t2, installedList, log)
+		err = findInstance(t2, extractedList, log)
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 3 - Namespace - ExtractCache() - Should Succeed")
-		err = ExtractCache(t3.CrNamespace, t3.CrName, t3.Image, t3.Digest, noGpu, log)
+		_, _, err = ExtractCache(t3.CrNamespace, t3.CrName, t3.Image, t3.Digest, noGpu, log)
 		t.Logf("Instance 3 - Namespace - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t3, installedList, log)
+		err = findInstance(t3, extractedList, log)
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 4 - Namespace - ExtractCache() - Same Namespace but Different Name - Should Succeed")
-		err = ExtractCache(t4.CrNamespace, t4.CrName, t4.Image, t4.Digest, noGpu, log)
+		_, _, err = ExtractCache(t4.CrNamespace, t4.CrName, t4.Image, t4.Digest, noGpu, log)
 		t.Logf("Instance 4 - Namespace - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t4, installedList, log)
+		err = findInstance(t4, extractedList, log)
 		require.NoError(t, err)
 
 		t.Logf("TEST: Instance 5 - Namespace - ExtractCache() - Different Namespace - Should Succeed")
-		err = ExtractCache(t5.CrNamespace, t5.CrName, t5.Image, t5.Digest, noGpu, log)
+		_, _, err = ExtractCache(t5.CrNamespace, t5.CrName, t5.Image, t5.Digest, noGpu, log)
 		t.Logf("Instance 5 - Namespace - ExtractCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t5, installedList, log)
+		err = findInstance(t5, extractedList, log)
 		require.NoError(t, err)
 
-		// TEST: Nonexistent Instances - Call GetInstalledCacheList() to retrieve list - Success.
-		t.Logf("TEST: Nonexistent Instance Calling GetInstalledCacheList() to Succeed")
-		installedList, err = GetInstalledCacheList(log)
-		t.Logf("Nonexistent Instance - Namespace - GetInstalledCacheList() err: %v currList: %v", err, installedList)
+		// TEST: Nonexistent Instances - Call GetExtractedCacheList() to retrieve list - Success.
+		t.Logf("TEST: Nonexistent Instance Calling GetExtractedCacheList() to Succeed")
+		extractedList, err = GetExtractedCacheList(log)
+		t.Logf("Nonexistent Instance - Namespace - GetExtractedCacheList() err: %v currList: %v", err, extractedList)
 		require.NoError(t, err)
 		// Find Instance should fail
-		err = findInstance(t6, installedList, log)
+		err = findInstance(t6, extractedList, log)
 		require.Error(t, err)
 
 		// DELETE Cache
@@ -196,9 +196,9 @@ func TestExtractCache(t *testing.T) {
 		t.Logf("Instance 1 - Cluster - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t1, installedList, log)
+		err = findInstance(t1, extractedList, log)
 		require.Error(t, err)
 
 		t.Logf("TEST: Instance 2 - Cluster - RemoveCache() - Should Succeed")
@@ -206,9 +206,9 @@ func TestExtractCache(t *testing.T) {
 		t.Logf("Instance 2 - Cluster - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t2, installedList, log)
+		err = findInstance(t2, extractedList, log)
 		require.Error(t, err)
 
 		t.Logf("TEST: Instance 3 - Namespace - RemoveCache() - Should Succeed")
@@ -216,9 +216,9 @@ func TestExtractCache(t *testing.T) {
 		t.Logf("Instance 3 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t3, installedList, log)
+		err = findInstance(t3, extractedList, log)
 		require.Error(t, err)
 
 		t.Logf("TEST: Instance 4 - Namespace - RemoveCache() - Should Succeed")
@@ -226,9 +226,9 @@ func TestExtractCache(t *testing.T) {
 		t.Logf("Instance 4 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t4, installedList, log)
+		err = findInstance(t4, extractedList, log)
 		require.Error(t, err)
 
 		t.Logf("TEST: Instance 5 - Namespace - RemoveCache() - Should Succeed")
@@ -236,9 +236,9 @@ func TestExtractCache(t *testing.T) {
 		t.Logf("Instance 5 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t5, installedList, log)
+		err = findInstance(t5, extractedList, log)
 		require.Error(t, err)
 
 		t.Logf("TEST: Instance 6 - Namespace - RemoveCache() - Nonexistent Cache - Should Fail")
@@ -246,11 +246,11 @@ func TestExtractCache(t *testing.T) {
 		t.Logf("Instance 6 - Namespace - RemoveCache() err: %v", err)
 		require.NoError(t, err)
 		// Read the filesystem to see if it was extracted
-		installedList, err = GetInstalledCacheList(log)
+		extractedList, err = GetExtractedCacheList(log)
 		require.NoError(t, err)
-		err = findInstance(t6, installedList, log)
+		err = findInstance(t6, extractedList, log)
 		require.Error(t, err)
-		require.Equal(t, len(*installedList), 0)
+		require.Equal(t, len(*extractedList), 0)
 	})
 }
 
