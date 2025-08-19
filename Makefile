@@ -293,12 +293,14 @@ else
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy webhook-secret-file ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) apply -f -
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
+	@echo "Undeploy cert-manager"
+	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
@@ -311,7 +313,6 @@ deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/
 undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.
 	@echo "Remove Namespace based GKMCache"
 	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/namespace/
-
 
 ##@ Kind Cluster Management
 
@@ -358,9 +359,12 @@ get-cert-manager-images:
 	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-controller:v1.18.0
 	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-cainjector:v1.18.0
 	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-webhook:v1.18.0
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-controller:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME)
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-cainjector:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME)
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-webhook:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME)
+	@if [[ "$$($(KUBECTL) get nodes -o jsonpath='{.items[*].metadata.name}')" =~ "kind" ]]; then \
+		echo "Kind detected – loading cert-manager images to kind..."; \
+		wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-controller:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME); \
+		wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-cainjector:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME); \
+		wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-webhook:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME); \
+	fi
 
 .PHONY: deploy-cert-manager
 deploy-cert-manager: get-cert-manager-images
