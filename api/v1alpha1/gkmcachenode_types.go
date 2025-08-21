@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // +genclient
@@ -26,9 +27,12 @@ import (
 // +kubebuilder:resource:scope=Namespaced
 
 // GKMCacheNode is the Schema for the gkmcachenodes API
-// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
-// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.nodeName"
+// +kubebuilder:printcolumn:name="Extracted",type=string,JSONPath=`.status.counts.extractedCnt`
+// +kubebuilder:printcolumn:name="Use",type=string,JSONPath=`.status.counts.useCnt`
+// +kubebuilder:printcolumn:name="Error",type=string,JSONPath=`.status.counts.errorCnt`
+// +kubebuilder:printcolumn:name="PodRunning",type=string,JSONPath=`.status.counts.podRunningCnt`
+// +kubebuilder:printcolumn:name="PodOutdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
 type GKMCacheNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -47,4 +51,32 @@ type GKMCacheNodeList struct {
 
 func init() {
 	SchemeBuilder.Register(&GKMCacheNode{}, &GKMCacheNodeList{})
+}
+
+func (cacheNode GKMCacheNode) GetName() string {
+	return cacheNode.Name
+}
+
+func (cacheNode GKMCacheNode) GetNamespace() string {
+	return cacheNode.Namespace
+}
+
+func (cacheNode GKMCacheNode) GetAnnotations() map[string]string {
+	return cacheNode.Annotations
+}
+
+func (cacheNode GKMCacheNode) GetLabels() map[string]string {
+	return cacheNode.Labels
+}
+
+func (cacheNode GKMCacheNode) GetStatus() *GKMCacheNodeStatus {
+	return &cacheNode.Status
+}
+
+func (cacheNode GKMCacheNode) GetNodeName() string {
+	return cacheNode.Status.NodeName
+}
+
+func (cacheNode GKMCacheNode) GetClientObject() client.Object {
+	return &cacheNode
 }

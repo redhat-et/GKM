@@ -79,9 +79,18 @@ type CacheStatus struct {
 	VolumeIds     []string           `json:"volumeIds,omitempty"`
 }
 
+type CacheCounts struct {
+	ExtractedCnt   int `json:"extractedCnt"`
+	UseCnt         int `json:"useCnt"`
+	ErrorCnt       int `json:"errorCnt"`
+	PodRunningCnt  int `json:"podRunningCnt"`
+	PodOutdatedCnt int `json:"podOutdatedCnt"`
+}
+
 // GKMCacheNodeStatus defines the observed state of GKMCacheNode
 type GKMCacheNodeStatus struct {
 	NodeName      string                            `json:"nodeName"`
+	Counts        CacheCounts                       `json:"counts"`
 	GpuStatuses   []GpuStatus                       `json:"gpus,omitempty"`
 	CacheStatuses map[string]map[string]CacheStatus `json:"caches,omitempty"`
 }

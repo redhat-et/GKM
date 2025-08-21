@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // +genclient
@@ -39,7 +40,7 @@ import (
 // CR instance for each Kubernetes Node for each ClusterGKMCache instance. The
 // ClusterGKMCacheNode CRD provides load status for each GPU Kernel Cache for
 // each GPU on the node.
-// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
+// +kubebuilder:printcolumn:name="Updated",type=string,JSONPath=".status.lastUpdated"
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type ClusterGKMCache struct {
@@ -61,4 +62,40 @@ type ClusterGKMCacheList struct {
 
 func init() {
 	SchemeBuilder.Register(&ClusterGKMCache{}, &ClusterGKMCacheList{})
+}
+
+func (cache ClusterGKMCache) GetName() string {
+	return cache.Name
+}
+
+func (cache ClusterGKMCache) GetNamespace() string {
+	return ""
+}
+
+func (cache ClusterGKMCache) GetAnnotations() map[string]string {
+	return cache.Annotations
+}
+
+func (cache ClusterGKMCache) GetLabels() map[string]string {
+	return cache.Labels
+}
+
+func (cache ClusterGKMCache) GetImage() string {
+	return cache.Spec.Image
+}
+
+func (cache ClusterGKMCache) GetStatus() *GKMCacheStatus {
+	return &cache.Status
+}
+
+func (cache ClusterGKMCache) GetClientObject() client.Object {
+	return &cache
+}
+
+func (cacheList ClusterGKMCacheList) GetItems() []ClusterGKMCache {
+	return cacheList.Items
+}
+
+func (cacheList ClusterGKMCacheList) GetItemsLen() int {
+	return len(cacheList.Items)
 }

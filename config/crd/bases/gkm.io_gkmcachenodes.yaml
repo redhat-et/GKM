@@ -15,15 +15,24 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.node
+    - jsonPath: .status.nodeName
       name: Node
       type: string
-    - jsonPath: .status.conditions[0].reason
-      name: Status
+    - jsonPath: .status.counts.extractedCnt
+      name: Extracted
       type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
+    - jsonPath: .status.counts.useCnt
+      name: Use
+      type: string
+    - jsonPath: .status.counts.errorCnt
+      name: Error
+      type: string
+    - jsonPath: .status.counts.podRunningCnt
+      name: PodRunning
+      type: string
+    - jsonPath: .status.counts.podOutdatedCnt
+      name: PodOutdated
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -135,6 +144,25 @@ spec:
                     type: object
                   type: object
                 type: object
+              counts:
+                properties:
+                  errorCnt:
+                    type: integer
+                  extractedCnt:
+                    type: integer
+                  podOutdatedCnt:
+                    type: integer
+                  podRunningCnt:
+                    type: integer
+                  useCnt:
+                    type: integer
+                required:
+                - errorCnt
+                - extractedCnt
+                - podOutdatedCnt
+                - podRunningCnt
+                - useCnt
+                type: object
               gpus:
                 items:
                   description: GpuStatus defines the status of an individual GPU on
@@ -153,6 +181,7 @@ spec:
               nodeName:
                 type: string
             required:
+            - counts
             - nodeName
             type: object
         type: object

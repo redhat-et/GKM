@@ -15,8 +15,8 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.node
-      name: Node
+    - jsonPath: .status.lastUpdated
+      name: Updated
       type: string
     - jsonPath: .status.conditions[0].reason
       name: Status
