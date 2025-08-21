@@ -60,9 +60,6 @@ const (
 	GkmCacheNodeFinalizerPrefix    = "gkm.io."
 	GkmCacheNodeFinalizerSubstring = "/finalizer"
 
-	// GKMCacheNode Constants
-	GKMCacheNodeNamePrefix = "gkmcachenode-"
-
 	// ConfigMap Indexes
 	ConfigMapIndexOperatorLogLevel = "gkm.operator.log.level"
 	ConfigMapIndexAgentImage       = "gkm.agent.image"

@@ -60,7 +60,7 @@ func (r *GKMCacheOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	errorHit := false
 	r.currCache = nil
 
-	r.Logger = ctrl.Log.WithName("gkm-cache")
+	r.Logger = ctrl.Log.WithName("gkm-ns-cache")
 	r.Logger.Info("Enter Operator GKMCache Reconcile", "Name", req)
 
 	// Get the list of existing GKM Cache objects
@@ -224,7 +224,9 @@ func isConditionTrue(conds []metav1.Condition, condType string) bool {
 func (r *GKMCacheOperatorReconciler) getCacheNodeList(ctx context.Context, cacheNamespace string) (*gkmv1alpha1.GKMCacheNodeList, error) {
 	cacheNodeList := &gkmv1alpha1.GKMCacheNodeList{}
 
-	err := r.List(ctx, cacheNodeList,
+	err := r.List(
+		ctx,
+		cacheNodeList,
 		client.InNamespace(cacheNamespace),
 	)
 	if err != nil {

@@ -18,25 +18,8 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// ClusterGKMCacheNodeSpec defines the desired state of ClusterGKMCacheNode
-type ClusterGKMCacheNodeSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of ClusterGKMCacheNode. Edit clustergkmcachenode_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
-
-// ClusterGKMCacheNodeStatus defines the observed state of ClusterGKMCacheNode
-type ClusterGKMCacheNodeStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
 
 // +genclient
 // +genclient:nonNamespaced
@@ -45,15 +28,17 @@ type ClusterGKMCacheNodeStatus struct {
 // +kubebuilder:resource:scope=Cluster
 
 // ClusterGKMCacheNode is the Schema for the clustergkmcachenodes API
-// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
-// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.nodeName"
+// +kubebuilder:printcolumn:name="Extracted",type=string,JSONPath=`.status.counts.extractedCnt`
+// +kubebuilder:printcolumn:name="Use",type=string,JSONPath=`.status.counts.useCnt`
+// +kubebuilder:printcolumn:name="Error",type=string,JSONPath=`.status.counts.errorCnt`
+// +kubebuilder:printcolumn:name="PodRunning",type=string,JSONPath=`.status.counts.podRunningCnt`
+// +kubebuilder:printcolumn:name="PodOutdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
 type ClusterGKMCacheNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ClusterGKMCacheNodeSpec   `json:"spec,omitempty"`
-	Status ClusterGKMCacheNodeStatus `json:"status,omitempty"`
+	Status GKMCacheNodeStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -67,4 +52,32 @@ type ClusterGKMCacheNodeList struct {
 
 func init() {
 	SchemeBuilder.Register(&ClusterGKMCacheNode{}, &ClusterGKMCacheNodeList{})
+}
+
+func (cacheNode ClusterGKMCacheNode) GetName() string {
+	return cacheNode.Name
+}
+
+func (cacheNode ClusterGKMCacheNode) GetNamespace() string {
+	return ""
+}
+
+func (cacheNode ClusterGKMCacheNode) GetAnnotations() map[string]string {
+	return cacheNode.Annotations
+}
+
+func (cacheNode ClusterGKMCacheNode) GetLabels() map[string]string {
+	return cacheNode.Labels
+}
+
+func (cacheNode ClusterGKMCacheNode) GetStatus() *GKMCacheNodeStatus {
+	return &cacheNode.Status
+}
+
+func (cacheNode ClusterGKMCacheNode) GetNodeName() string {
+	return cacheNode.Status.NodeName
+}
+
+func (cacheNode ClusterGKMCacheNode) GetClientObject() client.Object {
+	return &cacheNode
 }

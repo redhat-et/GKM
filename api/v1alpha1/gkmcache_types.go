@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // +genclient
@@ -36,7 +37,7 @@ import (
 // something failed. GKM creates a GKMCacheNode CR instance for each Kubernetes
 // Node for each GKMCache instance. The GKMCacheNode CRD provides load status
 // for each GPU Kernel Cache for each GPU on the node.
-// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.node"
+// +kubebuilder:printcolumn:name="Updated",type=string,JSONPath=".status.lastUpdated"
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type GKMCache struct {
@@ -58,4 +59,40 @@ type GKMCacheList struct {
 
 func init() {
 	SchemeBuilder.Register(&GKMCache{}, &GKMCacheList{})
+}
+
+func (cache GKMCache) GetName() string {
+	return cache.Name
+}
+
+func (cache GKMCache) GetNamespace() string {
+	return cache.Namespace
+}
+
+func (cache GKMCache) GetAnnotations() map[string]string {
+	return cache.Annotations
+}
+
+func (cache GKMCache) GetLabels() map[string]string {
+	return cache.Labels
+}
+
+func (cache GKMCache) GetImage() string {
+	return cache.Spec.Image
+}
+
+func (cache GKMCache) GetStatus() *GKMCacheStatus {
+	return &cache.Status
+}
+
+func (cache GKMCache) GetClientObject() client.Object {
+	return &cache
+}
+
+func (cacheList GKMCacheList) GetItems() []GKMCache {
+	return cacheList.Items
+}
+
+func (cacheList GKMCacheList) GetItemsLen() int {
+	return len(cacheList.Items)
 }

@@ -34,15 +34,15 @@ func TestReplaceUrlTag(t *testing.T) {
 		logf.SetLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(os.Stderr)))
 
 		t.Logf("TEST: replaceUrlTag() with typical case - Should Succeed")
-		updateUrl := replaceUrlTag("quay.io/test/image:latest", "01234567879")
+		updateUrl := replaceUrlTag("quay.io/test/image:latest", "sha256:01234567879")
 		require.Equal(t, updateUrl, "quay.io/test/image@sha256:01234567879")
 
 		t.Logf("TEST: replaceUrlTag() with tag with different chars - Should Succeed")
-		updateUrl = replaceUrlTag("quay.io/test/image:v12-34", "22ae699979cf")
+		updateUrl = replaceUrlTag("quay.io/test/image:v12-34", "sha256:22ae699979cf")
 		require.Equal(t, updateUrl, "quay.io/test/image@sha256:22ae699979cf")
 
 		t.Logf("TEST: replaceUrlTag() with no tag on URL - Should Succeed")
-		updateUrl = replaceUrlTag("quay.io/test-33/image", "30c8d86826e6")
+		updateUrl = replaceUrlTag("quay.io/test-33/image", "sha256:30c8d86826e6")
 		require.Equal(t, updateUrl, "quay.io/test-33/image@sha256:30c8d86826e6")
 
 		t.Logf("TEST: replaceUrlTag() with no image - Should fail (empty string)")
@@ -76,7 +76,7 @@ func TestExtractCache(t *testing.T) {
 		t1 := TestData{
 			CrNamespace: "",
 			CrName:      "yellowKernel",
-			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
+			Digest:      "sha256:d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -84,7 +84,7 @@ func TestExtractCache(t *testing.T) {
 		t2 := TestData{
 			CrNamespace: "",
 			CrName:      "Red.Kernel",
-			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
+			Digest:      "sha256:d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -92,7 +92,7 @@ func TestExtractCache(t *testing.T) {
 		t3 := TestData{
 			CrNamespace: "blue",
 			CrName:      "blue_Kernel",
-			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
+			Digest:      "sha256:d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -100,7 +100,7 @@ func TestExtractCache(t *testing.T) {
 		t4 := TestData{
 			CrNamespace: "blue",
 			CrName:      "light-Blue-Kernel",
-			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
+			Digest:      "sha256:d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -108,7 +108,7 @@ func TestExtractCache(t *testing.T) {
 		t5 := TestData{
 			CrNamespace: "green",
 			CrName:      "greenKernel",
-			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
+			Digest:      "sha256:d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 
@@ -116,7 +116,7 @@ func TestExtractCache(t *testing.T) {
 		t6 := TestData{
 			CrNamespace: "purple",
 			CrName:      "purpleKernel",
-			Digest:      "d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
+			Digest:      "sha256:d9cfcee43b201e1616487c15c74b7fcb387086e35feb545c4fb9126f51a20770",
 			Image:       "quay.io/gkm/vector-add-cache:rocm",
 		}
 

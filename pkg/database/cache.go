@@ -311,10 +311,10 @@ func replaceUrlTag(imageURL, digest string) string {
 	lastColonIndex := strings.LastIndex(imageURL, ":")
 	if lastColonIndex == -1 {
 		// No tag found, append the new tag
-		return imageURL + "@sha256:" + digest
+		return imageURL + "@" + digest
 	}
 	// Extract the part before the tag and append the new tag
-	return imageURL[:lastColonIndex] + "@sha256:" + digest
+	return imageURL[:lastColonIndex] + "@" + digest
 }
 
 type CacheData struct {

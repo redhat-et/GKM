@@ -29,7 +29,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(gkmv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -123,23 +122,42 @@ func main() {
 		os.Exit(1)
 	}
 
+	commonNs := gkmagent.ReconcilerCommon[gkmv1alpha1.GKMCache, gkmv1alpha1.GKMCacheList, gkmv1alpha1.GKMCacheNode]{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		CacheDir:        utils.DefaultCacheDir,
+		NodeName:        nodeName,
+		NoGpu:           noGpu,
+		CrdCacheStr:     "GKMCache",
+		CrdCacheNodeStr: "GKMCacheNode",
+	}
 	if err = (&gkmagent.GKMCacheReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		CacheDir: utils.DefaultCacheDir,
-		NodeName: nodeName,
-		NoGpu:    noGpu,
+		ReconcilerCommon: commonNs,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMCache")
 		os.Exit(1)
 	}
+
+	commonCl := gkmagent.ReconcilerCommon[
+		gkmv1alpha1.ClusterGKMCache,
+		gkmv1alpha1.ClusterGKMCacheList,
+		gkmv1alpha1.ClusterGKMCacheNode,
+	]{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		CacheDir:        utils.DefaultCacheDir,
+		NodeName:        nodeName,
+		NoGpu:           noGpu,
+		CrdCacheStr:     "ClusterGKMCache",
+		CrdCacheNodeStr: "ClusterGKMCacheNode",
+	}
 	if err = (&gkmagent.ClusterGKMCacheReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ReconcilerCommon: commonCl,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GKMCacheCluster")
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterGKMCache")
 		os.Exit(1)
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

@@ -260,7 +260,7 @@ clean: ## Remove all generated files and binaries
 ##@ Deployment
 
 ifndef ignore-not-found
-  ignore-not-found = false
+  ignore-not-found = true
 endif
 
 .PHONY: install
@@ -306,11 +306,15 @@ undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specifie
 deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/config.
 	@echo "Create Namespace based GKMCache"
 	$(KUBECTL) apply -f examples/namespace/
+	@echo "Create Cluster based ClusterGKMCache"
+	$(KUBECTL) apply -f examples/cluster/
 
 .PHONY: undeploy-examples
 undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.
 	@echo "Remove Namespace based GKMCache"
 	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/namespace/
+	@echo "Remove Cluster based ClusterGKMCache"
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/cluster/
 
 
 ##@ Kind Cluster Management

@@ -29,6 +29,15 @@ rules:
   - gkm.io
   resources:
   - clustergkmcachenodes
+  - gkmcachenodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gkm.io
+  resources:
+  - clustergkmcaches
   - gkmcaches
   verbs:
   - create
@@ -41,7 +50,7 @@ rules:
 - apiGroups:
   - gkm.io
   resources:
-  - clustergkmcachenodes/finalizers
+  - clustergkmcaches/finalizers
   - configmaps/finalizers
   - gkmcaches/finalizers
   verbs:
@@ -49,20 +58,12 @@ rules:
 - apiGroups:
   - gkm.io
   resources:
-  - clustergkmcachenodes/status
+  - clustergkmcaches/status
   - gkmcaches/status
   verbs:
   - get
   - patch
   - update
-- apiGroups:
-  - gkm.io
-  resources:
-  - gkmcachenodes
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - security.openshift.io
   resources:
