@@ -201,7 +201,7 @@ build-image-agent:
 build-image-csi:
 	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-csi -t ${CSI_IMG} .
 
-# If you wish to build the manager image targeting other platforms you can use the --platform flag.
+# If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
@@ -220,7 +220,7 @@ docker-build: build-images
 .PHONY: docker-push
 docker-push: push-images
 
-# PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
+# PLATFORMS defines the target platforms for the operator image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx OPERATOR_IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
 # - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
 # - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
@@ -228,7 +228,7 @@ docker-push: push-images
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
+docker-buildx: ## Build and push docker image for the operator for cross-platform support
 	# copy existing Containerfile and insert --platform=${BUILDPLATFORM} into Containerfile.cross, and preserve the original Containerfile
 	$(SED) -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Containerfile > Containerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name gpu-kernel-manager-operator-builder
@@ -240,7 +240,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
+	cd config/operator && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
 ##@ Cleanup
@@ -278,7 +278,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 ##@ Deployment
 .PHONY: prepare-deploy
 prepare-deploy:
-	cd config/manager && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
+	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
 	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
 ifdef NO_GPU
@@ -515,7 +515,7 @@ endif
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(OPERATOR_IMG)
+	cd config/operator && $(KUSTOMIZE) edit set image controller=$(OPERATOR_IMG)
 	cd config/configMap && \
 	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
