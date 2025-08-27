@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
-	gkmoperator "github.com/redhat-et/GKM/internal/controller/gkm-operator"
+	gkmOperator "github.com/redhat-et/GKM/internal/controller/gkm-operator"
 	"github.com/redhat-et/GKM/pkg/utils"
 	// +kubebuilder:scaffold:imports
 )
@@ -153,7 +153,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&gkmoperator.GKMConfigMapReconciler{
+	if err = (&gkmOperator.GKMConfigMapReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
 		CsiDriverYamlFile:   utils.CsiDriverYamlFile,
@@ -162,20 +162,45 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMConfigMap")
 		os.Exit(1)
 	}
-	if err = (&gkmoperator.GKMCacheOperatorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+
+	commonNs := gkmOperator.ReconcilerCommonOperator[
+		gkmv1alpha1.GKMCache,
+		gkmv1alpha1.GKMCacheList,
+		gkmv1alpha1.GKMCacheNode,
+		gkmv1alpha1.GKMCacheNodeList,
+	]{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		NoGpu:           noGpu,
+		CrdCacheStr:     "GKMCache",
+		CrdCacheNodeStr: "GKMCacheNode",
+	}
+	if err = (&gkmOperator.GKMCacheOperatorReconciler{
+		ReconcilerCommonOperator: commonNs,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMCacheOperator")
 		os.Exit(1)
 	}
-	if err = (&gkmoperator.ClusterGKMCacheOperatorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+
+	commonCl := gkmOperator.ReconcilerCommonOperator[
+		gkmv1alpha1.ClusterGKMCache,
+		gkmv1alpha1.ClusterGKMCacheList,
+		gkmv1alpha1.ClusterGKMCacheNode,
+		gkmv1alpha1.ClusterGKMCacheNodeList,
+	]{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		NoGpu:           noGpu,
+		CrdCacheStr:     "ClusterGKMCache",
+		CrdCacheNodeStr: "ClusterGKMCacheNode",
+	}
+	if err = (&gkmOperator.ClusterGKMCacheOperatorReconciler{
+		ReconcilerCommonOperator: commonCl,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterGKMCacheOperator")
 		os.Exit(1)
 	}
+
 	if err = (&gkmv1alpha1.GKMCache{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "GKMCache")
 		os.Exit(1)

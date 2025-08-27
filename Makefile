@@ -129,6 +129,10 @@ vendors: ## Refresh vendors directory.
 	@echo "### Checking vendors"
 	go mod tidy && go mod vendor
 
+.PHONY: explain
+explain: ## Run "kubectl explain" on all CRDs.
+	CRD_1="ClusterGKMCache" CRD_2="GKMCache" CRD_3="ClusterGKMCacheNode" CRD_4="GKMCacheNode" OUTPUT_DIR="../docs/crds" ./hack/crd_explain_txt.sh
+
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases

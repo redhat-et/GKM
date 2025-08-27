@@ -27,17 +27,25 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// ClusterGKMCacheNode is the Schema for the clustergkmcachenodes API
+// ClusterGKMCacheNode contains the state on a given Kubernetes Node of the set
+// of ClusterGKMCache instances. When one or more ClusterGKMCache instance are
+// created, GKM ensures that one ClusterGKMCacheNode instance is created per
+// Kubernetes Node. Cluster GKMCacheNode cannot be edited by an application or
+// user, only by GKM.
 // +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.nodeName"
-// +kubebuilder:printcolumn:name="Extracted",type=string,JSONPath=`.status.counts.extractedCnt`
-// +kubebuilder:printcolumn:name="Use",type=string,JSONPath=`.status.counts.useCnt`
-// +kubebuilder:printcolumn:name="Error",type=string,JSONPath=`.status.counts.errorCnt`
-// +kubebuilder:printcolumn:name="PodRunning",type=string,JSONPath=`.status.counts.podRunningCnt`
-// +kubebuilder:printcolumn:name="PodOutdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
+// +kubebuilder:printcolumn:name="Node-In-Use",type=string,JSONPath=`.status.counts.nodeInUseCnt`
+// +kubebuilder:printcolumn:name="Node-Not-In-Use",type=string,JSONPath=`.status.counts.nodeNotInUseCnt`
+// +kubebuilder:printcolumn:name="Node-Error",type=string,JSONPath=`.status.counts.nodeErrorCnt`
+// +kubebuilder:printcolumn:name="Pod-Running",type=string,JSONPath=`.status.counts.podRunningCnt`
+// +kubebuilder:printcolumn:name="Pod-Outdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
 type ClusterGKMCacheNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// status reflects the observed state of a ClusterGKMCacheNode instance and
+	// indicates if each ClusterGKMCache instance on the node referenced by
+	// status.nodeName has been loaded successfully or not and if it has been
+	// mounted in any pods on the node.
 	Status GKMCacheNodeStatus `json:"status,omitempty"`
 }
 
@@ -80,4 +88,12 @@ func (cacheNode ClusterGKMCacheNode) GetNodeName() string {
 
 func (cacheNode ClusterGKMCacheNode) GetClientObject() client.Object {
 	return &cacheNode
+}
+
+func (cacheNodeList ClusterGKMCacheNodeList) GetItems() []ClusterGKMCacheNode {
+	return cacheNodeList.Items
+}
+
+func (cacheNodeList ClusterGKMCacheNodeList) GetItemsLen() int {
+	return len(cacheNodeList.Items)
 }

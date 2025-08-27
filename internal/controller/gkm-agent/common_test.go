@@ -1,4 +1,4 @@
-package gkmagent
+package gkmAgent
 
 const (
 	// TestCacheRootDir is the temporary directory for storing files used during testing.

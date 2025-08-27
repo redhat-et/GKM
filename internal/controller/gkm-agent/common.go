@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package gkmagent
+package gkmAgent
 
 import (
 	"context"
@@ -70,7 +70,7 @@ type GKMNodeInstance interface {
 	GetClientObject() client.Object
 }
 
-type ReconcilerCommon[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] struct {
+type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	Logger          logr.Logger
@@ -82,7 +82,7 @@ type ReconcilerCommon[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] s
 }
 
 // AgentReconciler is an interface that defines the methods needed to reconcile
-// a GKMGache or ClusterGKMCache object. The only difference between the two
+// a GKMCache or ClusterGKMCache object. The only difference between the two
 // object is that a Cluster object does not have a Namespace (which is just "").
 type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] interface {
 	// Reconcile is the main entry point to the reconciler. It will be called by
@@ -111,16 +111,16 @@ type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] in
 	cacheNodeRemoveFinalizer(ctx context.Context, gkmCacheNode *N, cacheName string) (bool, error)
 }
 
-// reconcileCommon is the common reconciler loop called by each bpfman
-// reconciler.  It reconciles each program in the list.  The boolean return
-// value is set to true if we've made it through all the programs in the list
-// without anything being updated and a requeue has not been requested. Otherwise,
-// it's set to false. reconcileCommon should not return error because it will
-// trigger an infinite reconcile loop. Instead, it should report the error to
-// user and retry if specified. For some errors the controller may decide not to
-// retry. Note: This only results in calls to bpfman if we need to change
-// something
-func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
+// reconcileCommonAgent is the common reconciler loop called by each the GKMCache
+// and ClusterGKMCache Agent reconcilers.  It reconciles each GKM Cache in the
+// list, making sure an associated GKMCacheNode or ClusterGKMCacheNode is created
+// and populated properly, and that the OCI Image in the GKMCache or
+// ClusterGKMCache is extracted on the host. The Operator owns the GKMCache
+// and ClusterGKMCache Objects, so the Agent reconciler only reads the objects
+// and makes sure the intended state is applied. The Agent owns GKMCacheNode and
+// ClusterGKMCacheNode Objects, and calls KubeAPI Server to make sure they reflect
+// the current state of the GKMCache and ClusterGKMCache Objects on a given node.
+func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 	ctx context.Context,
 	reconciler AgentReconciler[C, CL, N],
 ) (ctrl.Result, error) {
@@ -128,7 +128,7 @@ func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
 	stillInUse := false
 	nodeCnts := make(map[string]gkmv1alpha1.CacheCounts)
 
-	r.Logger.V(1).Info("Start reconcileCommon()")
+	r.Logger.V(1).Info("Start reconcileCommonAgent()")
 
 	// Get the list of existing GKMCache or ClusterGKMCache objects from KubeAPI Server.
 	gkmCacheList, err := reconciler.getCacheList(ctx, []client.ListOption{})
@@ -160,9 +160,7 @@ func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
 		// Cache (Cache still in use) below.
 	} else {
 		// There are GKMCache instances created, so loop through each and reconcile each.
-		items := (*gkmCacheList).GetItems()
-		for cacheIndex := range items {
-			gkmCache := items[cacheIndex]
+		for _, gkmCache := range (*gkmCacheList).GetItems() {
 			r.Logger.V(1).Info("Reconciling",
 				"Object", r.CrdCacheStr,
 				"Namespace", gkmCache.GetNamespace(),
@@ -253,7 +251,7 @@ func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
 					} else if inUse {
 						// Remember that one on the Cache is still in use, so requeue can be set properly on return.
 						stillInUse = true
-						cnts.UseCnt++
+						cnts.NodeInUseCnt++
 					} else if cacheNodeUpdated {
 						// KubeAPI was called to update the GKMCacheNode Object. Return and Reconcile
 						// will be retriggered with the GKMCacheNode Object update.
@@ -304,9 +302,9 @@ func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
 					nodeStatus := (*gkmCacheNode).GetStatus()
 					if nodeStatus != nil {
 						if cacheStatus, ok := nodeStatus.CacheStatuses[gkmCache.GetName()][resolvedDigest]; ok {
-							if gkmv1alpha1.GkmCacheNodeCondError.IsConditionSet(cacheStatus.Conditions) {
+							if gkmv1alpha1.GkmCondError.IsConditionSet(cacheStatus.Conditions) {
 								// Extraction error has occurred, skip this instance.
-								cnts.ErrorCnt++
+								cnts.NodeErrorCnt++
 								nodeCnts[gkmCache.GetNamespace()] = cnts
 								continue
 							}
@@ -388,8 +386,8 @@ func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
 					nodeStatus := (*gkmCacheNode).GetStatus()
 					if nodeStatus != nil {
 						if cacheStatus, ok := nodeStatus.CacheStatuses[key.Name][key.Digest]; ok {
-							if !gkmv1alpha1.GkmCacheNodeCondOutdated.IsConditionSet(cacheStatus.Conditions) {
-								r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCacheNodeCondExtracted.Condition())
+							if !gkmv1alpha1.GkmCondOutdated.IsConditionSet(cacheStatus.Conditions) {
+								r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondExtracted.Condition())
 
 								if err := reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, nodeStatus, "Update Outdated Condition"); err != nil {
 									errorHit = true
@@ -459,7 +457,7 @@ func (r *ReconcilerCommon[C, CL, N]) reconcileCommon(
 // addGpuToCacheNode calls MCV to collect the set of detected GPUs and adds them to the
 // GKMCacheNode.Status.GpuStatuses field. This is only done once right after object creation
 // and is not refreshed.
-func (r *ReconcilerCommon[C, CL, N]) addGpuToCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 	ctx context.Context,
 	reconciler AgentReconciler[C, CL, N],
 	gkmCacheNode *N,
@@ -504,20 +502,27 @@ func (r *ReconcilerCommon[C, CL, N]) addGpuToCacheNode(
 		NodeName: r.NodeName,
 	}
 
-	for _, gpu := range gpus.GPUs {
+	if gpus != nil {
+		for _, gpu := range gpus.GPUs {
+			nodeStatus.GpuStatuses = append(nodeStatus.GpuStatuses, gkmv1alpha1.GpuStatus{
+				GpuType:       gpu.GPUType,
+				DriverVersion: gpu.DriverVersion,
+				GpuList:       gpu.IDs,
+			})
+		}
+	} else {
 		nodeStatus.GpuStatuses = append(nodeStatus.GpuStatuses, gkmv1alpha1.GpuStatus{
-			GpuType:       gpu.GPUType,
-			DriverVersion: gpu.DriverVersion,
-			GpuList:       gpu.IDs,
+			GpuType: "None Detected",
 		})
 	}
+	nodeStatus.Counts.NodeCnt = 1
 
 	// Build up GKMCacheNode
 	return reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, &nodeStatus, "Update GPU list")
 }
 
 // addCacheToCacheNode adds a GKMCache status to the GKMCacheNode.Status.CacheStatuses field.
-func (r *ReconcilerCommon[C, CL, N]) addCacheInCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N]) addCacheInCacheNode(
 	ctx context.Context,
 	reconciler AgentReconciler[C, CL, N],
 	gkmCache *C,
@@ -571,9 +576,9 @@ func (r *ReconcilerCommon[C, CL, N]) addCacheInCacheNode(
 			"Image", (*gkmCache).GetImage(),
 			"Digest", resolvedDigest)
 
-		r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCacheNodeCondError.Condition())
+		r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondError.Condition())
 	} else {
-		r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCacheNodeCondExtracted.Condition())
+		r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondExtracted.Condition())
 
 		// Stub out the GPU Ids when in TestMode (No GPUs)
 		if r.NoGpu {
@@ -616,7 +621,7 @@ func (r *ReconcilerCommon[C, CL, N]) addCacheInCacheNode(
 //   - int: Number of pods on this node that are using the Extracted Cache. Value used to update
 //     the associated counts.
 //   - error: Non-nil implies an error was encounter when calling KubeAPI Server.
-func (r *ReconcilerCommon[C, CL, N]) checkForCacheUpdateInCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N]) checkForCacheUpdateInCacheNode(
 	ctx context.Context,
 	reconciler AgentReconciler[C, CL, N],
 	gkmCache *C,
@@ -655,15 +660,15 @@ func (r *ReconcilerCommon[C, CL, N]) checkForCacheUpdateInCacheNode(
 				podUseCnt = len(usage.VolumeId)
 
 				// Condition: Running
-				if !gkmv1alpha1.GkmCacheNodeCondRunning.IsConditionSet(cacheStatus.Conditions) {
-					r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCacheNodeCondRunning.Condition())
+				if !gkmv1alpha1.GkmCondRunning.IsConditionSet(cacheStatus.Conditions) {
+					r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondRunning.Condition())
 				}
 			} else {
 				cacheStatus.VolumeIds = nil
 
 				// Condition: Extracted
-				if !gkmv1alpha1.GkmCacheNodeCondExtracted.IsConditionSet(cacheStatus.Conditions) {
-					r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCacheNodeCondExtracted.Condition())
+				if !gkmv1alpha1.GkmCondExtracted.IsConditionSet(cacheStatus.Conditions) {
+					r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondExtracted.Condition())
 				}
 			}
 
@@ -711,7 +716,7 @@ func (r *ReconcilerCommon[C, CL, N]) checkForCacheUpdateInCacheNode(
 //     needs to be exited and restarted on the next call.
 //
 // - error: err was encounter during processing.
-func (r *ReconcilerCommon[C, CL, N]) removeCacheFromCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N]) removeCacheFromCacheNode(
 	ctx context.Context,
 	reconciler AgentReconciler[C, CL, N],
 	gkmCacheNode *N,
@@ -804,7 +809,7 @@ func (r *ReconcilerCommon[C, CL, N]) removeCacheFromCacheNode(
 }
 
 // Helper function to set conditions on the CacheStatus of a GKMCacheNode or ClusterGKMCacheNode object.
-func (r *ReconcilerCommon[C, CL, N]) setCacheNodeConditions(cacheStatus *gkmv1alpha1.CacheStatus, condition metav1.Condition) {
+func (r *ReconcilerCommonAgent[C, CL, N]) setCacheNodeConditions(cacheStatus *gkmv1alpha1.CacheStatus, condition metav1.Condition) {
 	cacheStatus.Conditions = nil
 	meta.SetStatusCondition(&cacheStatus.Conditions, condition)
 }
@@ -815,18 +820,19 @@ func generateUniqueName(name string) string {
 }
 
 func addCounts(cnts *gkmv1alpha1.CacheCounts, condType string) {
+	cnts.NodeCnt = 1
 	switch condType {
-	case string(gkmv1alpha1.GkmCacheNodeCondPending):
+	case string(gkmv1alpha1.GkmCondPending):
 		// Temp state, ignore
-	case string(gkmv1alpha1.GkmCacheNodeCondExtracted):
-		cnts.ExtractedCnt++
-	case string(gkmv1alpha1.GkmCacheNodeCondRunning):
-		cnts.UseCnt++
-	case string(gkmv1alpha1.GkmCacheNodeCondError):
-		cnts.ErrorCnt++
-	case string(gkmv1alpha1.GkmCacheNodeCondUnloadError):
-		cnts.ErrorCnt++
-	case string(gkmv1alpha1.GkmCacheNodeCondOutdated):
+	case string(gkmv1alpha1.GkmCondExtracted):
+		cnts.NodeNotInUseCnt++
+	case string(gkmv1alpha1.GkmCondRunning):
+		cnts.NodeInUseCnt++
+	case string(gkmv1alpha1.GkmCondError):
+		cnts.NodeErrorCnt++
+	case string(gkmv1alpha1.GkmCondUnloadError):
+		cnts.NodeErrorCnt++
+	case string(gkmv1alpha1.GkmCondOutdated):
 		// PodOutdatedCnt is collected in the Garbage Collection portion of the Reconcile loop.
 	}
 }

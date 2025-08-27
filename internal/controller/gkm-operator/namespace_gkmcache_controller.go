@@ -14,15 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package gkmoperator
+//lint:file-ignore U1000 Linter claims functions unused, but are required for generic
+
+package gkmOperator
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -32,165 +30,37 @@ import (
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
-// GKMCacheNodeReconciler reconciles a GKMCacheNode object
-type GKMCacheOperatorReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
-	Logger logr.Logger
-
-	currCache     *gkmv1alpha1.GKMCache
-	currCacheNode *gkmv1alpha1.GKMCacheNode
-}
-
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches/finalizers,verbs=update
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcachenodes,verbs=get;list;watch
 
+// GKMCacheOperatorReconciler reconciles a GKMCache Status object
+type GKMCacheOperatorReconciler struct {
+	ReconcilerCommonOperator[
+		gkmv1alpha1.GKMCache,
+		gkmv1alpha1.GKMCacheList,
+		gkmv1alpha1.GKMCacheNode,
+		gkmv1alpha1.GKMCacheNodeList,
+	]
+}
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the GKMCacheNode object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
+// move the current state of the cluster closer to the desired state. Reconcile()
+// calls reconcileCommonOperator(), which performs common reconciliation for GKMCache
+// and ClusterGKMCache object. It reconciles each GKMCache or ClusterGKMCache in the
+// retrieved list, reading all the associated GKMCacheNode or ClusterGKMCacheNode objects
+// and consolidating the state of each node in the GKMCache or ClusterGKMCache
+// Status field. The Operator owns the GKMCache and ClusterGKMCache Objects, so
+// the Operator will call KubeAPI to update the objects when needed.
+// Agent reconciler only reads the objects. The Agent owns GKMCacheNode and
+// ClusterGKMCacheNode Objects, and calls KubeAPI Server to make sure they reflect
+// the current state of the GKMCache and ClusterGKMCache Objects on a given node.
 func (r *GKMCacheOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	errorHit := false
-	r.currCache = nil
+	r.Logger = ctrl.Log.WithName("oper-ns")
+	r.Logger.V(1).Info("Enter GKMCache Operator Reconcile", "Name", req)
 
-	r.Logger = ctrl.Log.WithName("gkm-ns-cache")
-	r.Logger.Info("Enter Operator GKMCache Reconcile", "Name", req)
-
-	// Get the list of existing GKM Cache objects
-	cacheList := &gkmv1alpha1.GKMCacheList{}
-	opts := []client.ListOption{}
-	if err := r.List(ctx, cacheList, opts...); err != nil {
-		r.Logger.Error(err, "failed to list GKMCache", "Namespace", req.Namespace, "Name", req.Name)
-		return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure},
-			fmt.Errorf("failed getting list of GKMCache for full reconcile %s : %v",
-				req.NamespacedName,
-				err)
-	}
-
-	if len(cacheList.Items) == 0 {
-		// KubeAPI doesn't have any GKMCache instances, so nothing to do.
-		r.Logger.Info("GKMCache Status Controller found no caches")
-		return ctrl.Result{Requeue: false}, nil
-	}
-
-	// There are GKMCache instances created, so loop through each and reconcile each.
-	for cacheIndex := range cacheList.Items {
-		r.currCache = &cacheList.Items[cacheIndex]
-		r.Logger.Info("Reconciling GKMCache", "Namespace", r.currCache.Namespace, "Name", r.currCache.Name)
-
-		if !r.isCacheBeingDeleted() {
-			// Add Finalizer to GKMCache if not there. This is a KubeAPI call, so return if finalizer needed to be added.
-			if changed := controllerutil.AddFinalizer(r.currCache, r.getCacheFinalizer()); changed {
-				r.Logger.Info("Calling KubeAPI to add finalizer to GKMCache",
-					"Namespace", r.currCache.Namespace,
-					"CacheNodeName", r.currCache.Name,
-				)
-				err := r.Update(ctx, r.currCache)
-				if err != nil {
-					r.Logger.Error(err, "failed to add Finalizer to GKMCache")
-					errorHit = true
-					continue
-				}
-				// GKMCache object was updated. Return and change will retrigger a new reconcile.
-				return ctrl.Result{Requeue: false}, nil
-			}
-		}
-
-		// Call KubeAPI to Retrieve the list of GKMCacheNodes for this Namespace.
-		// Should be one per Node if GKMCache was created in the Namespace.
-		cacheNodeList, err := r.getCacheNodeList(ctx, r.currCache.Namespace)
-		if err != nil {
-			// Error returned if unable to call KubeAPI. Don't block Reconcile on one instance,
-			// log and go to next GKMCache.
-			r.Logger.Error(err, "failed to get GKMCacheNode List", "Namespace", r.currCache.Namespace, "Name", r.currCache.Name)
-			errorHit = true
-			continue
-		}
-
-		// Loop through each GKMCacheNode (i.e. each Node)
-		totalNodeCnt := 0
-		extractedNodeCnt := 0
-		runningNodeCnt := 0
-		failureNodeCnt := 0
-		for cacheNodeIndex := range cacheNodeList.Items {
-			r.currCacheNode = &cacheNodeList.Items[cacheNodeIndex]
-
-			// See if this GKMCache has been added to the GKMCacheNode
-			outdatedCache := 0
-			if _, ok := r.currCacheNode.Status.CacheStatuses[r.currCache.Name]; ok {
-				// This Cache was found in a GKMCacheNode instance
-				totalNodeCnt++
-
-				// Loop through Digests for a given Cache
-				for /*key*/ _, cacheStatus := range r.currCacheNode.Status.CacheStatuses[r.currCache.Name] {
-					switch cacheStatus.Conditions[0].Type {
-					case string(gkmv1alpha1.GkmCacheNodeCondPending):
-						// Temp state, ignore
-					case string(gkmv1alpha1.GkmCacheNodeCondExtracted):
-						extractedNodeCnt++
-					case string(gkmv1alpha1.GkmCacheNodeCondRunning):
-						runningNodeCnt++
-					case string(gkmv1alpha1.GkmCacheNodeCondOutdated):
-						outdatedCache++
-					case string(gkmv1alpha1.GkmCacheNodeCondError):
-						failureNodeCnt++
-					case string(gkmv1alpha1.GkmCacheNodeCondUnloadError):
-						failureNodeCnt++
-					}
-				}
-			}
-		}
-
-		r.Logger.Info("Processed GKMCache",
-			"Namespace", r.currCache.Namespace,
-			"CacheName", r.currCache.Name,
-			"totalNodeCnt", totalNodeCnt,
-			"Extracted", extractedNodeCnt,
-			"Running", runningNodeCnt,
-			"Failure", failureNodeCnt,
-		)
-
-		if r.isCacheBeingDeleted() {
-			if totalNodeCnt == 0 {
-				// Everything should be cleaned up, so delete the GKMCacheNode specific
-				// finalizer from the GKMCache.
-				if changed := controllerutil.RemoveFinalizer(r.currCache, r.getCacheFinalizer()); changed {
-					r.Logger.Info("Calling KubeAPI to delete GKMCacheNode Finalizer from GKMCache",
-						"Namespace", r.currCache.Namespace,
-						"CacheNodeName", r.currCache.Name,
-					)
-					err := r.Update(ctx, r.currCache)
-					if err != nil {
-						r.Logger.Error(err, "failed to delete GKMCacheNode Finalizer from GKMCache")
-						errorHit = true
-						continue
-					}
-					// GKMCache object was updated. Return and change will retrigger a new reconcile.
-					return ctrl.Result{Requeue: false}, nil
-				}
-			} else {
-				r.Logger.Info("Deleting GKMCache still in progress",
-					"Namespace", r.currCache.Namespace,
-					"CacheName", r.currCache.Name,
-					"Pending", totalNodeCnt,
-				)
-			}
-		}
-	}
-
-	if errorHit {
-		// If an error was encountered during a single GKMCache instance, retry after a pause.
-		return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorFailure}, nil
-	} else {
-		return ctrl.Result{Requeue: false}, nil
-	}
+	return r.reconcileCommonOperator(ctx, r)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -203,14 +73,67 @@ func (r *GKMCacheOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *GKMCacheOperatorReconciler) isCacheBeingDeleted() bool {
-	return !r.currCache.GetDeletionTimestamp().IsZero()
+// GetCacheList gets the list of GKMCache objects from KubeAPI Server.
+func (r *GKMCacheOperatorReconciler) getCacheList(
+	ctx context.Context,
+	opts []client.ListOption,
+) (*gkmv1alpha1.GKMCacheList, error) {
+	// Get the list of existing GKMCache objects
+	cacheList := &gkmv1alpha1.GKMCacheList{}
+	if err := r.List(ctx, cacheList, opts...); err != nil {
+		r.Logger.Error(err, "failed to list", "Object", r.CrdCacheStr)
+		return nil, err
+	}
+
+	return cacheList, nil
 }
 
-// getCacheFinalizer returns the finalizer that is added to the GKMCache object.
-func (r *GKMCacheOperatorReconciler) getCacheFinalizer() string {
-	return utils.GkmCacheFinalizer
+// GetCacheNodeList gets the list of GKMCacheNode objects from KubeAPI Server.
+func (r *GKMCacheOperatorReconciler) getCacheNodeList(
+	ctx context.Context,
+	opts []client.ListOption,
+) (*gkmv1alpha1.GKMCacheNodeList, error) {
+	// Get the list of existing GKMCache objects
+	cacheList := &gkmv1alpha1.GKMCacheNodeList{}
+	if err := r.List(ctx, cacheList, opts...); err != nil {
+		r.Logger.Error(err, "failed to list", "Object", r.CrdCacheNodeStr)
+		return nil, err
+	}
+
+	return cacheList, nil
 }
+
+// cacheUpdateStatus calls KubeAPI server to updates the Status field for the GKMCache Object.
+func (r *GKMCacheOperatorReconciler) cacheUpdateStatus(
+	ctx context.Context,
+	gkmCache *gkmv1alpha1.GKMCache,
+	cacheStatus *gkmv1alpha1.GKMCacheStatus,
+	reason string,
+) error {
+	gkmCache.Status = *cacheStatus.DeepCopy()
+
+	r.Logger.Info("Calling KubeAPI to Update GKMCache Status",
+		"reason", reason,
+		"Namespace", gkmCache.Namespace,
+		"CacheName", gkmCache.Name,
+	)
+	if err := r.Status().Update(ctx, gkmCache); err != nil {
+		r.Logger.Info("failed to update GKMCache Status",
+			"err", err,
+			"reason", reason,
+			"Namespace", gkmCache.Namespace,
+			"CacheName", gkmCache.Name)
+		return err
+	}
+
+	return nil
+}
+
+func (r *GKMCacheOperatorReconciler) isBeingDeleted(gkmCache *gkmv1alpha1.GKMCache) bool {
+	return !gkmCache.GetDeletionTimestamp().IsZero()
+}
+
+/*
 
 func isConditionTrue(conds []metav1.Condition, condType string) bool {
 	for _, c := range conds {
@@ -234,4 +157,46 @@ func (r *GKMCacheOperatorReconciler) getCacheNodeList(ctx context.Context, cache
 	}
 
 	return cacheNodeList, nil
+}
+*/
+
+func (r *GKMCacheOperatorReconciler) cacheAddFinalizer(ctx context.Context, gkmCache *gkmv1alpha1.GKMCache) (bool, error) {
+	if changed := controllerutil.AddFinalizer(gkmCache, r.getCacheFinalizer()); changed {
+		r.Logger.Info("Calling KubeAPI to add Finalizer to GKMCache",
+			"Namespace", gkmCache.Namespace,
+			"CacheNodeName", gkmCache.Name)
+
+		err := r.Update(ctx, gkmCache)
+		if err != nil {
+			r.Logger.Error(err, "failed to add Finalizer to GKMCache",
+				"Namespace", gkmCache.Namespace,
+				"CacheNodeName", gkmCache.Name)
+			return false, err
+		}
+		return changed, nil
+	}
+	return false, nil
+}
+
+// getCacheFinalizer returns the finalizer that is added to the GKMCache object.
+func (r *GKMCacheOperatorReconciler) getCacheFinalizer() string {
+	return utils.GkmCacheFinalizer
+}
+
+func (r *GKMCacheOperatorReconciler) cacheRemoveFinalizer(
+	ctx context.Context,
+	gkmCache *gkmv1alpha1.GKMCache,
+) (bool, error) {
+	if changed := controllerutil.RemoveFinalizer(gkmCache, r.getCacheFinalizer()); changed {
+		r.Logger.Info("Calling KubeAPI to delete  Finalizer from GKMCache",
+			"Namespace", gkmCache.Namespace,
+			"CacheNodeName", gkmCache.Name)
+		err := r.Update(ctx, gkmCache)
+		if err != nil {
+			r.Logger.Error(err, "failed to delete Finalizer from GKMCache")
+			return false, err
+		}
+		return changed, nil
+	}
+	return false, nil
 }
