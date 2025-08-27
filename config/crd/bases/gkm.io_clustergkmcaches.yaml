@@ -15,15 +15,34 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.lastUpdated
-      name: Updated
-      type: string
-    - jsonPath: .status.conditions[0].reason
-      name: Status
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .status.conditions[0].reason
+      name: Status
+      type: string
+    - jsonPath: .status.counts.nodeCnt
+      name: Nodes
+      type: string
+    - jsonPath: .status.counts.nodeInUseCnt
+      name: Node-In-Use
+      type: string
+    - jsonPath: .status.counts.nodeNotInUseCnt
+      name: Node-Not-In-Use
+      type: string
+    - jsonPath: .status.counts.nodeErrorCnt
+      name: Node-Error
+      type: string
+    - jsonPath: .status.counts.podRunningCnt
+      name: Pod-Running
+      type: string
+    - jsonPath: .status.counts.podOutdatedCnt
+      name: Pod-Outdated
+      type: string
+    - jsonPath: .status.lastUpdated
+      name: Last=Updated
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -61,9 +80,10 @@ spec:
             type: object
           spec:
             description: |-
-              spec defines the desired state of the GKMCache. The GKMCache describes a GPU
-              Kernel Cache that can be deployed by a Pod. The GPU Kernel Cache is packaged
-              in an OCI Image which allows the cache to be distributed to Nodes.
+              spec defines the desired state of the ClusterGKMCache instance and describes
+              a GPU Kernel Cache that can be volume mounted in a Pod. The GPU Kernel Cache
+              is packaged in an OCI Image which allows the cache to be distributed to
+              Kubernetes Nodes, where it is extracted to host memory.
             properties:
               image:
                 description: |-
@@ -78,10 +98,10 @@ spec:
             type: object
           status:
             description: |-
-              status reflects the observed state of a GKMCache or ClusterGKMCluster
-              instance and indicates if the GPU Kernel Cache for a given instance loaded
-              successfully or not across all nodes. Use GKMCacheNode or
-              ClusterGKMClusterNode instances to determine the status for a given node.
+              status reflects the observed state of a ClusterGKMCache instance and
+              indicates if the GPU Kernel Cache for a given instance has been loaded
+              successfully or not and if it has been mounted in any pods across all nodes.
+              Use ClusterGKMClusterNode instances to determine the status for a given node.
             properties:
               conditions:
                 description: |-
@@ -142,34 +162,69 @@ spec:
                   - type
                   type: object
                 type: array
-              failedNodes:
+              counts:
                 description: |-
-                  failedNodes contains the number of nodes the GKM Agent is running that have
-                  failures.
-                type: integer
+                  counts contains statistics on the deployment of the GPU Kernel Cache for all
+                  the Kubernetes nodes in the cluster.
+                properties:
+                  nodeCnt:
+                    description: |-
+                      nodeCnt contains the total number of nodes used in the collection of
+                      counts. For GKMCacheNode and ClusterGKMCacheNode, the value will be one.
+                      For GKMCache and ClusterGKMCache, the value will be number of nodes GKM is
+                      deployed on.
+                    type: integer
+                  nodeErrorCnt:
+                    description: |-
+                      nodeErrorCnt contains the total number of nodes that the Kernel Cache
+                      encounter an error. An error occurs if the OCI Image could not be extracted
+                      because of an error in the image, or if the Kernel Cache is not compatible
+                      with any of the GPUs detected on the Kubernetes node.
+                    type: integer
+                  nodeInUseCnt:
+                    description: |-
+                      nodeInUseCnt contains the total number of nodes that the Kernel Cache has
+                      been extracted and that the Kernel Cache is currently being used by one or
+                      more pods on that node.
+                    type: integer
+                  nodeNotInUseCnt:
+                    description: |-
+                      nodeNotInUseCnt contains the total number of nodes that the Kernel Cache
+                      has been extracted and that the Kernel Cache is not currently being used by
+                      a pod on that node.
+                    type: integer
+                  podOutdatedCnt:
+                    description: |-
+                      podOutdatedCnt contains the total number of pods that the Kernel Cache is
+                      volume mounted, but a newer version of the extracted Kernel Cache has been
+                      extracted. This happens when a Kernel Cache is being used, but the
+                      associated OCI Image was updated.
+                    type: integer
+                  podRunningCnt:
+                    description: |-
+                      podRunningCnt contains the total number of pods that the Kernel Cache is
+                      volume mounted.
+                    type: integer
+                required:
+                - nodeCnt
+                - nodeErrorCnt
+                - nodeInUseCnt
+                - nodeNotInUseCnt
+                - podOutdatedCnt
+                - podRunningCnt
+                type: object
               lastUpdated:
                 description: |-
-                  lastUpdated contains the timestamp of the last time this instance was
-                  updated.
+                  lastUpdated contains the timestamp of the last time the status field for
+                  this instance was updated.
                 format: date-time
                 type: string
-              readyNodes:
-                description: |-
-                  readyNodes contains the number of nodes the GKM Agent is running that have
-                  no failures.
-                type: integer
               resolvedDigest:
                 description: resolvedDigest contains the digest of the image after
                   it has been verified.
                 type: string
-              totalNodes:
-                description: totalNodes contains the total number of nodes the GKM
-                  Agent is running.
-                type: integer
             required:
-            - failedNodes
-            - readyNodes
-            - totalNodes
+            - counts
             type: object
         type: object
     served: true

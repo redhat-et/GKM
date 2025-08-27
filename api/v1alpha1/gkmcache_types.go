@@ -37,14 +37,29 @@ import (
 // something failed. GKM creates a GKMCacheNode CR instance for each Kubernetes
 // Node for each GKMCache instance. The GKMCacheNode CRD provides load status
 // for each GPU Kernel Cache for each GPU on the node.
-// +kubebuilder:printcolumn:name="Updated",type=string,JSONPath=".status.lastUpdated"
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.conditions[0].reason`
+// +kubebuilder:printcolumn:name="Nodes",type=string,JSONPath=`.status.counts.nodeCnt`
+// +kubebuilder:printcolumn:name="Node-In-Use",type=string,JSONPath=`.status.counts.nodeInUseCnt`
+// +kubebuilder:printcolumn:name="Node-Not-In-Use",type=string,JSONPath=`.status.counts.nodeNotInUseCnt`
+// +kubebuilder:printcolumn:name="Node-Error",type=string,JSONPath=`.status.counts.nodeErrorCnt`
+// +kubebuilder:printcolumn:name="Pod-Running",type=string,JSONPath=`.status.counts.podRunningCnt`
+// +kubebuilder:printcolumn:name="Pod-Outdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
+// +kubebuilder:printcolumn:name="Last=Updated",type=string,priority=1,JSONPath=".status.lastUpdated"
 type GKMCache struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   GKMCacheSpec   `json:"spec,omitempty"`
+	// spec defines the desired state of the GKMCache instance and describes a GPU
+	// Kernel Cache that can be volume mounted in a Pod. The GPU Kernel Cache is
+	// packaged in an OCI Image which allows the cache to be distributed to
+	// Kubernetes Nodes, where it is extracted to host memory.
+	Spec GKMCacheSpec `json:"spec,omitempty"`
+
+	// status reflects the observed state of a GKMCache instance and indicates if
+	// the GPU Kernel Cache for a given instance has been loaded successfully or
+	// not and if it has been mounted in any pods across all nodes. Use
+	// GKMCacheNode instances to determine the status for a given node.
 	Status GKMCacheStatus `json:"status,omitempty"`
 }
 

@@ -1,0 +1,190 @@
+$ kubectl explain GKMCache
+GROUP:      gkm.io
+KIND:       GKMCache
+VERSION:    v1alpha1
+
+DESCRIPTION:
+    GKMCache is the Schema for the namespace scoped GKMCaches API. Using this
+    API allows applications to pre-populate a GPU Kernel Cache in a Pod,
+    allowing the application to avoid having to build the kernel on the fly. The
+    cache is packaged in an OCI Image, which is referenced in the GKMCache.
+    
+    The GKMCache.status field can be used to determine if any errors occurred in
+    the loading of the GPU Kernel Cache. Because one image can be loaded on
+    multiple Kubernetes nodes, GKMCache.status is just a summary, all loaded or
+    something failed. GKM creates a GKMCacheNode CR instance for each Kubernetes
+    Node for each GKMCache instance. The GKMCacheNode CRD provides load status
+    for each GPU Kernel Cache for each GPU on the node.
+    
+FIELDS:
+  apiVersion	<string>
+    APIVersion defines the versioned schema of this representation of an object.
+    Servers should convert recognized schemas to the latest internal value, and
+    may reject unrecognized values. More info:
+    https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+
+  kind	<string>
+    Kind is a string value representing the REST resource this object
+    represents. Servers may infer this from the endpoint the client submits
+    requests to. Cannot be updated. In CamelCase. More info:
+    https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+
+  metadata	<ObjectMeta>
+    Standard object's metadata. More info:
+    https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+
+  spec	<Object>
+    spec defines the desired state of the GKMCache instance and describes a GPU
+    Kernel Cache that can be volume mounted in a Pod. The GPU Kernel Cache is
+    packaged in an OCI Image which allows the cache to be distributed to
+    Kubernetes Nodes, where it is extracted to host memory.
+
+  status	<Object>
+    status reflects the observed state of a GKMCache instance and indicates if
+    the GPU Kernel Cache for a given instance has been loaded successfully or
+    not and if it has been mounted in any pods across all nodes. Use
+    GKMCacheNode instances to determine the status for a given node.
+
+$ kubectl explain GKMCache.spec
+GROUP:      gkm.io
+KIND:       GKMCache
+VERSION:    v1alpha1
+
+FIELD: spec <Object>
+
+
+DESCRIPTION:
+    spec defines the desired state of the GKMCache instance and describes a GPU
+    Kernel Cache that can be volume mounted in a Pod. The GPU Kernel Cache is
+    packaged in an OCI Image which allows the cache to be distributed to
+    Kubernetes Nodes, where it is extracted to host memory.
+    
+FIELDS:
+  image	<string> -required-
+    image is a required field and is a valid container image URL used to
+    reference a remote GPU Kernel Cache image. url must not be an empty string,
+    must not exceed 525 characters in length and must be a valid URL.
+
+$ kubectl explain GKMCache.status
+GROUP:      gkm.io
+KIND:       GKMCache
+VERSION:    v1alpha1
+
+FIELD: status <Object>
+
+
+DESCRIPTION:
+    status reflects the observed state of a GKMCache instance and indicates if
+    the GPU Kernel Cache for a given instance has been loaded successfully or
+    not and if it has been mounted in any pods across all nodes. Use
+    GKMCacheNode instances to determine the status for a given node.
+    
+FIELDS:
+  conditions	<[]Object>
+    conditions contains the summary state for the GPU Kernel Cache for all the
+    Kubernetes nodes in the cluster.
+
+  counts	<Object> -required-
+    counts contains statistics on the deployment of the GPU Kernel Cache for all
+    the Kubernetes nodes in the cluster.
+
+  lastUpdated	<string>
+    lastUpdated contains the timestamp of the last time the status field for
+    this instance was updated.
+
+  resolvedDigest	<string>
+    resolvedDigest contains the digest of the image after it has been verified.
+
+$ kubectl explain GKMCache.status.conditions
+GROUP:      gkm.io
+KIND:       GKMCache
+VERSION:    v1alpha1
+
+FIELD: conditions <[]Object>
+
+
+DESCRIPTION:
+    conditions contains the summary state for the GPU Kernel Cache for all the
+    Kubernetes nodes in the cluster.
+    Condition contains details for one aspect of the current state of this API
+    Resource.
+    
+FIELDS:
+  lastTransitionTime	<string> -required-
+    lastTransitionTime is the last time the condition transitioned from one
+    status to another.
+    This should be when the underlying condition changed.  If that is not known,
+    then using the time when the API field changed is acceptable.
+
+  message	<string> -required-
+    message is a human readable message indicating details about the transition.
+    This may be an empty string.
+
+  observedGeneration	<integer>
+    observedGeneration represents the .metadata.generation that the condition
+    was set based upon.
+    For instance, if .metadata.generation is currently 12, but the
+    .status.conditions[x].observedGeneration is 9, the condition is out of date
+    with respect to the current state of the instance.
+
+  reason	<string> -required-
+    reason contains a programmatic identifier indicating the reason for the
+    condition's last transition.
+    Producers of specific condition types may define expected values and
+    meanings for this field,
+    and whether the values are considered a guaranteed API.
+    The value should be a CamelCase string.
+    This field may not be empty.
+
+  status	<string> -required-
+  enum: True, False, Unknown
+    status of the condition, one of True, False, Unknown.
+
+  type	<string> -required-
+    type of condition in CamelCase or in foo.example.com/CamelCase.
+
+$ kubectl explain GKMCache.status.counts
+GROUP:      gkm.io
+KIND:       GKMCache
+VERSION:    v1alpha1
+
+FIELD: counts <Object>
+
+
+DESCRIPTION:
+    counts contains statistics on the deployment of the GPU Kernel Cache for all
+    the Kubernetes nodes in the cluster.
+    
+FIELDS:
+  nodeCnt	<integer> -required-
+    nodeCnt contains the total number of nodes used in the collection of
+    counts. For GKMCacheNode and ClusterGKMCacheNode, the value will be one.
+    For GKMCache and ClusterGKMCache, the value will be number of nodes GKM is
+    deployed on.
+
+  nodeErrorCnt	<integer> -required-
+    nodeErrorCnt contains the total number of nodes that the Kernel Cache
+    encounter an error. An error occurs if the OCI Image could not be extracted
+    because of an error in the image, or if the Kernel Cache is not compatible
+    with any of the GPUs detected on the Kubernetes node.
+
+  nodeInUseCnt	<integer> -required-
+    nodeInUseCnt contains the total number of nodes that the Kernel Cache has
+    been extracted and that the Kernel Cache is currently being used by one or
+    more pods on that node.
+
+  nodeNotInUseCnt	<integer> -required-
+    nodeNotInUseCnt contains the total number of nodes that the Kernel Cache
+    has been extracted and that the Kernel Cache is not currently being used by
+    a pod on that node.
+
+  podOutdatedCnt	<integer> -required-
+    podOutdatedCnt contains the total number of pods that the Kernel Cache is
+    volume mounted, but a newer version of the extracted Kernel Cache has been
+    extracted. This happens when a Kernel Cache is being used, but the
+    associated OCI Image was updated.
+
+  podRunningCnt	<integer> -required-
+    podRunningCnt contains the total number of pods that the Kernel Cache is
+    volume mounted.
+
