@@ -3,10 +3,10 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: controller-manager
+    control-plane: operator
     app.kubernetes.io/name: gpu-kernel-manager-operator
     app.kubernetes.io/managed-by: kustomize
-  name: controller-manager-metrics-monitor
+  name: operator-metrics-monitor
   namespace: system
 spec:
   endpoints:
@@ -27,4 +27,4 @@ spec:
         insecureSkipVerify: true
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: operator
