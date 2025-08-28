@@ -19,7 +19,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
-	gkmagent "github.com/redhat-et/GKM/internal/controller/gkm-agent"
+	gkmAgent "github.com/redhat-et/GKM/internal/controller/gkm-agent"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
@@ -122,7 +122,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	commonNs := gkmagent.ReconcilerCommon[gkmv1alpha1.GKMCache, gkmv1alpha1.GKMCacheList, gkmv1alpha1.GKMCacheNode]{
+	commonNs := gkmAgent.ReconcilerCommonAgent[
+		gkmv1alpha1.GKMCache,
+		gkmv1alpha1.GKMCacheList,
+		gkmv1alpha1.GKMCacheNode,
+	]{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		CacheDir:        utils.DefaultCacheDir,
@@ -131,14 +135,14 @@ func main() {
 		CrdCacheStr:     "GKMCache",
 		CrdCacheNodeStr: "GKMCacheNode",
 	}
-	if err = (&gkmagent.GKMCacheReconciler{
-		ReconcilerCommon: commonNs,
+	if err = (&gkmAgent.GKMCacheAgentReconciler{
+		ReconcilerCommonAgent: commonNs,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMCache")
 		os.Exit(1)
 	}
 
-	commonCl := gkmagent.ReconcilerCommon[
+	commonCl := gkmAgent.ReconcilerCommonAgent[
 		gkmv1alpha1.ClusterGKMCache,
 		gkmv1alpha1.ClusterGKMCacheList,
 		gkmv1alpha1.ClusterGKMCacheNode,
@@ -151,8 +155,8 @@ func main() {
 		CrdCacheStr:     "ClusterGKMCache",
 		CrdCacheNodeStr: "ClusterGKMCacheNode",
 	}
-	if err = (&gkmagent.ClusterGKMCacheReconciler{
-		ReconcilerCommon: commonCl,
+	if err = (&gkmAgent.ClusterGKMCacheAgentReconciler{
+		ReconcilerCommonAgent: commonCl,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterGKMCache")
 		os.Exit(1)

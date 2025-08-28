@@ -7,14 +7,14 @@ metadata:
     app.kubernetes.io/created-by: gkm-operator
     app.kubernetes.io/part-of: gkm-operator
     app.kubernetes.io/managed-by: kustomize
-  name: manager-clusterrolebinding
+  name: operator-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: operator-role
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
+  name: operator
   namespace: system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -45,7 +45,7 @@ metadata:
     app.kubernetes.io/created-by: gkm-operator
     app.kubernetes.io/part-of: gkm-operator
     app.kubernetes.io/managed-by: kustomize
-  name: manager-rolebinding
+  name: operator-rolebinding
   namespace: system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -53,7 +53,7 @@ roleRef:
   name: operator-role
 subjects:
   - kind: ServiceAccount
-    name: controller-manager
+    name: operator
     namespace: system
 ---
 apiVersion: rbac.authorization.k8s.io/v1

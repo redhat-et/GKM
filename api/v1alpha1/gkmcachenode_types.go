@@ -26,17 +26,25 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced
 
-// GKMCacheNode is the Schema for the gkmcachenodes API
+// GKMCacheNode contains the state on a given Kubernetes Node of the set of
+// GKMCache instances created in the same Namespace. When one or more GKMCache
+// instance are created in a namespace, GKM ensures that one GKMCacheNode
+// instance is created per Kubernetes Node. GKMCacheNode cannot be edited by an
+// application or user, only by GKM.
 // +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.nodeName"
-// +kubebuilder:printcolumn:name="Extracted",type=string,JSONPath=`.status.counts.extractedCnt`
-// +kubebuilder:printcolumn:name="Use",type=string,JSONPath=`.status.counts.useCnt`
-// +kubebuilder:printcolumn:name="Error",type=string,JSONPath=`.status.counts.errorCnt`
-// +kubebuilder:printcolumn:name="PodRunning",type=string,JSONPath=`.status.counts.podRunningCnt`
-// +kubebuilder:printcolumn:name="PodOutdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
+// +kubebuilder:printcolumn:name="Node-In-Use",type=string,JSONPath=`.status.counts.nodeInUseCnt`
+// +kubebuilder:printcolumn:name="Node-Not-In-Use",type=string,JSONPath=`.status.counts.nodeNotInUseCnt`
+// +kubebuilder:printcolumn:name="Node-Error",type=string,JSONPath=`.status.counts.nodeErrorCnt`
+// +kubebuilder:printcolumn:name="Pod-Running",type=string,JSONPath=`.status.counts.podRunningCnt`
+// +kubebuilder:printcolumn:name="Pod-Outdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
 type GKMCacheNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// status reflects the observed state of a GKMCacheNode instance and indicates
+	// if each GKMCache instance in this Namespace and on the node referenced by
+	// status.nodeName has been loaded successfully or not and if it has been
+	// mounted in any pods on the node.
 	Status GKMCacheNodeStatus `json:"status,omitempty"`
 }
 
@@ -79,4 +87,12 @@ func (cacheNode GKMCacheNode) GetNodeName() string {
 
 func (cacheNode GKMCacheNode) GetClientObject() client.Object {
 	return &cacheNode
+}
+
+func (cacheNodeList GKMCacheNodeList) GetItems() []GKMCacheNode {
+	return cacheNodeList.Items
+}
+
+func (cacheNodeList GKMCacheNodeList) GetItemsLen() int {
+	return len(cacheNodeList.Items)
 }

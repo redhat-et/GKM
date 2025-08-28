@@ -38,6 +38,8 @@ const (
 
 	// GKMCache and ClusterGKMCache Annotations
 	GMKCacheAnnotationResolvedDigest = "gkm.io/resolvedDigest"
+	GMKCacheAnnotationMutationSig    = "gkm.io/mutationSig"
+	GMKCacheAnnotationLastMutatedBy  = "gkm.io/lastMutatedBy"
 
 	// GKMCache and ClusterGKMCache Labels
 	GKMCacheLabelHostname = "kubernetes.io/hostname"

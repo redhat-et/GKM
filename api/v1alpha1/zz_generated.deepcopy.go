@@ -393,6 +393,7 @@ func (in *GKMCacheStatus) DeepCopyInto(out *GKMCacheStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	out.Counts = in.Counts
 	in.LastUpdated.DeepCopyInto(&out.LastUpdated)
 }
 

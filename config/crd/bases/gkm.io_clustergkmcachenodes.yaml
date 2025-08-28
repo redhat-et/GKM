@@ -18,26 +18,30 @@ spec:
     - jsonPath: .status.nodeName
       name: Node
       type: string
-    - jsonPath: .status.counts.extractedCnt
-      name: Extracted
+    - jsonPath: .status.counts.nodeInUseCnt
+      name: Node-In-Use
       type: string
-    - jsonPath: .status.counts.useCnt
-      name: Use
+    - jsonPath: .status.counts.nodeNotInUseCnt
+      name: Node-Not-In-Use
       type: string
-    - jsonPath: .status.counts.errorCnt
-      name: Error
+    - jsonPath: .status.counts.nodeErrorCnt
+      name: Node-Error
       type: string
     - jsonPath: .status.counts.podRunningCnt
-      name: PodRunning
+      name: Pod-Running
       type: string
     - jsonPath: .status.counts.podOutdatedCnt
-      name: PodOutdated
+      name: Pod-Outdated
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ClusterGKMCacheNode is the Schema for the clustergkmcachenodes
-          API
+        description: |-
+          ClusterGKMCacheNode contains the state on a given Kubernetes Node of the set
+          of ClusterGKMCache instances. When one or more ClusterGKMCache instance are
+          created, GKM ensures that one ClusterGKMCacheNode instance is created per
+          Kubernetes Node. Cluster GKMCacheNode cannot be edited by an application or
+          user, only by GKM.
         properties:
           apiVersion:
             description: |-
@@ -57,19 +61,27 @@ spec:
           metadata:
             type: object
           status:
-            description: GKMCacheNodeStatus defines the observed state of GKMCacheNode
+            description: |-
+              status reflects the observed state of a ClusterGKMCacheNode instance and
+              indicates if each ClusterGKMCache instance on the node referenced by
+              status.nodeName has been loaded successfully or not and if it has been
+              mounted in any pods on the node.
             properties:
               caches:
                 additionalProperties:
                   additionalProperties:
-                    description: CacheStatus defines the status of an individual kernel
-                      cache for a given digest .on a node
                     properties:
                       compatibleGPUs:
+                        description: |-
+                          compatibleGPUs is the list of GPU ids that the extracted GPU Kernel Cache
+                          is compatible with. The ids refer back to the list of GPUs in status.gpus.
                         items:
                           type: integer
                         type: array
                       conditions:
+                        description: |-
+                          conditions contains the summary state for the GPU Kernel Cache on the
+                          Kubernetes node referenced by status.nodeName.
                         items:
                           description: Condition contains details for one aspect of
                             the current state of this API Resource.
@@ -127,59 +139,117 @@ spec:
                           type: object
                         type: array
                       incompatibleGPUs:
+                        description: |-
+                          incompatibleGPUs is the list of GPU ids that the extracted GPU Kernel Cache
+                          is not compatible with. The ids refer back to the list of GPUs in
+                          status.gpus.
                         items:
                           type: integer
                         type: array
                       lastUpdated:
+                        description: |-
+                          lastUpdated contains the timestamp of the last time this cache instance was
+                          updated.
                         format: date-time
                         type: string
                       volumeIds:
+                        description: |-
+                          volumeIds is the list of Volume Ids the CSI Driver received from Kubelet.
+                          Each Id represents a GPU Kernel Cache that is actively Volume Mounted in a
+                          pod.
                         items:
                           type: string
                         type: array
                       volumeSize:
+                        description: volumeSize is the size of the extracted GPU Kernel
+                          Cache in bytes.
                         format: int64
                         type: integer
                     required:
                     - lastUpdated
                     type: object
                   type: object
+                description: |-
+                  caches is the list of GKMCache or ClusterGKMCache instances that this
+                  GKMCacheNode or ClusterGKMCacheNode is keeping status for along with state
+                  for each.
                 type: object
               counts:
+                description: |-
+                  counts contains statistics on the deployment of the GPU Kernel Cache for the
+                  Kubernetes node referenced in nodeName.
                 properties:
-                  errorCnt:
+                  nodeCnt:
+                    description: |-
+                      nodeCnt contains the total number of nodes used in the collection of
+                      counts. For GKMCacheNode and ClusterGKMCacheNode, the value will be one.
+                      For GKMCache and ClusterGKMCache, the value will be number of nodes GKM is
+                      deployed on.
                     type: integer
-                  extractedCnt:
+                  nodeErrorCnt:
+                    description: |-
+                      nodeErrorCnt contains the total number of nodes that the Kernel Cache
+                      encounter an error. An error occurs if the OCI Image could not be extracted
+                      because of an error in the image, or if the Kernel Cache is not compatible
+                      with any of the GPUs detected on the Kubernetes node.
+                    type: integer
+                  nodeInUseCnt:
+                    description: |-
+                      nodeInUseCnt contains the total number of nodes that the Kernel Cache has
+                      been extracted and that the Kernel Cache is currently being used by one or
+                      more pods on that node.
+                    type: integer
+                  nodeNotInUseCnt:
+                    description: |-
+                      nodeNotInUseCnt contains the total number of nodes that the Kernel Cache
+                      has been extracted and that the Kernel Cache is not currently being used by
+                      a pod on that node.
                     type: integer
                   podOutdatedCnt:
+                    description: |-
+                      podOutdatedCnt contains the total number of pods that the Kernel Cache is
+                      volume mounted, but a newer version of the extracted Kernel Cache has been
+                      extracted. This happens when a Kernel Cache is being used, but the
+                      associated OCI Image was updated.
                     type: integer
                   podRunningCnt:
-                    type: integer
-                  useCnt:
+                    description: |-
+                      podRunningCnt contains the total number of pods that the Kernel Cache is
+                      volume mounted.
                     type: integer
                 required:
-                - errorCnt
-                - extractedCnt
+                - nodeCnt
+                - nodeErrorCnt
+                - nodeInUseCnt
+                - nodeNotInUseCnt
                 - podOutdatedCnt
                 - podRunningCnt
-                - useCnt
                 type: object
               gpus:
+                description: |-
+                  gpus is a list of GPUs detected on the Kubernetes Node along with metadata
+                  about each GPU.
                 items:
-                  description: GpuStatus defines the status of an individual GPU on
-                    a node.
                   properties:
                     driverVersion:
+                      description: driverVersion is the version of device driver managing
+                        the GPU.
                       type: string
                     gpuType:
+                      description: gpuType is the Product Name of the detected GPU.
                       type: string
                     ids:
+                      description: |-
+                        ids is a list of GPU indexes. GPUs of the same type are grouped together and
+                        this is the list of indexes associated with the same GPU Type and attributes.
                       items:
                         type: integer
                       type: array
                   type: object
                 type: array
               nodeName:
+                description: nodeName is the name of the Kubernetes Node this instance
+                  is created.
                 type: string
             required:
             - counts

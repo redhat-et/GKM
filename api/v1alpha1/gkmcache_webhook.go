@@ -24,18 +24,14 @@ import (
 	"github.com/sigstore/cosign/v2/pkg/cosign"
 	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
 	rekorclient "github.com/sigstore/rekor/pkg/generated/client"
+
+	"github.com/redhat-et/GKM/pkg/utils"
 )
 
 var (
-	gkmcachelog                         = logf.Log.WithName("gkmcache-resource")
+	gkmcachelog                         = logf.Log.WithName("webhook-ns")
 	_           webhook.CustomDefaulter = &GKMCache{}
 	_           webhook.CustomValidator = &GKMCache{}
-)
-
-const (
-	annResolvedDigest = "gkm.io/resolvedDigest"
-	annMutationSig    = "gkm.io/mutationSig"
-	annLastMutatedBy  = "gkm.io/lastMutatedBy"
 )
 
 type GKMCacheWebhook struct{}
@@ -60,13 +56,13 @@ func (w *GKMCache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // + digest. The validating webhooks only accept the digest if that signature
 // is valid, which guarantees the digest came from the mutator (not the user).
 func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
-	gkmcachelog.Info("Webhook called", "object", obj)
+	gkmcachelog.V(1).Info("Mutating Webhook called", "object", obj)
 
 	cache, ok := obj.(*GKMCache)
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected GKMCache, got %T", obj))
 	}
-	gkmcachelog.Info("Decoded GKMCache object", "name", cache.Name, "namespace", cache.Namespace)
+	gkmcachelog.V(1).Info("Decoded GKMCache object", "name", cache.Name, "namespace", cache.Namespace)
 
 	if cache.Annotations == nil {
 		cache.Annotations = map[string]string{}
@@ -81,7 +77,7 @@ func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
 	cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	gkmcachelog.Info("Verifying image signature", "image", cache.Spec.Image)
+	gkmcachelog.V(1).Info("Verifying image signature", "image", cache.Spec.Image)
 	digest, err := verifyImageSignature(cctx, cache.Spec.Image)
 	if err != nil {
 		gkmcachelog.Error(err, "failed to verify image or resolve digest")
@@ -90,7 +86,14 @@ func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
 			cache.Spec.Image, err.Error(),
 		))
 	}
-	cache.Annotations[annResolvedDigest] = digest
+	resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+	if digestFound {
+		// Digest hasn't changed so just return
+		if digest == resolvedDigest {
+			return nil
+		}
+	}
+	cache.Annotations[utils.GMKCacheAnnotationResolvedDigest] = digest
 
 	// Bind a mutation signature to THIS AdmissionRequest UID
 	req, err := admission.RequestFromContext(ctx)
@@ -105,12 +108,12 @@ func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
 	if err != nil {
 		return apierrors.NewBadRequest(fmt.Sprintf("failed to sign mutation: %v", err))
 	}
-	cache.Annotations[annMutationSig] = sig
+	cache.Annotations[utils.GMKCacheAnnotationMutationSig] = sig
 
 	// Audit for convenience (not part of trust)
-	cache.Annotations[annLastMutatedBy] = req.UserInfo.Username
+	cache.Annotations[utils.GMKCacheAnnotationLastMutatedBy] = req.UserInfo.Username
 
-	gkmcachelog.Info("added/updated resolvedDigest", "digest", digest)
+	gkmcachelog.Info("added/updated resolvedDigest", "image", cache.Spec.Image, "digest", digest)
 	return nil
 }
 
@@ -131,8 +134,8 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 
 	// The validator sees the mutated object.
 	// If resolvedDigest is present, it must carry a valid mutationSig for THIS request.
-	digest := cache.Annotations[annResolvedDigest]
-	sig := cache.Annotations[annMutationSig]
+	digest := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+	sig := cache.Annotations[utils.GMKCacheAnnotationMutationSig]
 
 	if digest != "" {
 		secret, err := mutationKeyFromEnv()
@@ -141,7 +144,7 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 		}
 		if !verifyMutation(secret, "", cache.Spec.Image, digest, sig) {
 			return nil, fmt.Errorf("%s present but missing/invalid %s; digest must be set only by the mutating webhook",
-				annResolvedDigest, annMutationSig)
+				utils.GMKCacheAnnotationResolvedDigest, utils.GMKCacheAnnotationMutationSig)
 		}
 	}
 
@@ -166,6 +169,7 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	gkmcachelog.V(1).Info("Validating Webhook called", "oldObj", oldObj, "newObj", newObj)
 	oldCache, ok1 := oldObj.(*GKMCache)
 	newCache, ok2 := newObj.(*GKMCache)
 	if !ok1 || !ok2 {
@@ -175,14 +179,14 @@ func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Ob
 	oldImg := oldCache.Spec.Image
 	newImg := newCache.Spec.Image
 
-	oldDigest := oldCache.Annotations[annResolvedDigest]
-	newDigest := newCache.Annotations[annResolvedDigest]
-	newSig := newCache.Annotations[annMutationSig]
+	oldDigest := oldCache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+	newDigest := newCache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+	newSig := newCache.Annotations[utils.GMKCacheAnnotationMutationSig]
 
 	// If image didn't change, digest must not change.
 	if oldImg == newImg {
 		if oldDigest != newDigest {
-			return nil, fmt.Errorf("%s is immutable when spec.image is unchanged", annResolvedDigest)
+			return nil, fmt.Errorf("%s is immutable when spec.image is unchanged", utils.GMKCacheAnnotationResolvedDigest)
 		}
 		return nil, nil
 	}
@@ -192,7 +196,7 @@ func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Ob
 		return nil, fmt.Errorf("spec.image must be set")
 	}
 	if newDigest == "" || newSig == "" {
-		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", annResolvedDigest)
+		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", utils.GMKCacheAnnotationResolvedDigest)
 	}
 
 	secret, err := mutationKeyFromEnv()
@@ -200,7 +204,7 @@ func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Ob
 		return nil, fmt.Errorf("%s", err.Error())
 	}
 	if !verifyMutation(secret, "", newImg, newDigest, newSig) {
-		return nil, fmt.Errorf("invalid %s for updated image; digest must be set only by the mutating webhook", annMutationSig)
+		return nil, fmt.Errorf("invalid %s for updated image; digest must be set only by the mutating webhook", utils.GMKCacheAnnotationMutationSig)
 	}
 
 	return nil, nil

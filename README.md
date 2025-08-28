@@ -41,13 +41,13 @@ Check the GKM installed pods:
 
 ```sh
 $ kubectl get pods -n gkm-system
-NAME                                     READY   STATUS    RESTARTS   AGE
-gkm-agent-7ggr2                          1/1     Running   0          74m
-gkm-agent-mc9h6                          1/1     Running   0          74m
-gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          74m
-gkm-csi-node-nd6qn                       2/2     Running   0          74m
-gkm-csi-node-tkkc8                       2/2     Running   0          74m
-gkm-test-pod                             1/1     Running   0          64m
+NAME                           READY   STATUS    RESTARTS   AGE
+gkm-agent-7ggr2                1/1     Running   0          74m
+gkm-agent-mc9h6                1/1     Running   0          74m
+gkm-operator-c7b6f4f87-9zgns   3/3     Running   0          74m
+gkm-csi-node-nd6qn             2/2     Running   0          74m
+gkm-csi-node-tkkc8             2/2     Running   0          74m
+gkm-test-pod                   1/1     Running   0          64m
 ```
 
 To delete a `kind` cluster with a simulated GPU:
@@ -119,12 +119,12 @@ Because of the Node Selector, the test pod will be launched on node
 <!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl get pods -n gkm-system -o wide
-NAME                                     READY   STATUS    RESTARTS   AGE    IP           NODE
-gkm-agent-7ggr2                          1/1     Running   0          102m   10.244.1.6   kind-gpu-sim-worker
-gkm-agent-mc9h6                          1/1     Running   0          102m   10.244.2.3   kind-gpu-sim-worker2
-gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          102m   10.244.0.5   kind-gpu-sim-control-plane
-gkm-csi-node-nd6qn                       2/2     Running   0          102m   10.89.0.67   kind-gpu-sim-worker2
-gkm-csi-node-tkkc8                       2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker  <-- HERE
+NAME                           READY   STATUS    RESTARTS   AGE    IP           NODE
+gkm-agent-7ggr2                1/1     Running   0          102m   10.244.1.6   kind-gpu-sim-worker
+gkm-agent-mc9h6                1/1     Running   0          102m   10.244.2.3   kind-gpu-sim-worker2
+gkm-operator-c7b6f4f87-9zgns   3/3     Running   0          102m   10.244.0.5   kind-gpu-sim-control-plane
+gkm-csi-node-nd6qn             2/2     Running   0          102m   10.89.0.67   kind-gpu-sim-worker2
+gkm-csi-node-tkkc8             2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker  <-- HERE
 ```
 <!-- markdownlint-enable  MD013 -->
 
@@ -141,13 +141,13 @@ the pod:
 <!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl get pods -n gkm-system
-NAME                                     READY   STATUS    RESTARTS   AGE
-gkm-agent-7ggr2                          1/1     Running   0          74m
-gkm-agent-mc9h6                          1/1     Running   0          74m
-gkm-controller-manager-c7b6f4f87-9zgns   3/3     Running   0          74m
-gkm-csi-node-nd6qn                       2/2     Running   0          74m
-gkm-csi-node-tkkc8                       2/2     Running   0          74m
-gkm-test-pod                             1/1     Running   0          64m
+NAME                           READY   STATUS    RESTARTS   AGE
+gkm-agent-7ggr2                1/1     Running   0          74m
+gkm-agent-mc9h6                1/1     Running   0          74m
+gkm-operator-c7b6f4f87-9zgns   3/3     Running   0          74m
+gkm-csi-node-nd6qn             2/2     Running   0          74m
+gkm-csi-node-tkkc8             2/2     Running   0          74m
+gkm-test-pod                   1/1     Running   0          64m
 
 kubectl exec -it -n gkm-system gkm-test-pod -- sh
 sh-5.2# ls /cache/

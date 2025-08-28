@@ -25,7 +25,7 @@ RUN make build-csi
 # be able to easily install extra packages.
 FROM quay.io/fedora/fedora-minimal
 
-RUN dnf update && dnf install -y \
+RUN dnf update -y && dnf install -y \
     gpgme-devel \
     libbtrfs \
  && dnf clean all
