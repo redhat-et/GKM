@@ -81,6 +81,15 @@ func (d *MockDevice) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 }
 
 func (d *MockDevice) GetAllSummaries() ([]DeviceSummary, error) {
+	cache, err := loadCache()
+	if err == nil {
+		if cachedDevice, ok := cache.Devices[d.Name()]; ok {
+			logging.Debugf("Returning cached summaries for Mock device %s", d.Name())
+			return cachedDevice.Summaries, nil
+		}
+	}
+
+	// Fallback to default behavior if cache is unavailable
 	return []DeviceSummary{}, nil
 }
 

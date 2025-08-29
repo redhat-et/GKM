@@ -236,7 +236,22 @@ func nvmlErrorString(errno nvml.Return) string {
 
 // GetAllSummaries implements Device.
 func (n *gpuNvml) GetAllSummaries() ([]DeviceSummary, error) {
-	panic("unimplemented")
+	cache, err := loadCache()
+	if err == nil {
+		if cachedDevice, ok := cache.Devices[n.Name()]; ok {
+			logging.Debugf("Returning cached summaries for NVML device %s", n.Name())
+			return cachedDevice.Summaries, nil
+		}
+	}
+
+	// Fallback to default behavior if cache is unavailable
+	var allAccInfo []DeviceSummary
+	for gpuID := range n.devices {
+		dev := n.devices[gpuID]
+		allAccInfo = append(allAccInfo, dev.Summary)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
+	}
+	return allAccInfo, nil
 }
 
 // GetSummary implements Device.

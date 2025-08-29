@@ -54,7 +54,15 @@ type (
 
 type DeviceCache struct {
 	Timestamp time.Time
-	Devices   map[string]Device
+	Devices   map[string]CachedDevice // Store serialized device information
+}
+
+type CachedDevice struct {
+	Name       string          `json:"name"`
+	DeviceType DeviceType      `json:"deviceType"`
+	HwType     string          `json:"hwType"`
+	TritonInfo []TritonGPUInfo `json:"tritonInfo"`
+	Summaries  []DeviceSummary `json:"summaries"`
 }
 
 func (d DeviceType) String() string {
@@ -201,13 +209,39 @@ func loadCache() (*DeviceCache, error) {
 		return nil, errors.New("cache expired")
 	}
 
+	// Log the loaded cache for debugging
+	logging.Debugf("Loaded cache with %d devices", len(cache.Devices))
+
 	return &cache, nil
 }
 
 func saveCache(devices map[string]Device) error {
 	cache := DeviceCache{
 		Timestamp: time.Now(),
-		Devices:   devices,
+		Devices:   make(map[string]CachedDevice),
+	}
+
+	for name, device := range devices {
+		tritonInfo, err := device.GetAllGPUInfo()
+		if err != nil {
+			logging.Errorf("Failed to get GPU info for device %s: %v", name, err)
+			continue
+		}
+
+		summaries, err := device.GetAllSummaries()
+		if err != nil {
+			logging.Errorf("Failed to get summaries for device %s: %v", name, err)
+			continue
+		}
+
+		// Store all relevant information in the cache
+		cache.Devices[name] = CachedDevice{
+			Name:       device.Name(),
+			DeviceType: device.DevType(),
+			HwType:     device.HwType(),
+			TritonInfo: tritonInfo,
+			Summaries:  summaries,
+		}
 	}
 
 	file, err := os.Create(cacheFilePath)
@@ -224,9 +258,23 @@ func Startup(a string) Device {
 	// Attempt to load the cache
 	cache, err := loadCache()
 	if err == nil {
-		if device, ok := cache.Devices[a]; ok {
+		if cachedDevice, ok := cache.Devices[a]; ok {
 			logging.Debugf("Using cached configuration for %s", a)
-			return device
+
+			// Retrieve the global registry
+			registry := GetRegistry()
+
+			// Check if a startup function exists for the cached DeviceType
+			if deviceStartup, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
+				device := deviceStartup()
+
+				// Optionally, initialize the device with cached Triton information
+				// (if needed by the specific implementation)
+				logging.Debugf("Restored device instance for %s from cache", a)
+				return device
+			}
+
+			logging.Errorf("No startup function found for cached device type %s", cachedDevice.DeviceType.String())
 		}
 	}
 
