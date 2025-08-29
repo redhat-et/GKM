@@ -223,6 +223,7 @@ func amdDeviceStartup() Device {
 		return nil
 	}
 	logging.Infof("Using %s to obtain GPU info", amdType.String())
+	logging.Infof("AMD device startup completed")
 	return &a
 }
 

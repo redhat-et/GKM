@@ -80,6 +80,7 @@ func rocmDeviceStartup() Device {
 		return nil
 	}
 	logging.Infof("Using %s to obtain GPU info", rocmType.String())
+	logging.Infof("ROCm device startup completed")
 	return &a
 }
 

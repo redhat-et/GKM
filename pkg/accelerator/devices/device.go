@@ -16,10 +16,13 @@ limitations under the License.
 package devices
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/redhat-et/MCU/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
@@ -33,6 +36,9 @@ const (
 	ROCM
 )
 
+const cacheFilePath = "/tmp/device_cache.json"
+const cacheTTL = 10 * time.Minute // Cache Time-To-Live
+
 var (
 	deviceRegistry *Registry
 	once           sync.Once
@@ -45,6 +51,11 @@ type (
 		Registry map[string]map[DeviceType]deviceStartupFunc // Static map of supported Devices Startup functions
 	}
 )
+
+type DeviceCache struct {
+	Timestamp time.Time
+	Devices   map[string]Device
+}
 
 func (d DeviceType) String() string {
 	return [...]string{"MOCK", "AMD", "NVML", "ROCM"}[d]
@@ -173,8 +184,52 @@ func addDeviceInterface(registry *Registry, dtype DeviceType, accType string, de
 	return nil
 }
 
+func loadCache() (*DeviceCache, error) {
+	file, err := os.Open(cacheFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var cache DeviceCache
+	if err := json.NewDecoder(file).Decode(&cache); err != nil {
+		return nil, err
+	}
+
+	// Check if the cache is expired
+	if time.Since(cache.Timestamp) > cacheTTL {
+		return nil, errors.New("cache expired")
+	}
+
+	return &cache, nil
+}
+
+func saveCache(devices map[string]Device) error {
+	cache := DeviceCache{
+		Timestamp: time.Now(),
+		Devices:   devices,
+	}
+
+	file, err := os.Create(cacheFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return json.NewEncoder(file).Encode(cache)
+}
+
 // Startup initializes and returns a new Device according to the given DeviceType [NVML|OTHER].
 func Startup(a string) Device {
+	// Attempt to load the cache
+	cache, err := loadCache()
+	if err == nil {
+		if device, ok := cache.Devices[a]; ok {
+			logging.Infof("Using cached configuration for %s", a)
+			return device
+		}
+	}
+
 	// Retrieve the global registry
 	registry := GetRegistry()
 
@@ -182,7 +237,12 @@ func Startup(a string) Device {
 		// Attempt to start the device from the registry
 		if deviceStartup, ok := registry.Registry[a][d]; ok {
 			logging.Infof("Starting up %s", d.String())
-			return deviceStartup()
+			device := deviceStartup()
+
+			// Save the device to the cache
+			saveCache(map[string]Device{a: device})
+
+			return device
 		}
 	}
 

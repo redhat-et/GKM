@@ -66,6 +66,7 @@ func nvmlDeviceStartup() Device {
 		return nil
 	}
 	logging.Infof("Using %s to obtain GPU info", nvmlType.String())
+	logging.Infof("NVML device startup completed")
 	return &a
 }
 
