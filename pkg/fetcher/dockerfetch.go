@@ -23,7 +23,7 @@ func newDockerFetcher() (*dockerFetcher, error) {
 }
 
 func (d *dockerFetcher) FetchImg(imgName string) (v1.Image, error) {
-	logging.Infof("Saving Docker image: %s", imgName)
+	logging.Debugf("Saving Docker image: %s", imgName)
 
 	imageFunc := func(w io.Writer) error {
 		reader, err := d.client.ImageSave(context.Background(), []string{imgName})

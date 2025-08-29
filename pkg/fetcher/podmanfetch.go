@@ -32,7 +32,7 @@ func newPodmanFetcher() (*podmanFetcher, error) {
 }
 
 func (p *podmanFetcher) FetchImg(imgName string) (v1.Image, error) {
-	logging.Infof("Checking for image: %s via Podman", imgName)
+	logging.Debugf("Checking for image: %s via Podman", imgName)
 
 	found, err := p.client.Exists(context.Background(), imgName, &images.ExistsOptions{})
 	if err != nil || !found {
