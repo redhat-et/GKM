@@ -40,7 +40,7 @@ func CleanupMCVDirs(ctx context.Context, path string) error {
 	if err := os.RemoveAll(path); err != nil {
 		return fmt.Errorf("failed to delete %s: %w", path, err)
 	}
-	logging.Infof("Directory %s successfully deleted.", path)
+	logging.Debugf("Directory %s successfully deleted.", path)
 	return nil
 }
 

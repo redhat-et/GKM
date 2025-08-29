@@ -63,9 +63,9 @@ func rocmCheck(r *Registry) {
 	}
 	rocmType = ROCM
 	if err := addDeviceInterface(r, rocmType, rocmHwType, rocmDeviceStartup); err == nil {
-		logging.Infof("Using %s to obtain GPU info", rocmAccImpl.Name())
+		logging.Debugf("Using %s to obtain GPU info", rocmAccImpl.Name())
 	} else {
-		logging.Infof("Error registering rocm-smi: %v", err)
+		logging.Debugf("Error registering rocm-smi: %v", err)
 	}
 }
 
@@ -79,8 +79,8 @@ func rocmDeviceStartup() Device {
 		logging.Errorf("Failed to init device: %v", err)
 		return nil
 	}
-	logging.Infof("Using %s to obtain GPU info", rocmType.String())
-	logging.Infof("ROCm device startup completed")
+	logging.Debugf("Using %s to obtain GPU info", rocmType.String())
+	logging.Debugf("ROCm device startup completed")
 	return &a
 }
 

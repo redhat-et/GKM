@@ -133,10 +133,10 @@ func registerDevices(r *Registry) {
 func (r *Registry) MustRegister(a string, d DeviceType, deviceStartup deviceStartupFunc) {
 	_, ok := r.Registry[a][d]
 	if ok {
-		logging.Infof("Device with type %s already exists", d)
+		logging.Debugf("Device with type %s already exists", d)
 		return
 	}
-	logging.Infof("Adding the device to the registry [%s][%s]", a, d.String())
+	logging.Debugf("Adding the device to the registry [%s][%s]", a, d.String())
 	r.Registry[a] = map[DeviceType]deviceStartupFunc{
 		d: deviceStartup,
 	}
@@ -225,7 +225,7 @@ func Startup(a string) Device {
 	cache, err := loadCache()
 	if err == nil {
 		if device, ok := cache.Devices[a]; ok {
-			logging.Infof("Using cached configuration for %s", a)
+			logging.Debugf("Using cached configuration for %s", a)
 			return device
 		}
 	}
@@ -236,7 +236,7 @@ func Startup(a string) Device {
 	for d := range registry.Registry[a] {
 		// Attempt to start the device from the registry
 		if deviceStartup, ok := registry.Registry[a][d]; ok {
-			logging.Infof("Starting up %s", d.String())
+			logging.Debugf("Starting up %s", d.String())
 			device := deviceStartup()
 
 			// Save the device to the cache

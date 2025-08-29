@@ -68,7 +68,7 @@ func SetRegistry(registry *Registry) {
 func (r *Registry) MustRegister(a Accelerator) {
 	_, ok := r.Registry[a.Device().HwType()]
 	if ok {
-		logging.Infof("Accelerator with type %s already exists", a.Device().HwType())
+		logging.Debugf("Accelerator with type %s already exists", a.Device().HwType())
 		return
 	}
 	r.Registry[a.Device().HwType()] = a
@@ -131,7 +131,7 @@ func New(atype string, sleep bool) (Accelerator, error) {
 		return nil, errors.New("no devices found")
 	}
 
-	logging.Infof("Initializing the Accelerator of type %v", atype)
+	logging.Debugf("Initializing the Accelerator of type %v", atype)
 
 	for i := 0; i < maxDeviceInitRetry; i++ {
 		if d = devices.Startup(atype); d == nil {
@@ -143,7 +143,7 @@ func New(atype string, sleep bool) (Accelerator, error) {
 			}
 			continue
 		}
-		logging.Infof("Startup %s Accelerator successful", atype)
+		logging.Debugf("Startup %s Accelerator successful", atype)
 		break
 	}
 
@@ -156,11 +156,11 @@ func New(atype string, sleep bool) (Accelerator, error) {
 func Shutdown() {
 	if accelerators := GetRegistry().accelerators(); accelerators != nil {
 		for _, a := range accelerators {
-			logging.Infof("Shutting down %s", a.Device().DevType())
+			logging.Debugf("Shutting down %s", a.Device().DevType())
 			a.stop()
 		}
 	} else {
-		logging.Info("No devices to shutdown")
+		logging.Debugf("No devices to shutdown")
 	}
 }
 
@@ -176,7 +176,7 @@ func (a *accelerator) stop() {
 		return
 	}
 
-	logging.Info("Accelerator stopped")
+	logging.Debug("Accelerator stopped")
 }
 
 // Device returns an accelerator interface

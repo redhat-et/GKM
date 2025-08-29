@@ -43,7 +43,7 @@ func MockDeviceDeviceStartup() Device {
 		collectionSupported: true,
 	}
 
-	logging.Infof("MockDevice startup completed")
+	logging.Debugf("MockDevice startup completed")
 	return &d
 }
 

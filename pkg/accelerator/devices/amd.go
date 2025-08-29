@@ -206,9 +206,9 @@ func amdCheck(r *Registry) {
 	}
 	amdType = AMD
 	if err := addDeviceInterface(r, amdType, amdHwType, amdDeviceStartup); err == nil {
-		logging.Infof("Using %s to obtain GPU info", amdAccImpl.Name())
+		logging.Debugf("Using %s to obtain GPU info", amdAccImpl.Name())
 	} else {
-		logging.Infof("Error registering amd-smi: %v", err)
+		logging.Debugf("Error registering amd-smi: %v", err)
 	}
 }
 
@@ -222,8 +222,8 @@ func amdDeviceStartup() Device {
 		logging.Errorf("Failed to init device: %v", err)
 		return nil
 	}
-	logging.Infof("Using %s to obtain GPU info", amdType.String())
-	logging.Infof("AMD device startup completed")
+	logging.Debugf("Using %s to obtain GPU info", amdType.String())
+	logging.Debugf("AMD device startup completed")
 	return &a
 }
 

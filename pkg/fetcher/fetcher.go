@@ -30,7 +30,7 @@ func NewFetcher() Fetcher {
 		if df, err := newDockerFetcher(); err == nil {
 			localFetchers = append(localFetchers, df)
 		} else {
-			logging.Warnf("Failed to init Docker fetcher: %v", err)
+			logging.Debugf("Failed to init Docker fetcher: %v", err)
 		}
 	}
 
@@ -38,7 +38,7 @@ func NewFetcher() Fetcher {
 		if pf, err := newPodmanFetcher(); err == nil {
 			localFetchers = append(localFetchers, pf)
 		} else {
-			logging.Warnf("Failed to init Podman fetcher: %v", err)
+			logging.Debugf("Failed to init Podman fetcher: %v", err)
 		}
 	}
 
@@ -48,16 +48,16 @@ func NewFetcher() Fetcher {
 func (f *fetcher) FetchImg(imgName string) (v1.Image, error) {
 	// Try to fetch locally first
 	for _, localFetcher := range f.local {
-		logging.Infof("Trying local fetcher: %T", localFetcher)
+		logging.Debugf("Trying local fetcher: %T", localFetcher)
 
 		img, _ := localFetcher.FetchImg(imgName)
 		if img != nil {
-			logging.Infof("Image found locally using %T", localFetcher)
+			logging.Debugf("Image found locally using %T", localFetcher)
 			return img, nil
 		}
 
 		// If error or image is nil, log and continue to the next fetcher
-		logging.Infof("Failed to fetch image locally using %T:", localFetcher)
+		logging.Debugf("Failed to fetch image locally using %T:", localFetcher)
 	}
 
 	// If local fetch fails, try fetching the image remotely
@@ -93,7 +93,7 @@ func fetchToTempTar(fetchFn func(io.Writer) error) (v1.Image, error) {
 		return nil, fmt.Errorf("error closing tarball file: %w", err)
 	}
 
-	logging.Infof("Saved image to tarball: %s", tarballFilePath)
+	logging.Debugf("Saved image to tarball: %s", tarballFilePath)
 
 	return loadImageFromTarball(tarballFilePath)
 }

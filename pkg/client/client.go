@@ -144,7 +144,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 	}
 	constants.TritonCacheDir = cacheDir
 
-	logging.Infof("Using Triton cache directory: %s", constants.TritonCacheDir)
+	logging.Debugf("Using Triton cache directory: %s", constants.TritonCacheDir)
 
 	return nil, nil, fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
@@ -172,7 +172,7 @@ func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 		return nil, fmt.Errorf("no hardware accelerator present")
 	}
 
-	logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(accInfo.Devices))
+	logging.Debugf("Hardware accelerator(s) detected (%d). GPU support enabled.", len(accInfo.Devices))
 	config.SetEnabledGPU(true)
 
 	// Initialize the GPU accelerator
