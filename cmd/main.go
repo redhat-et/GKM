@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/containers/buildah"
 	"github.com/containers/storage/pkg/unshare"
@@ -20,15 +21,14 @@ const (
 	exitExtractError = 1
 	exitCreateError  = 2
 	exitLogError     = 3
+	imageNameRegex   = `^(?:[a-zA-Z0-9]+(?:[._-][a-zA-Z0-9]+)*\.)+[a-zA-Z]{2,}(?:/[a-zA-Z0-9._-]+)+(?::[a-zA-Z0-9._-]+)?$`
 )
 
 func main() {
-	logging.SetReportCaller(true)
-	logging.SetFormatter(logformat.Default)
+	initializeLogging()
 
 	if _, err := config.Initialize(config.ConfDir); err != nil {
-		logging.Fatalf("Error initializing config: %v", err)
-		os.Exit(exitLogError)
+		logFatal("Error initializing config", err, exitLogError)
 	}
 
 	if buildah.InitReexec() {
@@ -38,8 +38,18 @@ func main() {
 
 	cmd := buildRootCommand()
 	if err := cmd.Execute(); err != nil {
-		logging.Fatalf("Error: %v\n", err)
+		logFatal("Error executing command", err, exitLogError)
 	}
+}
+
+func initializeLogging() {
+	logging.SetReportCaller(true)
+	logging.SetFormatter(logformat.Default)
+}
+
+func logFatal(message string, err error, exitCode int) {
+	logging.Fatalf("%s: %v", message, err)
+	os.Exit(exitCode)
 }
 
 func buildRootCommand() *cobra.Command {
@@ -51,8 +61,7 @@ func buildRootCommand() *cobra.Command {
 		Short: "A GPU Kernel runtime container image management utility",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if err := logformat.ConfigureLogging(logLevel); err != nil {
-				logging.Errorf("Error configuring logging: %v", err)
-				os.Exit(exitLogError)
+				logFatal("Error configuring logging", err, exitLogError)
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -60,18 +69,21 @@ func buildRootCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&imageName, "image", "i", "", "OCI image name")
-	cmd.Flags().StringVarP(&cacheDirName, "dir", "d", "", "Triton Cache Directory")
-	cmd.Flags().StringVarP(&logLevel, "log-level", "l", "", "Set the logging verbosity level: debug, info, warning or error")
-	cmd.Flags().BoolVarP(&createFlag, "create", "c", false, "Create OCI image")
-	cmd.Flags().BoolVarP(&extractFlag, "extract", "e", false, "Extract a Triton cache from an OCI image")
-	cmd.Flags().BoolVarP(&baremetalFlag, "baremetal", "b", false, "Run baremetal preflight checks")
-	cmd.Flags().BoolVar(&noGPUFlag, "no-gpu", false, "Disable GPU logic for testing")
-	cmd.Flags().BoolVar(&hwInfoFlag, "hw-info", false, "Display system hardware info")
-	cmd.Flags().BoolVar(&gpuInfoFlag, "gpu-info", false, "Display GPU info")
-	cmd.Flags().BoolVar(&checkCompatFlag, "check-compat", false, "Check system GPU compatibility with a given image")
-
+	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag)
 	return cmd
+}
+
+func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag *bool) {
+	cmd.Flags().StringVarP(imageName, "image", "i", "", "OCI image name")
+	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton Cache Directory")
+	cmd.Flags().StringVarP(logLevel, "log-level", "l", "", "Set the logging verbosity level: debug, info, warning or error")
+	cmd.Flags().BoolVarP(createFlag, "create", "c", false, "Create OCI image")
+	cmd.Flags().BoolVarP(extractFlag, "extract", "e", false, "Extract a Triton cache from an OCI image")
+	cmd.Flags().BoolVarP(baremetalFlag, "baremetal", "b", false, "Run baremetal/detailed preflight checks")
+	cmd.Flags().BoolVar(noGPUFlag, "no-gpu", false, "Disable GPU logic for testing")
+	cmd.Flags().BoolVar(hwInfoFlag, "hw-info", false, "Display system hardware info")
+	cmd.Flags().BoolVar(gpuInfoFlag, "gpu-info", false, "Display GPU info")
+	cmd.Flags().BoolVar(checkCompatFlag, "check-compat", false, "Check system GPU compatibility with a given image")
 }
 
 func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag bool) {
@@ -88,9 +100,17 @@ func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extr
 	}
 
 	configureBaremetalAndGPU(baremetalFlag, noGPUFlag)
+
 	if (createFlag || extractFlag) && imageName == "" {
 		logging.Error("--image is required when using --create or --extract")
 		os.Exit(exitLogError)
+	}
+
+	if createFlag || extractFlag || checkCompatFlag {
+		if err := validateImageName(imageName); err != nil {
+			logging.Error(err)
+			os.Exit(exitLogError)
+		}
 	}
 
 	if createFlag {
@@ -105,6 +125,23 @@ func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extr
 		logging.Error("No action specified. Use --create or --extract flag.")
 		os.Exit(exitNormal)
 	}
+}
+
+func validateImageName(imageName string) error {
+	if imageName == "" {
+		return fmt.Errorf("--image is required")
+	}
+
+	matched, err := regexp.MatchString(imageNameRegex, imageName)
+	if err != nil {
+		return fmt.Errorf("error validating image name: %v", err)
+	}
+
+	if !matched {
+		return fmt.Errorf("invalid image name: %s. Ensure it is a valid Docker or Quay image URL", imageName)
+	}
+
+	return nil
 }
 
 func handleHWInfo() {
@@ -186,10 +223,26 @@ func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
 }
 
 func runCreate(imageName, cacheDir string) {
-	if err := createCacheImage(imageName, cacheDir); err != nil {
-		logging.Errorf("Error creating image: %v", err)
+	// Check if the cache directory exists
+	if _, err := utils.FilePathExists(cacheDir); err != nil {
+		logging.Errorf("Error checking cache file path: %v", err)
 		os.Exit(exitCreateError)
 	}
+
+	// Initialize the image builder
+	builder, _ := imgbuild.New()
+	if builder == nil {
+		logging.Errorf("Failed to create builder")
+		os.Exit(exitCreateError)
+	}
+
+	// Create the OCI image
+	if err := builder.CreateImage(imageName, cacheDir); err != nil {
+		logging.Errorf("Failed to create the OCI image: %v", err)
+		os.Exit(exitCreateError)
+	}
+
+	logging.Info("OCI image created successfully.")
 }
 
 func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
@@ -205,24 +258,4 @@ func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
 		logging.Errorf("Error extracting image: %v", err)
 		os.Exit(exitExtractError)
 	}
-}
-
-func createCacheImage(imageName, cacheDir string) error {
-	_, err := utils.FilePathExists(cacheDir)
-	if err != nil {
-		return fmt.Errorf("error checking cache file path: %v", err)
-	}
-
-	builder, _ := imgbuild.New()
-	if builder == nil {
-		return fmt.Errorf("failed to create builder")
-	}
-
-	err = builder.CreateImage(imageName, cacheDir)
-	if err != nil {
-		return fmt.Errorf("failed to create the OCI image: %v", err)
-	}
-
-	logging.Info("OCI image created successfully.")
-	return nil
 }
