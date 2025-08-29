@@ -176,15 +176,15 @@ func handleCheckCompat(imageName string) {
 	}
 
 	if len(matched) > 0 {
-		logging.Infof("Compatible GPU(s) found (%d):", len(matched))
-		logging.Infof("IDs: %v", matched)
+		logging.Debugf("Compatible GPU(s) found (%d):", len(matched))
+		logging.Debugf("IDs: %v", matched)
 	} else {
 		logging.Warn("No compatible GPUs found for the image.")
 	}
 
 	if len(unmatched) > 0 {
-		logging.Infof("Incompatible GPU(s) found (%d):", len(unmatched))
-		logging.Infof("IDs: %v", unmatched)
+		logging.Debugf("Incompatible GPU(s) found (%d):", len(unmatched))
+		logging.Debugf("IDs: %v", unmatched)
 	}
 
 	if err != nil || len(matched) == 0 {
@@ -196,10 +196,10 @@ func handleCheckCompat(imageName string) {
 
 func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
 	config.SetEnabledBaremetal(baremetalFlag)
-	logging.Infof("baremetalFlag %v", baremetalFlag)
+	logging.Debugf("baremetalFlag %v", baremetalFlag)
 
 	if noGPUFlag {
-		logging.Info("GPU checks disabled: running in no-GPU mode (--no-gpu)")
+		logging.Debug("GPU checks disabled: running in no-GPU mode (--no-gpu)")
 		config.SetEnabledGPU(false)
 		return
 	}
@@ -214,9 +214,9 @@ func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
 	logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(xpuInfo.Acc.Devices))
 	for i, device := range xpuInfo.Acc.Devices {
 		if device.PCIDevice != nil {
-			logging.Infof("  Accelerator %d: Vendor=%s, Product=%s", i, device.PCIDevice.Vendor.Name, device.PCIDevice.Product.Name)
+			logging.Debugf("  Accelerator %d: Vendor=%s, Product=%s", i, device.PCIDevice.Vendor.Name, device.PCIDevice.Product.Name)
 		} else {
-			logging.Infof("  Accelerator %d: PCI device info unavailable", i)
+			logging.Debugf("  Accelerator %d: PCI device info unavailable", i)
 		}
 	}
 	config.SetEnabledGPU(true)
