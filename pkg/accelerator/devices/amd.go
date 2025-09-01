@@ -374,7 +374,7 @@ func (r *gpuAMD) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 }
 
 func (r *gpuAMD) GetAllSummaries() ([]DeviceSummary, error) {
-cache, err := loadCache()
+	cache, err := loadCache()
 	if err == nil {
 		if cachedDevice, ok := cache.Devices[r.Name()]; ok {
 			logging.Debugf("Returning cached summaries for AMD device %s", r.Name())

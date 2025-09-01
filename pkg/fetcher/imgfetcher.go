@@ -33,7 +33,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
 	"github.com/redhat-et/MCU/mcv/pkg/constants"
 	"github.com/redhat-et/MCU/mcv/pkg/preflightcheck"
@@ -156,7 +155,6 @@ func (i *imgFetcher) FetchImg(imgName string) (v1.Image, error) {
 
 func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 	var extractedDirs []string
-	var devInfo []devices.TritonGPUInfo
 
 	// Fetch image manifest
 	manifest, err := img.Manifest()
@@ -165,7 +163,7 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 	}
 
 	if config.IsGPUEnabled() && !config.IsSkipPrecheckEnabled() {
-		devInfo, err = preflightcheck.GetAllGPUInfo(e.acc)
+		devInfo, err := preflightcheck.GetAllGPUInfo(e.acc)
 		if err != nil {
 			return fmt.Errorf("failed to get GPU info: %w", err)
 		}
@@ -205,7 +203,12 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 
 	// Full manifest compatibility check (after extraction)
 	manifestPath := filepath.Join(constants.MCVManifestDir, constants.ManifestFileName)
-	if config.IsGPUEnabled() && config.IsBaremetalEnabled() {
+	if config.IsGPUEnabled() && config.IsBaremetalEnabled() && !config.IsSkipPrecheckEnabled() {
+		devInfo, err := preflightcheck.GetAllGPUInfo(e.acc)
+		if err != nil || devInfo == nil {
+			return fmt.Errorf("failed to get GPU info: %w", err)
+		}
+
 		if err := preflightcheck.CompareTritonCacheManifestToGPU(manifestPath, devInfo); err != nil {
 			for _, dir := range extractedDirs {
 				if rmErr := os.RemoveAll(dir); rmErr != nil {
