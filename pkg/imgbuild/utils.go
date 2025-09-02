@@ -123,3 +123,14 @@ func CleanupWithTimeout() error {
 	defer cancel()
 	return utils.CleanupMCVDirs(ctx, "")
 }
+
+func NormalizeImageTag(imageName string) string {
+	if !strings.Contains(imageName, ":") {
+		return fmt.Sprintf("%s:latest", imageName)
+	}
+	return imageName
+}
+
+func DockerfilePath(buildRoot string) string {
+	return filepath.Join(buildRoot, "Dockerfile")
+}

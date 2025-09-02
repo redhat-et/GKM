@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -38,7 +37,7 @@ func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
 	}
 	defer CleanupDirs(prep.CacheBuildDir, prep.ManifestBuildDir)
 
-	dockerfilePath := fmt.Sprintf("%s/Dockerfile", prep.BuildRoot)
+	dockerfilePath := DockerfilePath(prep.BuildRoot)
 
 	err = GenerateDockerfile(imageName, prep.CacheTag, prep.ManifestTag, dockerfilePath)
 	if err != nil {
@@ -76,10 +75,7 @@ func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
 		return fmt.Errorf("error reading build output: %w", err)
 	}
 
-	imageWithTag := imageName
-	if !strings.Contains(imageName, ":") {
-		imageWithTag = fmt.Sprintf("%s:latest", imageName)
-	}
+	imageWithTag := NormalizeImageTag(imageName)
 
 	err = apiClient.ImageTag(context.Background(), imageName, imageWithTag)
 	if err != nil {

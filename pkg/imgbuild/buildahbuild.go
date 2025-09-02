@@ -3,7 +3,6 @@ package imgbuild
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/containers/buildah"
 	"github.com/containers/common/pkg/config"
@@ -47,10 +46,7 @@ func (b *buildahBuilder) CreateImage(imageName, cacheDir string) error {
 		}
 	}()
 
-	imageWithTag := imageName
-	if !strings.Contains(imageName, ":") {
-		imageWithTag = fmt.Sprintf("%s:latest", imageName)
-	}
+	imageWithTag := NormalizeImageTag(imageName)
 
 	imageRef, err := is.Transport.ParseStoreReference(buildStore, imageWithTag)
 	if err != nil {
