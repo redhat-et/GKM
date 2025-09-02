@@ -10,9 +10,11 @@ import (
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/MCU/mcv/pkg/cache"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
+	logging "github.com/sirupsen/logrus"
 )
 
 func CompareCacheSummaryLabelToGPU(img v1.Image, labels map[string]string, devInfo []devices.TritonGPUInfo) (matched, unmatched []devices.TritonGPUInfo, err error) {
+	logging.Debug("Starting cache summary label preflight check...")
 	if labels == nil {
 		configFile, ret := img.ConfigFile()
 		if ret != nil {
@@ -79,10 +81,9 @@ func DetectCacheTypeFromLabels(labels map[string]string) (string, error) {
 }
 
 // CompareCacheManifestToGPU dispatches manifest comparison based on cache type
-func CompareCacheManifestToGPU(manifestPath string, labels map[string]string, devInfo []devices.TritonGPUInfo) error {
-	cacheType, err := DetectCacheTypeFromLabels(labels)
-	if err != nil {
-		return err
+func CompareCacheManifestToGPU(manifestPath string, cacheType string, devInfo []devices.TritonGPUInfo) error {
+	if cacheType == "" {
+		return fmt.Errorf("cache type is empty")
 	}
 	switch cacheType {
 	case "triton":

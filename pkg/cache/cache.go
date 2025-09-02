@@ -150,3 +150,17 @@ func SetCachesBuildDir(caches []Cache, path string) {
 		}
 	}
 }
+
+func ExtractCacheDirectory(r io.Reader, cacheType string) ([]string, error) {
+	if cacheType == "" {
+		return nil, fmt.Errorf("cache type is empty")
+	}
+	switch cacheType {
+	case "triton":
+		return ExtractTritonCacheDirectory(r)
+	case "vllm":
+		return ExtractVLLMCacheDirectory(r)
+	default:
+		return nil, fmt.Errorf("unsupported cache type: %s", cacheType)
+	}
+}

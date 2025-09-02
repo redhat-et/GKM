@@ -10,8 +10,8 @@ import (
 // Core default paths and environment keys
 const (
 	MCVBuildDir      = "/tmp/.mcv"
-	ManifestDir      = "manifest"
 	CacheDir         = "cache"
+	ManifestDir      = "manifest"
 	ManifestFileName = "manifest.json"
 	VLLMHOME         = "/home/vllm"
 	VLLMCache        = ".cache/vllm"
@@ -26,13 +26,13 @@ const (
 
 // Configurable runtime paths
 var (
-	TritonCacheDir  string
-	ExtractCacheDir string
-	MCVManifestDir  string
-	VLLMCacheDir    string
-	HasTritonCache  bool
-	HasVLLMCache    bool
-	LogLevels       = []string{"debug", "info", "warning", "error"} // accepted log levels
+	TritonCacheDir     string
+	ExtractCacheDir    string
+	ExtractManifestDir string
+	VLLMCacheDir       string
+	HasTritonCache     bool
+	HasVLLMCache       bool
+	LogLevels          = []string{"debug", "info", "warning", "error"} // accepted log levels
 )
 
 func init() {
@@ -52,19 +52,12 @@ func init() {
 	} else {
 		TritonCacheDir = filepath.Join(home, ".triton", "cache")
 	}
-
-	if _, err := os.Stat(TritonCacheDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(TritonCacheDir); err == nil {
 		HasTritonCache = true
 	}
 
 	VLLMCacheDir = filepath.Join(home, VLLMCache)
-	if _, err := os.Stat(VLLMCacheDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(VLLMCacheDir); err == nil {
 		HasVLLMCache = true
-	}
-
-	// Ensure manifest output directory exists
-	MCVManifestDir = filepath.Join(MCVBuildDir, ManifestDir)
-	if err := os.MkdirAll(MCVManifestDir, 0755); err != nil {
-		logging.Warnf("Failed to create manifest directory %s: %v", MCVManifestDir, err)
 	}
 }
