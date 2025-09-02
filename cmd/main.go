@@ -21,7 +21,7 @@ const (
 	exitExtractError = 1
 	exitCreateError  = 2
 	exitLogError     = 3
-	imageNameRegex   = `^(?:[a-zA-Z0-9]+(?:[._-][a-zA-Z0-9]+)*\.)+[a-zA-Z]{2,}(?:/[a-zA-Z0-9._-]+)+(?::[a-zA-Z0-9._-]+)?$`
+	imageNameRegex   = `^([a-z0-9]+([._-][a-z0-9]+)*(:[0-9]+)?/)?[a-z0-9]+([._-][a-z0-9]+)*(\/[a-z0-9]+([._-][a-z0-9]+)*)*(?::[\w][\w.-]{0,127})?$`
 )
 
 func main() {
