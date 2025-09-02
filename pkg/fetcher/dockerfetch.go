@@ -14,6 +14,9 @@ type dockerFetcher struct {
 	client DockerClient
 }
 
+// newDockerFetcher creates a new instance of dockerFetcher with a Docker API client.
+// It initializes the client using environment variables and enables API version negotiation.
+// Returns a pointer to dockerFetcher and an error if the client creation fails.
 func newDockerFetcher() (*dockerFetcher, error) {
 	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {

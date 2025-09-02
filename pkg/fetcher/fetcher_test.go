@@ -110,3 +110,14 @@ func TestLoadImageFromTarball(t *testing.T) {
 	_, err := loadImageFromTarball("/tmp/nonexistent.tar")
 	assert.Error(t, err)
 }
+
+func TestFetchToTempTar(t *testing.T) {
+	mockFetchFn := func(w io.Writer) error {
+		_, err := w.Write([]byte("mock tar data"))
+		return err
+	}
+
+	img, err := fetchToTempTar(mockFetchFn)
+	assert.NoError(t, err)
+	assert.NotNil(t, img)
+}

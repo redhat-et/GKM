@@ -26,20 +26,19 @@ type fetcher struct {
 func NewFetcher() Fetcher {
 	var localFetchers []Fetcher
 
-	if utils.HasApp("docker") {
-		if df, err := newDockerFetcher(); err == nil {
-			localFetchers = append(localFetchers, df)
+	addFetcher := func(fetcher Fetcher, err error) {
+		if err == nil {
+			localFetchers = append(localFetchers, fetcher)
 		} else {
-			logging.Debugf("Failed to init Docker fetcher: %v", err)
+			logging.Debugf("Failed to init fetcher: %v", err)
 		}
 	}
 
+	if utils.HasApp("docker") {
+		addFetcher(newDockerFetcher())
+	}
 	if utils.HasApp("podman") {
-		if pf, err := newPodmanFetcher(); err == nil {
-			localFetchers = append(localFetchers, pf)
-		} else {
-			logging.Debugf("Failed to init Podman fetcher: %v", err)
-		}
+		addFetcher(newPodmanFetcher())
 	}
 
 	return &fetcher{local: localFetchers, remote: &remoteFetcher{}}
