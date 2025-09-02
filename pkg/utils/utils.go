@@ -16,20 +16,19 @@ import (
 // FilePathExists checks if the given file or directory exists.
 func FilePathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	switch {
-	case err == nil:
+	if err == nil {
 		return true, nil
-	case os.IsNotExist(err):
-		return false, nil
-	default:
-		return false, err
 	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 // HasApp checks if the given app is available in the system PATH.
 func HasApp(app string) bool {
-	path, err := exec.LookPath(app)
-	return err == nil && path != ""
+	_, err := exec.LookPath(app)
+	return err == nil
 }
 
 // CleanupMCVDirs removes the temporary MCV directory using os.RemoveAll.
