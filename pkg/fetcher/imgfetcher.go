@@ -162,6 +162,33 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 		return fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 
+	configFile, err := img.ConfigFile()
+	if err != nil {
+		return fmt.Errorf("failed to get image config: %w", err)
+	}
+
+	labels := configFile.Config.Labels
+	if labels == nil {
+		return errors.New("image has no labels")
+	}
+
+	if constants.ExtractCacheDir == "" {
+		cacheType, err := preflightcheck.DetectCacheTypeFromLabels(labels)
+		if err != nil {
+			return err
+		}
+		switch cacheType {
+		case "triton":
+			constants.ExtractCacheDir = constants.TritonCacheDir
+		case "vllm":
+			constants.ExtractCacheDir = constants.VLLMCacheDir
+		default:
+			return fmt.Errorf("unsupported cache type: %s", cacheType)
+		}
+	}
+
+	logging.Infof("Extracting cache to directory: %s", constants.ExtractCacheDir)
+
 	if config.IsGPUEnabled() && !config.IsSkipPrecheckEnabled() {
 		devInfo, err := preflightcheck.GetAllGPUInfo(e.acc)
 		if err != nil {
@@ -169,7 +196,7 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 		}
 
 		// Summary check first (labels only)
-		if _, _, err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo); err != nil {
+		if _, _, err := preflightcheck.CompareCacheSummaryLabelToGPU(img, labels, devInfo); err != nil {
 			return fmt.Errorf("summary check failed: %w", err)
 		}
 	}
@@ -209,7 +236,7 @@ func (e *tritonCacheExtractor) ExtractCache(img v1.Image) error {
 			return fmt.Errorf("failed to get GPU info: %w", err)
 		}
 
-		if err := preflightcheck.CompareTritonCacheManifestToGPU(manifestPath, devInfo); err != nil {
+		if err := preflightcheck.CompareCacheManifestToGPU(manifestPath, labels, devInfo); err != nil {
 			for _, dir := range extractedDirs {
 				if rmErr := os.RemoveAll(dir); rmErr != nil {
 					logging.Warnf("Failed to clean up extracted kernel dir %s: %v", dir, rmErr)
@@ -376,7 +403,7 @@ func extractTritonCacheDirectory(r io.Reader) ([]string, error) {
 	tr := tar.NewReader(gr)
 
 	// Ensure top-level output directories exist once
-	if err = os.MkdirAll(constants.TritonCacheDir, 0755); err != nil {
+	if err = os.MkdirAll(constants.ExtractCacheDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 	if err = os.MkdirAll(constants.MCVManifestDir, 0755); err != nil {
@@ -404,9 +431,9 @@ func extractTritonCacheDirectory(r io.Reader) ([]string, error) {
 			if rel == "" {
 				continue
 			}
-			filePath = filepath.Join(constants.TritonCacheDir, rel)
+			filePath = filepath.Join(constants.ExtractCacheDir, rel)
 
-			topDir := filepath.Join(constants.TritonCacheDir, filepath.Dir(rel))
+			topDir := filepath.Join(constants.ExtractCacheDir, filepath.Dir(rel))
 			if !stringInSlice(topDir, extractedDirs) {
 				extractedDirs = append(extractedDirs, topDir)
 			}
@@ -435,12 +462,12 @@ func extractTritonCacheDirectory(r io.Reader) ([]string, error) {
 	}
 
 	// Fix up cache JSONs
-	err = filepath.Walk(constants.TritonCacheDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(constants.ExtractCacheDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() && strings.HasPrefix(info.Name(), "__grp__") && strings.HasSuffix(info.Name(), ".json") {
-			if err := utils.RestoreFullPathsInGroupJSON(path, constants.TritonCacheDir); err != nil {
+			if err := utils.RestoreFullPathsInGroupJSON(path, constants.ExtractCacheDir); err != nil {
 				logging.Warnf("failed to restore full paths in %s: %v", path, err)
 			}
 		}

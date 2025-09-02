@@ -75,10 +75,10 @@ func buildRootCommand() *cobra.Command {
 
 func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag *bool) {
 	cmd.Flags().StringVarP(imageName, "image", "i", "", "OCI image name")
-	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton Cache Directory")
+	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton/vLLM Cache Directory")
 	cmd.Flags().StringVarP(logLevel, "log-level", "l", "", "Set the logging verbosity level: debug, info, warning or error")
 	cmd.Flags().BoolVarP(createFlag, "create", "c", false, "Create OCI image")
-	cmd.Flags().BoolVarP(extractFlag, "extract", "e", false, "Extract a Triton cache from an OCI image")
+	cmd.Flags().BoolVarP(extractFlag, "extract", "e", false, "Extract a Triton/vLLM cache from an OCI image")
 	cmd.Flags().BoolVarP(baremetalFlag, "baremetal", "b", false, "Run baremetal/detailed preflight checks")
 	cmd.Flags().BoolVar(noGPUFlag, "no-gpu", false, "Disable GPU logic for testing")
 	cmd.Flags().BoolVar(hwInfoFlag, "hw-info", false, "Display system hardware info")

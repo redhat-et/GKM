@@ -143,16 +143,13 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		logging.Debug("Skipping preflight (GPU disabled)")
 	}
 
-	cacheDir := opts.CacheDir
-	if cacheDir == "" {
-		cacheDir = constants.TritonCacheDir // default from init()
+	if opts.CacheDir != "" {
+		cacheDir := opts.CacheDir
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
+		}
+		constants.ExtractCacheDir = cacheDir
 	}
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
-	}
-	constants.TritonCacheDir = cacheDir
-
-	logging.Debugf("Using Triton cache directory: %s", constants.TritonCacheDir)
 
 	return nil, nil, fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
@@ -239,7 +236,7 @@ func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error
 	}
 
 	// Run the compatibility check
-	matched, unmatched, err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo)
+	matched, unmatched, err := preflightcheck.CompareCacheSummaryLabelToGPU(img, nil, devInfo)
 	if err != nil {
 		return nil, nil, fmt.Errorf("preflight check failed: %w", err)
 	}

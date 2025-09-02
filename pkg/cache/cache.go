@@ -29,12 +29,10 @@ type Labels map[string]string
 func DetectCaches(root string) []Cache {
 	var caches []Cache
 
-	if triton := DetectTritonCache(root); triton != nil {
-		caches = append(caches, triton)
-	}
-
 	if vllm := DetectVLLMCache(root); vllm != nil {
 		caches = append(caches, vllm)
+	} else if triton := DetectTritonCache(root); triton != nil {
+		caches = append(caches, triton)
 	}
 
 	return caches

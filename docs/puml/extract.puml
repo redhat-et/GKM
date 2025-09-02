@@ -17,7 +17,7 @@ CLI -> Extractor : ExtractCache(image)
 Extractor -> Check : GetAllGPUInfo(acc)
 Check --> Extractor : []GPUInfo
 
-Extractor -> Check : CompareTritonSummaryLabelToGPU(img, devInfo)
+Extractor -> Check : CompareCacheSummaryLabelToGPU(img, devInfo)
 Check --> Extractor : OK or Fail
 
 alt Summary Check Passes
