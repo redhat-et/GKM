@@ -35,17 +35,13 @@ type xPU struct {
 }
 
 // detectAccelerators detects hardware accelerators and enables GPU logic if supported hardware is found.
-func detectAccelerators() (*ghw.AcceleratorInfo, error) {
-	accInfo, err := ghw.Accelerator()
+func detectAccelerators() error {
+	_, err := ghw.Accelerator()
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
-	}
-	if accInfo == nil || len(accInfo.Devices) == 0 {
-		config.SetEnabledGPU(false)
-		return nil, fmt.Errorf("no hardware accelerator present")
+		return fmt.Errorf("failed to detect hardware accelerator: %w", err)
 	}
 	config.SetEnabledGPU(true)
-	return accInfo, nil
+	return nil
 }
 
 // GetXPUInfo returns combined CPU and accelerator information (e.g., GPUs,
@@ -96,7 +92,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		return nil, nil, fmt.Errorf("image name must be specified")
 	}
 
-	if _, err := config.Initialize(config.ConfDir); err != nil {
+	if _, err = config.Initialize(config.ConfDir); err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 
@@ -105,7 +101,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if _, err = detectAccelerators(); err != nil {
+	if err = detectAccelerators(); err != nil {
 		logging.Warn("No accelerators detected, GPU logic disabled.")
 	}
 
@@ -168,7 +164,7 @@ func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if _, err := detectAccelerators(); err != nil {
+	if err := detectAccelerators(); err != nil {
 		return nil, err
 	}
 
@@ -211,7 +207,7 @@ func PrintGPUSummary(summary *devices.GPUFleetSummary) {
 //
 // Returns slices of matched and unmatched GPUs, along with any error encountered.
 func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error) {
-	if _, err := config.Initialize(config.ConfDir); err != nil {
+	if _, err = config.Initialize(config.ConfDir); err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
 

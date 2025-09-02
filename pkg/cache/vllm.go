@@ -77,45 +77,46 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 		entries, err := os.ReadDir(torchCompileCachePath)
 		if err == nil {
 			for _, entry := range entries {
-				if entry.IsDir() {
-					count++
-					var tritonCachePath string
-					err := filepath.WalkDir(filepath.Join(torchCompileCachePath, entry.Name()), func(path string, d fs.DirEntry, err error) error {
-						if err != nil {
-							return err
-						}
-						if d.IsDir() && d.Name() == "triton_cache" {
-							tritonCachePath = path
-							return filepath.SkipDir
-						}
-						return nil
-					})
-					if err != nil || tritonCachePath == "" {
-						logging.Warnf("Triton cache path not found for entry: %s", entry.Name())
-						continue
-					}
-
-					// Check if tritonCachePath exists
-					if _, err := os.Stat(tritonCachePath); os.IsNotExist(err) {
-						logging.Warnf("Triton cache path does not exist: %s", tritonCachePath)
-						continue
-					}
-
-					logging.Debugf("Inspecting potential Triton cache at: %s", tritonCachePath)
-					_tc := DetectTritonCache(tritonCachePath)
-					if _tc == nil {
-						logging.Warnf("Failed to detect Triton cache at: %s", tritonCachePath)
-						continue
-					}
-					tc = _tc
-					vllmMetadata := VLLMCacheMetadata{
-						VllmHash:           entry.Name(),
-						TritonCacheEntries: tc.Metadata(),
-					}
-
-					logging.Debugf("Adding VLLM metadata: %+v", vllmMetadata)
-					metadata = append(metadata, vllmMetadata)
+				if !entry.IsDir() {
+					continue
 				}
+				count++
+				var tritonCachePath string
+				err := filepath.WalkDir(filepath.Join(torchCompileCachePath, entry.Name()), func(path string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+					if d.IsDir() && d.Name() == "triton_cache" {
+						tritonCachePath = path
+						return filepath.SkipDir
+					}
+					return nil
+				})
+				if err != nil || tritonCachePath == "" {
+					logging.Warnf("Triton cache path not found for entry: %s", entry.Name())
+					continue
+				}
+
+				// Check if tritonCachePath exists
+				if _, err := os.Stat(tritonCachePath); os.IsNotExist(err) {
+					logging.Warnf("Triton cache path does not exist: %s", tritonCachePath)
+					continue
+				}
+
+				logging.Debugf("Inspecting potential Triton cache at: %s", tritonCachePath)
+				_tc := DetectTritonCache(tritonCachePath)
+				if _tc == nil {
+					logging.Warnf("Failed to detect Triton cache at: %s", tritonCachePath)
+					continue
+				}
+				tc = _tc
+				vllmMetadata := VLLMCacheMetadata{
+					VllmHash:           entry.Name(),
+					TritonCacheEntries: tc.Metadata(),
+				}
+
+				logging.Debugf("Adding VLLM metadata: %+v", vllmMetadata)
+				metadata = append(metadata, vllmMetadata)
 			}
 		}
 	}
@@ -171,7 +172,6 @@ func (v *VLLMCache) Summary() string {
 }
 
 func (v *VLLMCache) Labels() map[string]string {
-
 	return map[string]string{
 		cacheVLLMImageEntryCount: strconv.Itoa(v.EntryCount()),
 		cacheVLLMImageCacheSize:  strconv.FormatInt(v.CacheSizeBytes(), 10),

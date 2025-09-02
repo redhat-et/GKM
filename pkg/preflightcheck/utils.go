@@ -13,11 +13,10 @@ import (
 )
 
 func CompareCacheSummaryLabelToGPU(img v1.Image, labels map[string]string, devInfo []devices.TritonGPUInfo) (matched, unmatched []devices.TritonGPUInfo, err error) {
-
 	if labels == nil {
-		configFile, err := img.ConfigFile()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get image config: %w", err)
+		configFile, ret := img.ConfigFile()
+		if ret != nil {
+			return nil, nil, fmt.Errorf("failed to get image config: %w", ret)
 		}
 
 		labels = configFile.Config.Labels
