@@ -473,30 +473,20 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 
 	// Stub out the GPU Ids when in TestMode (No GPUs)
 	if r.NoGpu {
-		var tmpGpus mcvDevices.GPUFleetSummary
-
-		tmpGpus.GPUs = append(tmpGpus.GPUs, mcvDevices.GPUGroup{
-			GPUType:       "Instinct MI210",
-			DriverVersion: "535.43.02",
-			IDs:           []int{int(0)},
-		})
-		tmpGpus.GPUs = append(tmpGpus.GPUs, mcvDevices.GPUGroup{
-			GPUType:       "RTX 3090",
-			DriverVersion: "2.23.4",
-			IDs:           []int{int(1)},
-		})
-		tmpGpus.GPUs = append(tmpGpus.GPUs, mcvDevices.GPUGroup{
-			GPUType:       "RTX 3090",
-			DriverVersion: "2.23.4",
-			IDs:           []int{int(2)},
-		})
-
-		gpus = &tmpGpus
+		stub := true
+		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
+		if err != nil {
+			r.Logger.Error(err, "error retrieving stubbed GPU info")
+			// return err
+		} else {
+			r.Logger.Info("Detected Stubbed GPU Devices:", "gpus", gpus)
+		}
 	} else {
-		gpus, err = mcvClient.GetSystemGPUInfo()
+		stub := false
+		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
 		if err != nil {
 			r.Logger.Error(err, "error retrieving GPU info")
-			//return err
+			// return err
 		} else {
 			r.Logger.Info("Detected GPU Devices:", "gpus", gpus)
 		}

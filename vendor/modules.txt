@@ -1076,7 +1076,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/redhat-et/MCU/mcv v1.0.0
+# github.com/redhat-et/MCU/mcv v1.1.2
 ## explicit; go 1.24.0
 github.com/redhat-et/MCU/mcv/pkg/accelerator
 github.com/redhat-et/MCU/mcv/pkg/accelerator/devices

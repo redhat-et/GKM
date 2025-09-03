@@ -19,6 +19,7 @@ var (
 type MCVConfig struct {
 	MCVNamespace     string
 	EnabledGPU       *bool
+	EnabledStub      *bool
 	KubeConfig       string
 	EnabledBaremetal *bool
 	SkipPrecheck     *bool
@@ -69,12 +70,17 @@ func Instance() *Config {
 	return instance
 }
 
+func IsInitialized() bool {
+	return instance != nil
+}
+
 func getMCVConfig(confDir string) MCVConfig {
 	return MCVConfig{
 		EnabledGPU:       parseBoolEnv(envEnableGPU, true),
 		SkipPrecheck:     parseBoolEnv(envSkipPrecheck, false),
 		EnabledBaremetal: parseBoolEnv(envEnableBaremetal, false),
-		MCVNamespace:     getConfig(envKeplerNamespace, defaultNamespace, confDir),
+		EnabledStub:      parseBoolEnv(envEnableSTUB, false),
+		MCVNamespace:     getConfig(envMCVNamespace, defaultNamespace, confDir),
 		KubeConfig:       getConfig(envKubeConfig, defaultKubeConfig, confDir),
 	}
 }
@@ -101,6 +107,7 @@ func getConfig(key, defaultValue, confDir string) string {
 func logBoolConfigs() {
 	logging.Infof("ENABLE_GPU: %t", IsGPUEnabled())
 	logging.Infof("ENABLE_BAREMETAL: %t", IsBaremetalEnabled())
+	logging.Infof("ENABLE_STUB: %t", IsStubEnabled())
 }
 
 func LogConfigs() {
@@ -111,6 +118,11 @@ func LogConfigs() {
 func SetEnabledGPU(enabled bool) {
 	b := enabled
 	instance.MCV.EnabledGPU = &b
+}
+
+func SetEnabledStub(enabled bool) {
+	b := enabled
+	instance.MCV.EnabledStub = &b
 }
 
 func SetSkipPrecheck(enabled bool) {
@@ -133,6 +145,10 @@ func KubeConfig() string {
 
 func IsGPUEnabled() bool {
 	return instance.MCV.EnabledGPU != nil && *instance.MCV.EnabledGPU
+}
+
+func IsStubEnabled() bool {
+	return instance.MCV.EnabledStub != nil && *instance.MCV.EnabledStub
 }
 
 func IsSkipPrecheckEnabled() bool {

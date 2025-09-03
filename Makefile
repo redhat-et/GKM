@@ -63,9 +63,10 @@ OPERATOR_SDK_VERSION ?= v1.39.2
 # Image URL to use all building/pushing image targets
 QUAY_USER ?= gkm
 IMAGE_TAG ?= latest
-OPERATOR_IMG ?= quay.io/$(QUAY_USER)/operator:$(IMAGE_TAG)
-AGENT_IMG ?=quay.io/$(QUAY_USER)/agent:$(IMAGE_TAG)
-CSI_IMG ?=quay.io/$(QUAY_USER)/gkm-csi-plugin:$(IMAGE_TAG)
+REPO ?= quay.io/$(QUAY_USER)
+OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
+AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
+CSI_IMG ?=$(REPO)/gkm-csi-plugin:$(IMAGE_TAG)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -278,9 +279,9 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 ##@ Deployment
 .PHONY: prepare-deploy
 prepare-deploy:
-	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
+	cd config/operator && $(KUSTOMIZE) edit set image $(REPO)/operator=${OPERATOR_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image $(REPO)/agent=${AGENT_IMG}
+	cd config/csi-plugin && $(KUSTOMIZE) edit set image $(REPO)/gkm-csi-plugin=${CSI_IMG}
 ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
