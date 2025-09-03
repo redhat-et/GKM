@@ -80,7 +80,7 @@ as container images. A compatible Cache image consists of cache
 directory for a Triton Kernel/vLLM model. The details can be found in
 [spec-compat.md](./spec-compat.md)
 
-### Example
+### Triton Cache Example
 
 To extract the Triton Cache for the
 [01-vector-add.py](https://github.com/triton-lang/triton/blob/main/python/tutorials/01-vector-add.py)
@@ -247,7 +247,60 @@ skopeo inspect containers-storage:quay.io/gkm/vector-add-cache:rocm | jq -r '.La
   ]
 }
 ```
+### vLLM Cache example
 
+To Create an OCI image for a vLLM Cache run the following:
+
+```bash
+mcv -c -i quay.io/mtahhan/vllm-flash-attention:rocm -d example/vllm-cache
+INFO[2025-09-03 09:04:15] Hardware accelerator(s) detected (2). GPU support enabled.
+INFO[2025-09-03 09:04:15] Using buildah to build the image
+INFO[2025-09-03 09:04:23] Detected cache components: [vllm]
+INFO[2025-09-03 09:04:24] Image built! 8218fac0225882a7de7a1f11f32aff25df2936f1f12b08c0c26ab30897d19c5a
+INFO[2025-09-03 09:04:24] OCI image created successfully.
+```
+
+To inspect the image labels specifically run:
+
+```bash
+skopeo inspect containers-storage:quay.io/mtahhan/vllm-flash-attention:rocm
+{
+    "Name": "quay.io/mtahhan/vllm-flash-attention",
+    "Digest": "sha256:ed4dad604449aec384cf71ca310b55b71369357596bfa2d38b16697dc314d848",
+    "RepoTags": [],
+    "Created": "2025-09-03T09:04:23.891933044Z",
+    "DockerVersion": "",
+    "Labels": {
+        "cache.vllm.image/cache-size-bytes": "2269180",
+        "cache.vllm.image/entry-count": "1",
+        "cache.vllm.image/summary": "{\"targets\":[{\"backend\":\"hip\",\"arch\":\"gfx90a\",\"warp_size\":64}]}"
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Layers": [
+        "sha256:088097095e6040fe597c64330f2f2e0f256b31b2243417a8c2a6a38408e2c1da"
+    ],
+    "LayersData": [
+        {
+            "MIMEType": "application/vnd.oci.image.layer.v1.tar",
+            "Digest": "sha256:088097095e6040fe597c64330f2f2e0f256b31b2243417a8c2a6a38408e2c1da",
+            "Size": 2357760,
+            "Annotations": null
+        }
+    ],
+    "Env": null
+}
+```
+
+To extract the vLLM Cache run the following:
+
+```bash
+mcv -e -i  quay.io/mtahhan/vllm-flash-attention:rocm
+INFO[2025-09-03 09:06:00] Hardware accelerator(s) detected (2). GPU support enabled.
+INFO[2025-09-03 09:06:02] Preflight GPU compatibility check passed.
+INFO[2025-09-03 09:06:02] Preflight completed                           matched="[0 1]" unmatched="[]"
+INFO[2025-09-03 09:06:04] Extracting cache to directory: /home/fedora/.cache/vllm
+```
 ## Signing Container Images
 
 Use [Sigstore Cosign](https://docs.sigstore.dev/) to sign mcv-built images.
