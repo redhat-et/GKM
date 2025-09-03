@@ -23,7 +23,37 @@ var (
 )
 
 type gpuAMD struct {
-	devices map[int]GPUDevice
+	name       string
+	deviceType DeviceType
+	hwType     string
+	tritonInfo []TritonGPUInfo
+	summaries  []DeviceSummary
+	devices    map[int]GPUDevice
+}
+
+// SetName sets the name of the AMD device.
+func (d *gpuAMD) SetName(name string) {
+	d.name = name
+}
+
+// SetDeviceType sets the device type of the AMD device.
+func (d *gpuAMD) SetDeviceType(deviceType DeviceType) {
+	d.deviceType = deviceType
+}
+
+// SetHwType sets the hardware type of the AMD device.
+func (d *gpuAMD) SetHwType(hwType string) {
+	d.hwType = hwType
+}
+
+// SetTritonInfo sets the Triton GPU information for the AMD device.
+func (d *gpuAMD) SetTritonInfo(info []TritonGPUInfo) {
+	d.tritonInfo = info
+}
+
+// SetSummaries sets the summaries for the AMD device.
+func (d *gpuAMD) SetSummaries(summaries []DeviceSummary) {
+	d.summaries = summaries
 }
 
 type AMDGPUInfo struct {
@@ -206,9 +236,9 @@ func amdCheck(r *Registry) {
 	}
 	amdType = AMD
 	if err := addDeviceInterface(r, amdType, amdHwType, amdDeviceStartup); err == nil {
-		logging.Infof("Using %s to obtain GPU info", amdAccImpl.Name())
+		logging.Debugf("Using %s to obtain GPU info", amdAccImpl.Name())
 	} else {
-		logging.Infof("Error registering amd-smi: %v", err)
+		logging.Debugf("Error registering amd-smi: %v", err)
 	}
 }
 
@@ -222,7 +252,8 @@ func amdDeviceStartup() Device {
 		logging.Errorf("Failed to init device: %v", err)
 		return nil
 	}
-	logging.Infof("Using %s to obtain GPU info", amdType.String())
+	logging.Debugf("Using %s to obtain GPU info", amdType.String())
+	logging.Debugf("AMD device startup completed")
 	return &a
 }
 
@@ -373,12 +404,20 @@ func (r *gpuAMD) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 }
 
 func (r *gpuAMD) GetAllSummaries() ([]DeviceSummary, error) {
+	// Check if summaries are already cached
+	if len(r.summaries) > 0 {
+		logging.Debugf("Returning cached summaries for AMD device %s", r.Name())
+		return r.summaries, nil
+	}
+
+	// Fallback to default behavior if cache is unavailable
 	var allAccInfo []DeviceSummary
 	for gpuID := range r.devices {
 		dev := r.devices[gpuID]
 		allAccInfo = append(allAccInfo, dev.Summary)
-		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.Summary)
 	}
+	r.summaries = allAccInfo // Cache the summaries for future calls
 	return allAccInfo, nil
 }
 
@@ -388,4 +427,9 @@ func (r *gpuAMD) GetSummary(gpuID int) (DeviceSummary, error) {
 		return DeviceSummary{}, fmt.Errorf("GPU device %d not found", gpuID)
 	}
 	return dev.Summary, nil
+}
+
+// NewAMDGPUDevice creates a new AMD GPU device instance.
+func NewAMDGPUDevice() Device {
+	return &gpuAMD{}
 }

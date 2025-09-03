@@ -20,8 +20,9 @@ const (
 	envEnableGPU       = "ENABLE_GPU"
 	envSkipPrecheck    = "SKIP_PRECHECK"
 	envEnableBaremetal = "ENABLE_BAREMETAL"
+	envEnableSTUB      = "ENABLE_STUB"
 	envKubeConfig      = "KUBE_CONFIG"
-	envKeplerNamespace = "KEPLER_NAMESPACE"
+	envMCVNamespace    = "MCV_NAMESPACE"
 
 	defaultNamespace  = "mcv"
 	defaultKubeConfig = ""

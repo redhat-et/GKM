@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hf-token-secret
+  namespace: gkm-test-ns-scoped
+type: Opaque
+data:
+  token: <HF_TOKEN in base64>

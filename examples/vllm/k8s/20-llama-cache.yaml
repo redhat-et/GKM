@@ -1,0 +1,8 @@
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: llama-3-1-8b-instruct-rocm
+  namespace: gkm-test-ns-scoped
+  annotations:
+spec:
+  image: quay.io/gkm/cache-examples:llama-3.1-8B-instruct-rocm

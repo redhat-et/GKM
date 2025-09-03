@@ -37,8 +37,38 @@ var (
 )
 
 type gpuNvml struct {
-	libInited bool
-	devices   map[int]GPUDevice // List of GPU identifiers for the device
+	libInited  bool
+	devices    map[int]GPUDevice // List of GPU identifiers for the device
+	name       string
+	deviceType DeviceType
+	hwType     string
+	tritonInfo []TritonGPUInfo
+	summaries  []DeviceSummary
+}
+
+// SetName sets the name of the NVML device.
+func (d *gpuNvml) SetName(name string) {
+	d.name = name
+}
+
+// SetDeviceType sets the device type of the NVML device.
+func (d *gpuNvml) SetDeviceType(deviceType DeviceType) {
+	d.deviceType = deviceType
+}
+
+// SetHwType sets the hardware type of the NVML device.
+func (d *gpuNvml) SetHwType(hwType string) {
+	d.hwType = hwType
+}
+
+// SetTritonInfo sets the Triton GPU information for the NVML device.
+func (d *gpuNvml) SetTritonInfo(info []TritonGPUInfo) {
+	d.tritonInfo = info
+}
+
+// SetSummaries sets the summaries for the NVML device.
+func (d *gpuNvml) SetSummaries(summaries []DeviceSummary) {
+	d.summaries = summaries
 }
 
 func nvmlCheck(r *Registry) {
@@ -46,12 +76,12 @@ func nvmlCheck(r *Registry) {
 		logging.Debugf("Error initializing nvml: %v", nvmlErrorString(err))
 		return
 	}
-	logging.Info("Initializing nvml Successful")
+	logging.Debug("Initializing nvml Successful")
 	nvmlType = NVML
 	if err := addDeviceInterface(r, nvmlType, nvmlHwType, nvmlDeviceStartup); err == nil {
-		logging.Infof("Using %s to obtain GPU info", nvmlAccImpl.Name())
+		logging.Debugf("Using %s to obtain GPU info", nvmlAccImpl.Name())
 	} else {
-		logging.Infof("Error registering nvml: %v", err)
+		logging.Debugf("Error registering nvml: %v", err)
 	}
 }
 
@@ -65,7 +95,8 @@ func nvmlDeviceStartup() Device {
 		logging.Errorf("failed to Init device: %v", err)
 		return nil
 	}
-	logging.Infof("Using %s to obtain GPU info", nvmlType.String())
+	logging.Debugf("Using %s to obtain GPU info", nvmlType.String())
+	logging.Debugf("NVML device startup completed")
 	return &a
 }
 
@@ -118,7 +149,7 @@ func (n *gpuNvml) Init() (err error) {
 		}
 	}
 
-	logging.Infof("Found %d GPU devices\n", count)
+	logging.Debugf("Found %d GPU devices\n", count)
 
 	n.devices = make(map[int]GPUDevice, count)
 	for gpuID := 0; gpuID < count; gpuID++ {
@@ -151,7 +182,7 @@ func (n *gpuNvml) Init() (err error) {
 		}
 
 		n.devices[gpuID] = dev
-		logging.Infof("GPU %d: %+v", gpuID, dev.TritonInfo)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}
 
 	// Removed the line n.collectionSupported = true
@@ -217,7 +248,7 @@ func (n *gpuNvml) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 	for gpuID := range n.devices {
 		dev := n.devices[gpuID]
 		allTritonInfo = append(allTritonInfo, dev.TritonInfo)
-		logging.Infof("GPU %d: %+v", gpuID, dev.TritonInfo)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
 	}
 
 	return allTritonInfo, nil
@@ -235,7 +266,21 @@ func nvmlErrorString(errno nvml.Return) string {
 
 // GetAllSummaries implements Device.
 func (n *gpuNvml) GetAllSummaries() ([]DeviceSummary, error) {
-	panic("unimplemented")
+	// Check if summaries are already cached
+	if len(n.summaries) > 0 {
+		logging.Debugf("Returning cached summaries for NVML device %s", n.Name())
+		return n.summaries, nil
+	}
+
+	// Fallback to default behavior if cache is unavailable
+	var allAccInfo []DeviceSummary
+	for gpuID := range n.devices {
+		dev := n.devices[gpuID]
+		allAccInfo = append(allAccInfo, dev.Summary)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.Summary)
+	}
+	n.summaries = allAccInfo // Cache the summaries for future calls
+	return allAccInfo, nil
 }
 
 // GetSummary implements Device.

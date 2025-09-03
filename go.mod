@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/redhat-et/MCU/mcv v1.0.0
+	github.com/redhat-et/MCU/mcv v1.1.2
 	github.com/rs/zerolog v1.34.0
 	github.com/sigstore/cosign/v2 v2.5.3
 	github.com/sigstore/rekor v1.3.10
