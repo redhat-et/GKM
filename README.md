@@ -247,6 +247,7 @@ skopeo inspect containers-storage:quay.io/gkm/vector-add-cache:rocm | jq -r '.La
   ]
 }
 ```
+
 ### vLLM Cache example
 
 To Create an OCI image for a vLLM Cache run the following:
@@ -301,6 +302,7 @@ INFO[2025-09-03 09:06:02] Preflight GPU compatibility check passed.
 INFO[2025-09-03 09:06:02] Preflight completed                           matched="[0 1]" unmatched="[]"
 INFO[2025-09-03 09:06:04] Extracting cache to directory: /home/fedora/.cache/vllm
 ```
+
 ## Signing Container Images
 
 Use [Sigstore Cosign](https://docs.sigstore.dev/) to sign mcv-built images.

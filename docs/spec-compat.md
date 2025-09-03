@@ -1,9 +1,9 @@
 
-# Triton Image Specification v0.0.0
+# GPU Kernel Cache Image Specification v0.0.0
 
 ## Introduction
 
-This document describes a variant of Triton Artifact Image Specification
+This document describes a variant of Triton/vLLM Artifact Image Specification
 which leverages the compatible layer media types. We call this variant "compat".
 
 ## Description
@@ -23,15 +23,15 @@ following:
 - `application/vnd.oci.image.layer.v1.tar+gzip`
 - `application/vnd.docker.image.rootfs.diff.tar.gzip`
 
-In addition, such a layer must consist of the Triton cache directory
+In addition, such a layer must consist of the Triton/vLLM cache directory
 contents.
 
 ### Annotation
 
 If the media type equals `application/vnd.oci.image.layer.v1.tar+gzip`, then a
 *compat* variant image *should* add the annotation `cache.triton.image/variant=compat`
-in the manifest to make it easy to distinguish this *compat* variant from the
-*oci* variant. Note that this is **optional**.
+or `cache.vllm.image/variant=compat` in the manifest to make it easy to distinguish
+this *compat* variant from the *oci* variant. Note that this is **optional**.
 
 ### Example with `application/vnd.oci.image.layer.v1.tar+gzip` media type
 
@@ -71,6 +71,8 @@ $ skopeo inspect docker://quay.io/tkm/triton-cache:01-vector-add-latest
 }
 ```
 
+> **Note**: The same can be done for a vLLM cache.
+
 ### Example with `application/vnd.docker.image.rootfs.diff.tar.gzip` media type
 
 The following is an example Docker manifest of images with
@@ -108,7 +110,7 @@ $ skopeo inspect docker://quay.io/tkm/triton-cache:01-vector-add-latest
 }
 ```
 
-## Appendix 1: build a *compat* image with Buildah
+## Appendix 1: build a Triton *compat* image with Buildah
 
 We demonstrate how to build a *compat* image with Buildah, a standard cli
 for building OCI images. We use v1.21.0 of Buildah here. Produced images
@@ -139,7 +141,7 @@ buildah copy quay.io/tkm/triton-cache:01-vector-add-latest vector-add-cache/ ./i
 612fd1391d341bcb9f738a4d0ed6a15095e68dfc3245d8a899af3ecb4b60b8b1
 ```
 
-> NOTE: you must execute `buildah copy` exactly once in order to end
+> **Note**: you must execute `buildah copy` exactly once in order to end
 > up having only one layer in produced images**
 
 1. Now, you can build a *compat* image and push it to your registry
@@ -149,9 +151,11 @@ via `buildah commit` command
 buildah commit quay.io/tkm/triton-cache:01-vector-add-latest docker://quay.io/tkm/triton-cache:01-vector-add-latest
 ```
 
-## Appendix 2: build a *compat* image with Docker CLI
+> **Note**: The same can be done for a vLLM cache.
 
-> NOTE: An example Dockerfile and Triton cache can be found in the
+## Appendix 2: build a Triton *compat* image with Docker CLI
+
+> **Note**: An example Dockerfile and Triton cache can be found in the
 [example](./example/) directory.
 
 We demonstrate how to build a *compat* image with Docker CLI. Produced
@@ -184,3 +188,5 @@ docker build -t quay.io/tkm/triton-cache:01-vector-add-latest .
 ```bash
 docker push quay.io/tkm/triton-cache:01-vector-add-latest
 ```
+
+> **Note**: The same can be done for a vLLM cache.
