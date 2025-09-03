@@ -10,6 +10,7 @@ import (
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/MCU/mcv/pkg/cache"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -72,23 +73,23 @@ func DetectCacheTypeFromLabels(labels map[string]string) (string, error) {
 		return "", fmt.Errorf("no labels provided")
 	}
 	if _, ok := labels["cache.triton.image/summary"]; ok {
-		return "triton", nil
+		return constants.Triton, nil
 	}
 	if _, ok := labels["cache.vllm.image/summary"]; ok {
-		return "vllm", nil
+		return constants.VLLM, nil
 	}
 	return "", fmt.Errorf("unknown cache type from labels")
 }
 
 // CompareCacheManifestToGPU dispatches manifest comparison based on cache type
-func CompareCacheManifestToGPU(manifestPath string, cacheType string, devInfo []devices.TritonGPUInfo) error {
+func CompareCacheManifestToGPU(manifestPath, cacheType string, devInfo []devices.TritonGPUInfo) error {
 	if cacheType == "" {
 		return fmt.Errorf("cache type is empty")
 	}
 	switch cacheType {
-	case "triton":
+	case constants.Triton:
 		return CompareTritonCacheManifestToGPU(manifestPath, devInfo)
-	case "vllm":
+	case constants.VLLM:
 		return CompareVLLMCacheManifestToGPU(manifestPath, devInfo)
 	default:
 		return fmt.Errorf("unsupported cache type: %s", cacheType)

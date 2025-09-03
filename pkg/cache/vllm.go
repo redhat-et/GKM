@@ -1,8 +1,6 @@
 package cache
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/redhat-et/MCU/mcv/pkg/constants"
-	"github.com/redhat-et/MCU/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -136,7 +133,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 	return nil
 }
 
-func (v *VLLMCache) Name() string { return "vllm" }
+func (v *VLLMCache) Name() string { return constants.VLLM }
 
 func (v *VLLMCache) EntryCount() int {
 	return v.count
@@ -208,89 +205,11 @@ func (v *VLLMCache) SetTmpPath(path string) {
 // Extracts the vllm cache and manifest in a given reader for tar.gz.
 // This is only used for *compat* variant.
 func ExtractVLLMCacheDirectory(r io.Reader) ([]string, error) {
-	var extractedDirs []string
-	gr, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse layer as tar.gz: %v", err)
-	}
-	defer gr.Close()
-
-	tr := tar.NewReader(gr)
-
-	// Ensure top-level output directories exist once
-	if err = os.MkdirAll(constants.ExtractCacheDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create cache directory: %w", err)
-	}
-	if err = os.MkdirAll(constants.ExtractManifestDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create manifest directory: %w", err)
-	}
-
-	for {
-		h, ret := tr.Next()
-		if ret == io.EOF {
-			break
-		} else if ret != nil {
-			return nil, fmt.Errorf("error reading tar archive: %w", ret)
-		}
-
-		// Skip irrelevant files
-		if !strings.HasPrefix(h.Name, constants.MCVVLLMCacheDir) &&
-			!strings.HasPrefix(h.Name, "io.vllm.manifest/manifest.json") {
-			continue
-		}
-
-		// Determine output path
-		var filePath string
-		if strings.HasPrefix(h.Name, constants.MCVVLLMCacheDir) {
-			rel := strings.TrimPrefix(h.Name, constants.MCVVLLMCacheDir)
-			if rel == "" {
-				continue
-			}
-			filePath = filepath.Join(constants.ExtractCacheDir, rel)
-
-			topDir := filepath.Join(constants.ExtractCacheDir, filepath.Dir(rel))
-			if !stringInSlice(topDir, extractedDirs) {
-				extractedDirs = append(extractedDirs, topDir)
-			}
-		} else if strings.HasPrefix(h.Name, "io.vllm.manifest/") {
-			rel := strings.TrimPrefix(h.Name, "io.vllm.manifest/")
-			filePath = filepath.Join(constants.ExtractManifestDir, rel)
-		}
-
-		// Ensure parent dir exists
-		if err = os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-			return nil, fmt.Errorf("failed to create directory for %s: %w", filePath, err)
-		}
-
-		switch h.Typeflag {
-		case tar.TypeDir:
-			if err = os.MkdirAll(filePath, os.FileMode(h.Mode)); err != nil {
-				return nil, fmt.Errorf("failed to create directory %s: %w", filePath, err)
-			}
-		case tar.TypeReg:
-			if err = writeFile(filePath, tr, os.FileMode(h.Mode)); err != nil {
-				return nil, fmt.Errorf("failed to write file %s: %w", filePath, err)
-			}
-		default:
-			logging.Debugf("Skipping unsupported type: %c in file %s", h.Typeflag, h.Name)
-		}
-	}
-
-	// Fix up cache JSONs
-	err = filepath.Walk(constants.ExtractCacheDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasPrefix(info.Name(), "__grp__") && strings.HasSuffix(info.Name(), ".json") {
-			if err := utils.RestoreFullPathsInGroupJSON(path, constants.ExtractCacheDir); err != nil {
-				logging.Warnf("failed to restore full paths in %s: %v", path, err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error restoring full paths in cache JSON files: %w", err)
-	}
-
-	return extractedDirs, nil
+	return extractCacheAndManifestDirectory(
+		r,
+		constants.MCVVLLMCacheDir,
+		"io.vllm.manifest/",
+		constants.ExtractCacheDir,
+		constants.ExtractManifestDir,
+	)
 }

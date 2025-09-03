@@ -173,7 +173,7 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 
 	// Ensure manifest output directory exists
 	constants.ExtractManifestDir = filepath.Join(constants.MCVBuildDir, constants.ManifestDir)
-	if err := os.MkdirAll(constants.ExtractManifestDir, 0755); err != nil {
+	if err = os.MkdirAll(constants.ExtractManifestDir, 0755); err != nil {
 		logging.Warnf("Failed to create manifest directory %s: %v", constants.ExtractManifestDir, err)
 	}
 	logging.Debugf("Extracting manifest to directory: %s", constants.ExtractManifestDir)
@@ -186,9 +186,9 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 
 	if constants.ExtractCacheDir == "" {
 		switch cacheType {
-		case "triton":
+		case constants.Triton:
 			constants.ExtractCacheDir = constants.TritonCacheDir
-		case "vllm":
+		case constants.VLLM:
 			constants.ExtractCacheDir = constants.VLLMCacheDir
 		default:
 			return fmt.Errorf("unsupported cache type: %s", cacheType)

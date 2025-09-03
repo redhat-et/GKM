@@ -9,6 +9,8 @@ import (
 
 // Core default paths and environment keys
 const (
+	VLLM             = "vllm"
+	Triton           = "triton"
 	MCVBuildDir      = "/tmp/.mcv"
 	CacheDir         = "cache"
 	ManifestDir      = "manifest"
