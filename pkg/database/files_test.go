@@ -46,6 +46,9 @@ func TestIsDirEmpty(t *testing.T) {
 		digest := "1234567890"
 		volumeId := "adbcef-123456"
 		digest2 := "0123456789"
+		podNamespace := "blue"
+		podName := "blue-1"
+		podName2 := "blue-2"
 
 		// Test an non-existent directory, nothing exists so internal error, returns not empty
 		t.Logf("TEST: 1 - Nonexistent Directory - Should return empty")
@@ -53,9 +56,9 @@ func TestIsDirEmpty(t *testing.T) {
 		require.Equal(t, empty, true)
 
 		// Create a directory with files
-		err := AddUsageData(namespace, name, digest, volumeId, 100, log)
+		err := AddUsageData(namespace, name, digest, volumeId, podNamespace, podName, 100, log)
 		require.NoError(t, err)
-		err = AddUsageData(namespace, name, digest2, volumeId, 100, log)
+		err = AddUsageData(namespace, name, digest2, volumeId, podNamespace, podName2, 100, log)
 		require.NoError(t, err)
 
 		// Test a top-level directory, sub-directories exist so should not be empty

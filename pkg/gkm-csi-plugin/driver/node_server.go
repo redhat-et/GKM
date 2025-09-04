@@ -85,6 +85,9 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 		}
 	}
 
+	podName, _ := req.VolumeContext[utils.CsiPodNameIndex]
+	podNamespace, _ := req.VolumeContext[utils.CsiPodNamespaceIndex]
+
 	// Check if the Kernel Cache is already mounted.
 	mounted, _ := database.IsTargetBindMount(req.TargetPath, d.log)
 	/*
@@ -189,7 +192,7 @@ func (d *Driver) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolu
 	}
 
 	// Add the Usage Data
-	err = database.AddUsageData(crNamespace, crName, cacheData.ResolvedDigest, req.VolumeId, size, d.log)
+	err = database.AddUsageData(crNamespace, crName, cacheData.ResolvedDigest, req.VolumeId, podNamespace, podName, size, d.log)
 	if err != nil {
 		d.log.Error(err, "unable to save usage data",
 			"volumeId", req.VolumeId, "namespace", crNamespace, "name", crName, "digest", cacheData.ResolvedDigest)
