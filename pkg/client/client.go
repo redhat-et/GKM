@@ -34,16 +34,6 @@ type xPU struct {
 	Acc *ghw.AcceleratorInfo
 }
 
-// detectAccelerators detects hardware accelerators and enables GPU logic if supported hardware is found.
-func detectAccelerators() error {
-	_, err := ghw.Accelerator()
-	if err != nil {
-		return fmt.Errorf("failed to detect hardware accelerator: %w", err)
-	}
-	config.SetEnabledGPU(true)
-	return nil
-}
-
 // GetXPUInfo returns combined CPU and accelerator information (e.g., GPUs,
 // FPGAs) for the current system using the ghw library. Used for diagnostics
 // or --hw-info output.
@@ -101,7 +91,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if err = detectAccelerators(); err != nil {
+	if _, err = devices.DetectAccelerators(); err != nil {
 		logging.Warn("No accelerators detected, GPU logic disabled.")
 	}
 
@@ -164,15 +154,16 @@ func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if err := detectAccelerators(); err != nil {
+	if _, err := devices.DetectAccelerators(); err != nil {
 		return nil, err
 	}
-
+	logging.Debug("Try to startup the accelerator")
 	// Initialize the GPU accelerator
 	acc, err := accelerator.New(config.GPU, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
 	}
+	logging.Debugf("GPU enabled after accelerator: %v", config.IsGPUEnabled())
 
 	// Register the accelerator
 	accelerator.GetRegistry().MustRegister(acc)

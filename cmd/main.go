@@ -87,6 +87,8 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, cre
 }
 
 func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag bool) {
+	configureBaremetalAndGPU(baremetalFlag, noGPUFlag)
+
 	if hwInfoFlag {
 		handleHWInfo()
 	}
@@ -98,8 +100,6 @@ func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extr
 	if checkCompatFlag {
 		handleCheckCompat(imageName)
 	}
-
-	configureBaremetalAndGPU(baremetalFlag, noGPUFlag)
 
 	if (createFlag || extractFlag) && imageName == "" {
 		logging.Error("--image is required when using --create or --extract")
@@ -197,6 +197,7 @@ func handleCheckCompat(imageName string) {
 func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
 	config.SetEnabledBaremetal(baremetalFlag)
 	logging.Debugf("baremetalFlag %v", baremetalFlag)
+	logging.Debugf("noGPUFlag %v", noGPUFlag)
 
 	if noGPUFlag {
 		logging.Debug("GPU checks disabled: running in no-GPU mode (--no-gpu)")

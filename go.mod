@@ -12,6 +12,7 @@ require (
 	github.com/docker/docker v28.1.1+incompatible
 	github.com/google/go-containerregistry v0.20.3
 	github.com/jaypipes/ghw v0.17.0
+	github.com/jaypipes/pcidb v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -83,7 +84,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jaypipes/pcidb v1.0.1 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

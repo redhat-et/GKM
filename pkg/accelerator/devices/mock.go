@@ -16,6 +16,8 @@ limitations under the License.
 package devices
 
 import (
+	"os"
+
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -29,22 +31,28 @@ type MockDevice struct {
 	collectionSupported bool
 }
 
-func RegisterMockDevice() {
-	r := GetRegistry()
+func mockCheck(r *Registry) {
+	logging.Debugf("Checking for mock device support")
+	if os.Getenv("MCV_ENABLE_MOCK_DEVICE") == "" {
+		return
+	}
+	logging.Debugf("Mock device enabled via MCV_ENABLE_MOCK_DEVICE environment variable")
+	// Register mock device under MOCK key
 	if err := addDeviceInterface(r, mockDevice, mockDevice.String(), MockDeviceDeviceStartup); err != nil {
 		logging.Debugf("couldn't register mock device %v", err)
 	}
+	logging.Debugf("Using %s interface to obtain Device info", mockDevice.String())
 }
 
 func MockDeviceDeviceStartup() Device {
-	d := MockDevice{
+	d := &MockDevice{
 		mockDevice:          mockDevice,
 		name:                mockDevice.String(),
 		collectionSupported: true,
 	}
 
 	logging.Debugf("MockDevice startup completed")
-	return &d
+	return d
 }
 
 func (d *MockDevice) Name() string {
@@ -81,15 +89,6 @@ func (d *MockDevice) GetAllGPUInfo() ([]TritonGPUInfo, error) {
 }
 
 func (d *MockDevice) GetAllSummaries() ([]DeviceSummary, error) {
-	cache, err := loadCache()
-	if err == nil {
-		if cachedDevice, ok := cache.Devices[d.Name()]; ok {
-			logging.Debugf("Returning cached summaries for Mock device %s", d.Name())
-			return cachedDevice.Summaries, nil
-		}
-	}
-
-	// Fallback to default behavior if cache is unavailable
 	return []DeviceSummary{}, nil
 }
 

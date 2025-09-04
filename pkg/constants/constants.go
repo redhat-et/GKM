@@ -3,6 +3,7 @@ package constants
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	logging "github.com/sirupsen/logrus"
 )
@@ -23,7 +24,9 @@ const (
 	MCVVLLMCacheDir      = "io.vllm.cache"
 	MCVVLLMManifestDir   = "io.vllm.manifest"
 
-	EnvTritonCacheDir = "TRITON_CACHE_DIR"
+	EnvTritonCacheDir    = "TRITON_CACHE_DIR"
+	DefaultCacheFilePath = "/tmp/device_cache.json"
+	CacheTTL             = 10 * time.Minute // Cache Time-To-Live
 )
 
 // Configurable runtime paths
