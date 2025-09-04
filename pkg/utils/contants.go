@@ -34,6 +34,8 @@ const (
 	CsiDriverName          = "csi.gkm.io"
 	CsiCacheNamespaceIndex = "csi.gkm.io/namespace"
 	CsiCacheNameIndex      = "csi.gkm.io/GKMCache"
+	CsiPodNameIndex        = "csi.storage.k8s.io/pod.name"
+	CsiPodNamespaceIndex   = "csi.storage.k8s.io/pod.namespace"
 	CsiDriverYamlFile      = "./csi-driver.yaml"
 
 	// GKMCache and ClusterGKMCache Annotations

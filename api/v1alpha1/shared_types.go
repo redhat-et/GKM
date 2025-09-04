@@ -94,6 +94,17 @@ type GpuStatus struct {
 	GpuList []int `json:"ids,omitempty"`
 }
 
+type PodData struct {
+	// podNamespace is the namespace of the pod the GPU Kernel Cache is mounted in.
+	PodNamespace string `json:"podNamespace,omitempty"`
+
+	// podName is the name of the pod the GPU Kernel Cache is mounted in.
+	PodName string `json:"podName,omitempty"`
+
+	// volumeId is the Volume Id the CSI Driver received from Kubelet. It
+	// identifies the GPU Kernel Cache that is actively Volume Mounted in a pod.
+	VolumeId string `json:"volumeId,omitempty"`
+}
 type CacheStatus struct {
 	// compatibleGPUs is the list of GPU ids that the extracted GPU Kernel Cache
 	// is compatible with. The ids refer back to the list of GPUs in status.gpus.
@@ -115,10 +126,9 @@ type CacheStatus struct {
 	// volumeSize is the size of the extracted GPU Kernel Cache in bytes.
 	VolumeSize int64 `json:"volumeSize,omitempty"`
 
-	// volumeIds is the list of Volume Ids the CSI Driver received from Kubelet.
-	// Each Id represents a GPU Kernel Cache that is actively Volume Mounted in a
-	// pod.
-	VolumeIds []string `json:"volumeIds,omitempty"`
+	// pods is the list of pods the GPU Kernel Cache that is actively Volume
+	// Mounted.
+	Pods []PodData `json:"pods,omitempty"`
 }
 
 type GKMCacheNodeStatus struct {

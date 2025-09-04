@@ -152,13 +152,26 @@ spec:
                           updated.
                         format: date-time
                         type: string
-                      volumeIds:
+                      pods:
                         description: |-
-                          volumeIds is the list of Volume Ids the CSI Driver received from Kubelet.
-                          Each Id represents a GPU Kernel Cache that is actively Volume Mounted in a
-                          pod.
+                          pods is the list of pods the GPU Kernel Cache that is actively Volume
+                          Mounted.
                         items:
-                          type: string
+                          properties:
+                            podName:
+                              description: podName is the name of the pod the GPU
+                                Kernel Cache is mounted in.
+                              type: string
+                            podNamespace:
+                              description: podNamespace is the namespace of the pod
+                                the GPU Kernel Cache is mounted in.
+                              type: string
+                            volumeId:
+                              description: |-
+                                volumeId is the Volume Id the CSI Driver received from Kubelet. It
+                                identifies the GPU Kernel Cache that is actively Volume Mounted in a pod.
+                              type: string
+                          type: object
                         type: array
                       volumeSize:
                         description: volumeSize is the size of the extracted GPU Kernel

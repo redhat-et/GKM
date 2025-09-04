@@ -95,10 +95,9 @@ FIELDS:
     lastUpdated contains the timestamp of the last time this cache instance was
     updated.
 
-  volumeIds	<[]string>
-    volumeIds is the list of Volume Ids the CSI Driver received from Kubelet.
-    Each Id represents a GPU Kernel Cache that is actively Volume Mounted in a
-    pod.
+  pods	<[]Object>
+    pods is the list of pods the GPU Kernel Cache that is actively Volume
+    Mounted.
 
   volumeSize	<integer>
     volumeSize is the size of the extracted GPU Kernel Cache in bytes.
@@ -150,6 +149,29 @@ FIELDS:
 
   type	<string> -required-
     type of condition in CamelCase or in foo.example.com/CamelCase.
+
+$ kubectl explain GKMCacheNode.status.caches.pods
+GROUP:      gkm.io
+KIND:       GKMCacheNode
+VERSION:    v1alpha1
+
+FIELD: pods <[]Object>
+
+
+DESCRIPTION:
+    pods is the list of pods the GPU Kernel Cache that is actively Volume
+    Mounted.
+    
+FIELDS:
+  podName	<string>
+    podName is the name of the pod the GPU Kernel Cache is mounted in.
+
+  podNamespace	<string>
+    podNamespace is the namespace of the pod the GPU Kernel Cache is mounted in.
+
+  volumeId	<string>
+    volumeId is the Volume Id the CSI Driver received from Kubelet. It
+    identifies the GPU Kernel Cache that is actively Volume Mounted in a pod.
 
 $ kubectl explain GKMCacheNode.status.counts
 GROUP:      gkm.io

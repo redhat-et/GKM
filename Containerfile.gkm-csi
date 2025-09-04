@@ -12,6 +12,7 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 
 # Copy the go source
+COPY api/ api/
 COPY csi-plugin/ csi-plugin/
 COPY pkg/ pkg/
 COPY test/ test/
