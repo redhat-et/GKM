@@ -241,6 +241,12 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 					Digest:    resolvedDigest,
 				}
 
+				// If the Cache still exists on host, mark it as viewed so checks aren't rerun
+				// in garbage collection.
+				if _, cacheFound := (*extractedList)[key]; cacheFound {
+					(*extractedList)[key] = false
+				}
+
 				// Before extracting and doing work on a given Cache, make sure it is not being deleted.
 				if reconciler.isBeingDeleted(&gkmCache) {
 					inUse, cacheNodeUpdated, err := r.removeCacheFromCacheNode(
@@ -257,12 +263,6 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 						// will be retriggered with the GKMCacheNode Object update.
 						//return ctrl.Result{Requeue: false}, nil
 						return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
-					}
-
-					// If the Cache still exists on host, mark it as viewed so checks aren't rerun
-					// in garbage collection.
-					if _, cacheFound := (*extractedList)[key]; cacheFound {
-						(*extractedList)[key] = false
 					}
 
 					// Update counts for this Namespace.
@@ -292,11 +292,6 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 						return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
 					}
 					cnts.PodRunningCnt += podUseCnt
-
-					// Image has been extracted and processed and nothing changed on this pass. Set t
-					// false in our local copy to indicate that is has been processed. Used for garbage
-					// collection at the end of reconciling.
-					(*extractedList)[key] = false
 				} else {
 					// Cache has not been extracted. Check if error occurred in previous extraction attempt.
 					nodeStatus := (*gkmCacheNode).GetStatus()
@@ -404,7 +399,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 								if !ok {
 									cnts = gkmv1alpha1.CacheCounts{}
 								}
-								cnts.PodOutdatedCnt += len(cacheStatus.VolumeIds)
+								cnts.PodOutdatedCnt += len(cacheStatus.Pods)
 								nodeCnts[key.Namespace] = cnts
 							}
 						}
@@ -656,15 +651,19 @@ func (r *ReconcilerCommonAgent[C, CL, N]) checkForCacheUpdateInCacheNode(
 				resolvedDigest,
 				r.Logger)
 			if err == nil {
-				cacheStatus.VolumeIds = usage.VolumeId
-				podUseCnt = len(usage.VolumeId)
+				if !reflect.DeepEqual(cacheStatus.Pods, usage.Pods) {
+					cacheStatus.Pods = make([]gkmv1alpha1.PodData, len(usage.Pods))
+					copy(cacheStatus.Pods, usage.Pods)
+				}
+
+				podUseCnt = len(usage.Pods)
 
 				// Condition: Running
 				if !gkmv1alpha1.GkmCondRunning.IsConditionSet(cacheStatus.Conditions) {
 					r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondRunning.Condition())
 				}
 			} else {
-				cacheStatus.VolumeIds = nil
+				cacheStatus.Pods = nil
 
 				// Condition: Extracted
 				if !gkmv1alpha1.GkmCondExtracted.IsConditionSet(cacheStatus.Conditions) {

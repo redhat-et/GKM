@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
@@ -46,7 +47,7 @@ type UsageData struct {
 	Digest      string `json:"digest"`
 
 	// Index used by CSI Driver
-	VolumeId []string `json:"volume_id"`
+	Pods []gkmv1alpha1.PodData `json:"pods"`
 
 	// Usage Data
 	RefCount   int32 `json:"ref_count"`
@@ -71,8 +72,8 @@ func GetUsageDataByVolumeId(volumeId string, log logr.Logger) (*UsageData, error
 		if !d.IsDir() {
 			err := loadJSONFromUsageFile(path, &usage)
 			if err == nil {
-				for _, id := range usage.VolumeId {
-					if id == volumeId {
+				for _, pod := range usage.Pods {
+					if pod.VolumeId == volumeId {
 						return fileFound
 					}
 				}
@@ -109,7 +110,11 @@ func GetUsageData(crNamespace, crName, digest string, log logr.Logger) (*UsageDa
 	return &usage, nil
 }
 
-func AddUsageData(crNamespace, crName, digest, volumeId string, size int64, log logr.Logger) error {
+func AddUsageData(
+	crNamespace, crName, digest, volumeId, podNamespace, podName string,
+	size int64,
+	log logr.Logger,
+) error {
 	if crName == "" {
 		return fmt.Errorf("custom resource name is required")
 	}
@@ -141,7 +146,12 @@ func AddUsageData(crNamespace, crName, digest, volumeId string, size int64, log 
 			return err
 		}
 
-		curUsage.VolumeId = append(curUsage.VolumeId, volumeId)
+		pod := gkmv1alpha1.PodData{
+			PodNamespace: podNamespace,
+			PodName:      podName,
+			VolumeId:     volumeId,
+		}
+		curUsage.Pods = append(curUsage.Pods, pod)
 		curUsage.CrName = crName
 		curUsage.CrNamespace = crNamespace
 		curUsage.Digest = digest
@@ -155,19 +165,26 @@ func AddUsageData(crNamespace, crName, digest, volumeId string, size int64, log 
 				"crName", crName,
 				"digest", digest,
 				"size", size,
-				"VolumeSize", curUsage.VolumeSize)
+				"VolumeSize", curUsage.VolumeSize,
+				"PodNamespace", podNamespace,
+				"PodName", podName)
 			curUsage.VolumeSize = size
 		}
 
 		found := false
-		for _, id := range curUsage.VolumeId {
-			if id == volumeId {
+		for _, pod := range curUsage.Pods {
+			if pod.VolumeId == volumeId {
 				found = true
 				break
 			}
 		}
 		if !found {
-			curUsage.VolumeId = append(curUsage.VolumeId, volumeId)
+			pod := gkmv1alpha1.PodData{
+				PodNamespace: podNamespace,
+				PodName:      podName,
+				VolumeId:     volumeId,
+			}
+			curUsage.Pods = append(curUsage.Pods, pod)
 			curUsage.RefCount++
 		}
 	}
@@ -178,7 +195,9 @@ func AddUsageData(crNamespace, crName, digest, volumeId string, size int64, log 
 		log.Error(err, "AddUsageData(): failed to save usage to file",
 			"crNamespace", crNamespace,
 			"crName", crName,
-			"digest", digest)
+			"digest", digest,
+			"PodNamespace", podNamespace,
+			"PodName", podName)
 		return err
 	}
 
@@ -203,16 +222,16 @@ func DeleteUsageData(volumeId string, log logr.Logger) error {
 				err := loadJSONFromUsageFile(path, &usage)
 				if err == nil {
 					found := false
-					newVolumeIdList := []string{}
-					for _, id := range usage.VolumeId {
-						if id == volumeId {
+					newVolumeIdList := []gkmv1alpha1.PodData{}
+					for _, pod := range usage.Pods {
+						if pod.VolumeId == volumeId {
 							found = true
 							if usage.RefCount == 1 {
 								// Last Entry, Remove File
 								err = os.Remove(path)
 								if err != nil {
 									log.Error(err, "DeleteUsageData(): error deleting usage file, continuing",
-										"VolumeId", usage.VolumeId, "path", path)
+										"VolumeId", volumeId, "path", path)
 								}
 
 								// Check if Digest Directory is empty and if so remove.
@@ -222,7 +241,7 @@ func DeleteUsageData(volumeId string, log logr.Logger) error {
 									err = os.RemoveAll(digestDir)
 									if err != nil {
 										log.Error(err, "DeleteUsageData(): error deleting digestDir directory, continuing",
-											"VolumeId", usage.VolumeId, "digestDir", digestDir)
+											"VolumeId", volumeId, "digestDir", digestDir)
 									}
 
 									// Check if Custom Resource Name Directory is empty and if so remove.
@@ -232,7 +251,7 @@ func DeleteUsageData(volumeId string, log logr.Logger) error {
 										err = os.RemoveAll(crNameDir)
 										if err != nil {
 											log.Error(err, "DeleteUsageData(): error deleting crNameDir directory, continuing",
-												"VolumeId", usage.VolumeId, "crNameDir", crNameDir)
+												"VolumeId", volumeId, "crNameDir", crNameDir)
 										}
 
 										// Check if Custom Resource Namespace Directory is empty and if so remove.
@@ -242,7 +261,7 @@ func DeleteUsageData(volumeId string, log logr.Logger) error {
 											err = os.RemoveAll(crNamespaceDir)
 											if err != nil {
 												log.Error(err, "DeleteUsageData(): error deleting crNamespaceDir directory, continuing",
-													"VolumeId", usage.VolumeId, "crNamespaceDir", crNamespaceDir)
+													"VolumeId", volumeId, "crNamespaceDir", crNamespaceDir)
 											}
 										}
 									}
@@ -256,12 +275,12 @@ func DeleteUsageData(volumeId string, log logr.Logger) error {
 							}
 						} else {
 							// Build up a new list of VolumeIds without the one being removed.
-							newVolumeIdList = append(newVolumeIdList, id)
+							newVolumeIdList = append(newVolumeIdList, pod)
 						}
 					}
 					if found {
 						usage.RefCount--
-						usage.VolumeId = newVolumeIdList
+						usage.Pods = newVolumeIdList
 						err = saveJSONToUsageFile(path, &usage)
 						if err != nil {
 							log.Error(err, "DeleteUsageData(): error updating crNamespaceDir file, continuing",
