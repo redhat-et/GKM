@@ -37,7 +37,16 @@ const (
 )
 
 const cacheFilePath = "/tmp/device_cache.json"
-const cacheTTL = 10 * time.Minute // Cache Time-To-Live
+
+var configFilePath = "/tmp/device_config.json" // Static config stub
+const cacheTTL = 10 * time.Minute              // Cache Time-To-Live
+
+func init() {
+	// Allow override of static config path via env var
+	if v := os.Getenv("MCV_DEVICE_CONFIG_PATH"); v != "" {
+		configFilePath = v
+	}
+}
 
 var (
 	deviceRegistry *Registry
@@ -215,6 +224,25 @@ func loadCache() (*DeviceCache, error) {
 	return &cache, nil
 }
 
+// Try to load a static device config file (stub mode)
+func loadStaticConfig() (*DeviceCache, error) {
+	file, err := os.Open(configFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var cache DeviceCache
+	if err := json.NewDecoder(file).Decode(&cache); err != nil {
+		return nil, err
+	}
+
+	// Log the loaded config for debugging
+	logging.Debugf("Loaded static config with %d devices", len(cache.Devices))
+
+	return &cache, nil
+}
+
 func saveCache(devices map[string]Device) error {
 	cache := DeviceCache{
 		Timestamp: time.Now(),
@@ -255,25 +283,36 @@ func saveCache(devices map[string]Device) error {
 
 // Startup initializes and returns a new Device according to the given DeviceType [NVML|OTHER].
 func Startup(a string) Device {
-	// Attempt to load the cache
+	// 1. Try to load static config first
+	staticConfig, err := loadStaticConfig()
+	if err == nil {
+		if cachedDevice, ok := staticConfig.Devices[a]; ok {
+			logging.Debugf("Using static device config for %s", a)
+			registry := GetRegistry()
+			if deviceStartup, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
+				device := deviceStartup()
+				// Do NOT update cache if using static config
+				logging.Debugf("Restored device instance for %s from static config", a)
+				return device
+			}
+			logging.Errorf("No startup function found for static config device type %s", cachedDevice.DeviceType.String())
+		}
+		// If static config is present but doesn't match, treat as no device
+		logging.Errorf("No device found in static config for %s", a)
+		return nil
+	}
+
+	// 2. Fallback to cache
 	cache, err := loadCache()
 	if err == nil {
 		if cachedDevice, ok := cache.Devices[a]; ok {
 			logging.Debugf("Using cached configuration for %s", a)
-
-			// Retrieve the global registry
 			registry := GetRegistry()
-
-			// Check if a startup function exists for the cached DeviceType
 			if deviceStartup, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
 				device := deviceStartup()
-
-				// Optionally, initialize the device with cached Triton information
-				// (if needed by the specific implementation)
 				logging.Debugf("Restored device instance for %s from cache", a)
 				return device
 			}
-
 			logging.Errorf("No startup function found for cached device type %s", cachedDevice.DeviceType.String())
 		}
 	}
@@ -281,6 +320,7 @@ func Startup(a string) Device {
 	// Retrieve the global registry
 	registry := GetRegistry()
 
+	// 3. Probe and save to cache as before
 	for d := range registry.Registry[a] {
 		// Attempt to start the device from the registry
 		if deviceStartup, ok := registry.Registry[a][d]; ok {

@@ -1,0 +1,46 @@
+{
+    "Timestamp": "2025-09-03T08:57:49.482687619Z",
+    "Devices": {
+        "gpu": {
+            "name": "AMD",
+            "deviceType": 1,
+            "hwType": "gpu",
+            "tritonInfo": [
+                {
+                    "name": "card0",
+                    "uuid": "daff740f-0000-1000-8062-0165038984ec",
+                    "compute_capability": "",
+                    "arch": "gfx90a",
+                    "warp_size": 64,
+                    "memory_total_mb": 65520,
+                    "ptx_version": 0,
+                    "backend": "hip",
+                    "ID": 0
+                },
+                {
+                    "name": "card1",
+                    "uuid": "acff740f-0000-1000-806b-c6ef57f28db1",
+                    "compute_capability": "",
+                    "arch": "gfx90a",
+                    "warp_size": 64,
+                    "memory_total_mb": 65520,
+                    "ptx_version": 0,
+                    "backend": "hip",
+                    "ID": 1
+                }
+            ],
+            "summaries": [
+                {
+                    "ID": "0",
+                    "DriverVersion": "6.12.10-100.fc40.x86_64",
+                    "ProductName": "Aldebaran/MI200 [Instinct MI210]"
+                },
+                {
+                    "ID": "1",
+                    "DriverVersion": "6.12.10-100.fc40.x86_64",
+                    "ProductName": "Aldebaran/MI200 [Instinct MI210]"
+                }
+            ]
+        }
+    }
+}

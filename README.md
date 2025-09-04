@@ -462,3 +462,33 @@ func main() {
     }
 }
 ```
+
+### Static Device Configuration (No-GPU Mode)
+
+MCV supports running in environments without GPUs by using a static device
+configuration file. This is useful for testing or CI environments.
+
+- If the file specified by the environment variable `MCV_DEVICE_CONFIG_PATH`
+  (default: `/tmp/device_config.json`) exists, MCV will use its contents as
+  the device list and will **not** probe for GPUs or update the cache.
+- The format of this file matches the cache file (`device_cache.json`),
+  containing a serialized `DeviceCache` object.
+
+#### Usage
+
+1. Create a static config file (e.g. `/tmp/device_config.json`) with the
+   desired device info.
+2. Set the environment variable before running MCV (optional, if you want
+   a custom path):
+
+   ```sh
+   export MCV_DEVICE_CONFIG_PATH=/path/to/device_config.json
+   ```
+
+3. Run MCV as usual. It will use the static config and behave as if those
+   devices are present.
+
+#### Example
+
+Please see an example at:
+[`device_config.json`](./example/device-config/device_config.json)
