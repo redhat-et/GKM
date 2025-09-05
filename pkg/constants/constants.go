@@ -26,6 +26,7 @@ const (
 
 	EnvTritonCacheDir    = "TRITON_CACHE_DIR"
 	DefaultCacheFilePath = "/tmp/device_cache.json"
+	StubbedCacheFile     = "/tmp/device_cache_stub.json"
 	CacheTTL             = 10 * time.Minute // Cache Time-To-Live
 )
 

@@ -49,8 +49,8 @@ func GetProductName(id int) (name string, err error) {
 
 // DetectAccelerators detects hardware accelerators and enables GPU logic if supported hardware is found.
 func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
-	if !config.IsGPUEnabled() {
-		logging.Debug("no-gpu mode configured, simulating accelerator device")
+	if config.IsStubEnabled() {
+		logging.Debug("Stub mode configured, simulating accelerator device")
 		accInfo = &ghw.AcceleratorInfo{
 			Devices: []*accelerator.AcceleratorDevice{
 				{
@@ -63,6 +63,11 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
 						Product: &pcidb.Product{
 							Name: "STUBBED AMD",
 							ID:   "STUBBED Aldebaran/MI200",
+						},
+						Driver: "dummy",
+						Class: &pcidb.Class{
+							Name: "controller",
+							ID:   "0300",
 						},
 					},
 				},
@@ -77,12 +82,15 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
 							Name: "STUBBED Product",
 							ID:   "STUBBED Aldebaran/MI200",
 						},
+						Driver: "dummy",
+						Class: &pcidb.Class{
+							Name: "controller",
+							ID:   "0300",
+						},
 					},
 				},
 			},
 		}
-		config.SetEnabledGPU(false)
-
 		return accInfo, nil
 	}
 
@@ -90,6 +98,5 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
 	}
-	config.SetEnabledGPU(true)
 	return acc, nil
 }

@@ -395,7 +395,8 @@ import (
 )
 
 func main() {
-    gpus, err := client.GetSystemGPUInfo()
+    stub := false
+    gpus, err := client.GetSystemGPUInfo(client.HwOptions{EnableStub: &stub})
     if err != nil {
         log.Fatalf("Error retrieving GPU info: %v", err)
     }
@@ -422,7 +423,8 @@ import (
 )
 
 func main() {
-    xpu, err := client.GetXPUInfo()
+    stub := false
+    xpu, err := client.GetXPUInfo(client.HwOptions{EnableStub: &stub})
     if err != nil {
         log.Fatalf("Failed to get system hardware info: %v", err)
     }
@@ -463,13 +465,12 @@ func main() {
 }
 ```
 
-### Static Device Configuration (No-GPU Mode)
+### Static Device Configuration (Stub Mode)
 
 MCV supports running in environments without GPUs by using a static device
 configuration. This is useful for testing or CI environments.
 
-#### Usage
+#### Stub Mode Usage
 
-Run MCV with the `--no-gpu` flag. It will use the static config and behave as if those
+Run MCV with the `--stub` flag. It will use the static config and behave as if those
 devices are present.
-

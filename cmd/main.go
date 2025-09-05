@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"regexp"
 
 	"github.com/containers/buildah"
 	"github.com/containers/storage/pkg/unshare"
@@ -54,113 +53,159 @@ func logFatal(message string, err error, exitCode int) {
 
 func buildRootCommand() *cobra.Command {
 	var imageName, cacheDirName, logLevel string
-	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag bool
+	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "mcv",
 		Short: "A GPU Kernel runtime container image management utility",
+		Long: `mcv is a utility for managing GPU kernel runtime container images.
+It supports creating OCI images from cache directories, extracting caches from images,
+and performing hardware compatibility checks.`,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if err := logformat.ConfigureLogging(logLevel); err != nil {
 				logFatal("Error configuring logging", err, exitLogError)
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			handleRunCommand(imageName, cacheDirName, logLevel, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag)
+			handleRunCommand(imageName, cacheDirName, logLevel, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag)
 		},
 	}
 
-	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag)
+	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag)
 	return cmd
 }
 
-func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag *bool) {
-	cmd.Flags().StringVarP(imageName, "image", "i", "", "OCI image name")
-	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton/vLLM Cache Directory")
-	cmd.Flags().StringVarP(logLevel, "log-level", "l", "", "Set the logging verbosity level: debug, info, warning or error")
-	cmd.Flags().BoolVarP(createFlag, "create", "c", false, "Create OCI image")
-	cmd.Flags().BoolVarP(extractFlag, "extract", "e", false, "Extract a Triton/vLLM cache from an OCI image")
-	cmd.Flags().BoolVarP(baremetalFlag, "baremetal", "b", false, "Run baremetal/detailed preflight checks")
-	cmd.Flags().BoolVar(noGPUFlag, "no-gpu", false, "Disable GPU logic for testing")
-	cmd.Flags().BoolVar(hwInfoFlag, "hw-info", false, "Display system hardware info")
-	cmd.Flags().BoolVar(gpuInfoFlag, "gpu-info", false, "Display GPU info")
-	cmd.Flags().BoolVar(checkCompatFlag, "check-compat", false, "Check system GPU compatibility with a given image")
+func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag *bool) {
+	// Image operations
+	cmd.Flags().StringVarP(imageName, "image", "i", "", "OCI image name (required for create, extract, check-compat)")
+	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton/vLLM cache directory path")
+
+	// Actions (mutually exclusive main operations)
+	cmd.Flags().BoolVarP(createFlag, "create", "c", false, "Create OCI image from cache directory")
+	cmd.Flags().BoolVarP(extractFlag, "extract", "e", false, "Extract Triton/vLLM cache from OCI image")
+
+	// Information commands
+	cmd.Flags().BoolVar(hwInfoFlag, "hw-info", false, "Display detailed system hardware information")
+	cmd.Flags().BoolVar(gpuInfoFlag, "gpu-info", false, "Display GPU-specific information")
+	cmd.Flags().BoolVar(checkCompatFlag, "check-compat", false, "Check GPU compatibility with specified image")
+
+	// Configuration options
+	cmd.Flags().StringVarP(logLevel, "log-level", "l", "info", "Set logging verbosity (debug, info, warning, error)")
+	cmd.Flags().BoolVarP(baremetalFlag, "baremetal", "b", false, "Enable detailed baremetal preflight checks")
+	cmd.Flags().BoolVar(noGPUFlag, "no-gpu", false, "Disable GPU detection and preflight checks (for testing)")
+	cmd.Flags().BoolVar(stubFlag, "stub", false, "Use mock/stub data for hardware info (for testing)")
+
+	// Mark mutually exclusive flags
+	cmd.MarkFlagsMutuallyExclusive("create", "extract")
+	cmd.MarkFlagsMutuallyExclusive("no-gpu", "hw-info")
+	cmd.MarkFlagsMutuallyExclusive("no-gpu", "gpu-info")
+	cmd.MarkFlagsMutuallyExclusive("no-gpu", "check-compat")
 }
 
-func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag bool) {
-	configureBaremetalAndGPU(baremetalFlag, noGPUFlag)
+func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool) {
+	// Validate flag combinations
+	if err := validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, checkCompatFlag, imageName, cacheDirName, stubFlag); err != nil {
+		logging.Error(err)
+		os.Exit(exitLogError)
+	}
+
+	configureBoolFlags(baremetalFlag, noGPUFlag, stubFlag)
 
 	if hwInfoFlag {
 		handleHWInfo()
+		return
 	}
 
 	if gpuInfoFlag {
 		handleGPUInfo()
+		return
 	}
 
 	if checkCompatFlag {
 		handleCheckCompat(imageName)
-	}
-
-	if (createFlag || extractFlag) && imageName == "" {
-		logging.Error("--image is required when using --create or --extract")
-		os.Exit(exitLogError)
-	}
-
-	if createFlag || extractFlag || checkCompatFlag {
-		if err := validateImageName(imageName); err != nil {
-			logging.Error(err)
-			os.Exit(exitLogError)
-		}
+		return
 	}
 
 	if createFlag {
 		runCreate(imageName, cacheDirName)
+		return
 	}
 
 	if extractFlag {
 		runExtract(imageName, cacheDirName, logLevel, baremetalFlag)
+		return
 	}
 
-	if !createFlag && !extractFlag {
-		logging.Error("No action specified. Use --create or --extract flag.")
-		os.Exit(exitNormal)
-	}
+	// If no action is specified, show help
+	logging.Error("No action specified. Use --help to see available options.")
+	os.Exit(exitNormal)
 }
 
-func validateImageName(imageName string) error {
-	if imageName == "" {
-		return fmt.Errorf("--image is required")
+func validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, checkCompatFlag bool, imageName, cacheDirName string, stubFlag bool) error {
+	actionCount := 0
+	if createFlag {
+		actionCount++
+	}
+	if extractFlag {
+		actionCount++
+	}
+	if hwInfoFlag {
+		actionCount++
+	}
+	if gpuInfoFlag {
+		actionCount++
+	}
+	if checkCompatFlag {
+		actionCount++
 	}
 
-	matched, err := regexp.MatchString(imageNameRegex, imageName)
-	if err != nil {
-		return fmt.Errorf("error validating image name: %v", err)
+	if actionCount > 1 {
+		return fmt.Errorf("only one action flag can be specified at a time")
 	}
 
-	if !matched {
-		return fmt.Errorf("invalid image name: %s. Ensure it is a valid Docker or Quay image URL", imageName)
+	if actionCount == 0 {
+		return fmt.Errorf("at least one action must be specified")
+	}
+
+	// Image name requirements
+	if (createFlag || extractFlag || checkCompatFlag) && imageName == "" {
+		return fmt.Errorf("--image is required when using --create, --extract, or --check-compat")
+	}
+
+	// Cache directory requirements
+	if createFlag && cacheDirName == "" {
+		return fmt.Errorf("--dir is required when using --create")
+	}
+
+	// Stub flag validation
+	if stubFlag && !(hwInfoFlag || gpuInfoFlag) {
+		return fmt.Errorf("--stub can only be used with --hw-info or --gpu-info")
 	}
 
 	return nil
 }
 
 func handleHWInfo() {
-	xpu, err := client.GetXPUInfo()
+	stub := config.IsStubEnabled()
+	xpu, err := client.GetXPUInfo(client.HwOptions{EnableStub: &stub})
 	if err != nil {
 		logging.Errorf("Error getting system hardware: %v", err)
 		os.Exit(exitLogError)
 	}
 	client.PrintXPUInfo(xpu)
+
 	os.Exit(exitNormal)
 }
 
 func handleGPUInfo() {
-	summary, err := client.GetSystemGPUInfo()
+	stub := config.IsStubEnabled()
+	summary, err := client.GetSystemGPUInfo(client.HwOptions{EnableStub: &stub})
 	if err != nil {
 		logging.Errorf("Error getting system hardware: %v", err)
 		os.Exit(exitLogError)
 	}
 	client.PrintGPUSummary(summary)
+
 	os.Exit(exitNormal)
 }
 
@@ -194,25 +239,28 @@ func handleCheckCompat(imageName string) {
 	os.Exit(exitNormal)
 }
 
-func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
+func configureBoolFlags(baremetalFlag, noGPUFlag, stub bool) {
 	config.SetEnabledBaremetal(baremetalFlag)
+	config.SetEnabledStub(stub)
+	config.SetEnabledGPU(!noGPUFlag)
+
 	logging.Debugf("baremetalFlag %v", baremetalFlag)
+	logging.Debugf("stub %v", stub)
 	logging.Debugf("noGPUFlag %v", noGPUFlag)
 
 	if noGPUFlag {
 		logging.Debug("GPU checks disabled: running in no-GPU mode (--no-gpu)")
-		config.SetEnabledGPU(false)
 		return
 	}
 
-	xpuInfo, err := client.GetXPUInfo()
+	xpuInfo, err := client.GetXPUInfo(client.HwOptions{EnableStub: &stub})
 	if err != nil || xpuInfo == nil || xpuInfo.Acc == nil || len(xpuInfo.Acc.Devices) == 0 {
-		logging.Warn("No hardware accelerator found. GPU support will be disabled.")
+		logging.Warn("No hardware accelerator found. GPU mode will be disabled.")
 		config.SetEnabledGPU(false)
 		return
 	}
 
-	logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(xpuInfo.Acc.Devices))
+	logging.Infof("Hardware accelerator(s) detected (%d).", len(xpuInfo.Acc.Devices))
 	for i, device := range xpuInfo.Acc.Devices {
 		if device.PCIDevice != nil {
 			logging.Debugf("  Accelerator %d: Vendor=%s, Product=%s", i, device.PCIDevice.Vendor.Name, device.PCIDevice.Product.Name)
@@ -220,7 +268,6 @@ func configureBaremetalAndGPU(baremetalFlag, noGPUFlag bool) {
 			logging.Debugf("  Accelerator %d: PCI device info unavailable", i)
 		}
 	}
-	config.SetEnabledGPU(true)
 }
 
 func runCreate(imageName, cacheDir string) {

@@ -22,10 +22,14 @@ import (
 type Options struct {
 	ImageName       string // The name of the OCI image (e.g., quay.io/user/image:tag)
 	CacheDir        string // Path to store the cache; for triton defaults to ~/.triton/cache
-	EnableGPU       *bool  // Whether to enable GPU logic (nil = auto-detect, false = disable, true = force)
+	EnableGPU       *bool  // Whether to enable GPU logic for preflight checks (nil = auto-detect, false = disable, true = force)
 	LogLevel        string // Logging level: debug, info, warning, error
 	EnableBaremetal *bool  // If true, enables full hardware checks including kernel dummy key validation (for baremetal envs only)
 	SkipPrecheck    *bool  // If true, skips summary-level preflight GPU compatibility checks
+}
+
+type HwOptions struct {
+	EnableStub *bool // If true, enables stub mode (Dummy devices); for testing/dev only (false = disable, true = force))
 }
 
 // xPU wraps CPU and GPU info
@@ -37,7 +41,13 @@ type xPU struct {
 // GetXPUInfo returns combined CPU and accelerator information (e.g., GPUs,
 // FPGAs) for the current system using the ghw library. Used for diagnostics
 // or --hw-info output.
-func GetXPUInfo() (*xPU, error) {
+func GetXPUInfo(opts HwOptions) (*xPU, error) {
+	if opts.EnableStub != nil {
+		config.SetEnabledStub(*opts.EnableStub)
+		if *opts.EnableStub {
+			logging.Debug("Stub Mode disabled via client options")
+		}
+	}
 	cpuInfo, accInfo, err := devices.GetSystemHW()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hardware info: %w", err)
@@ -148,7 +158,14 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 //
 // If GPU support is not explicitly enabled, it auto-detects hardware
 // accelerators and enables GPU logic if supported hardware is found.
-func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
+func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
+	if opts.EnableStub != nil {
+		config.SetEnabledStub(*opts.EnableStub)
+		if *opts.EnableStub {
+			logging.Debug("Stub Mode disabled via client options")
+		}
+	}
+
 	if _, err := config.Initialize(config.ConfDir); err != nil {
 		return nil, fmt.Errorf("failed to initialize config: %w", err)
 	}
@@ -157,6 +174,7 @@ func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
 	if _, err := devices.DetectAccelerators(); err != nil {
 		return nil, err
 	}
+
 	logging.Debug("Try to startup the accelerator")
 	// Initialize the GPU accelerator
 	acc, err := accelerator.New(config.GPU, true)

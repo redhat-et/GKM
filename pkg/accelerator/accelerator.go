@@ -122,22 +122,21 @@ func (r *Registry) activeAcceleratorByType(t string) Accelerator {
 func New(atype string, sleep bool) (Accelerator, error) {
 	var d devices.Device
 	maxDeviceInitRetry := 10
-
 	// Init the available devices.
-
+	logging.Debugf("Starting up device of type %s", atype)
 	devs := devices.GetRegistry().GetAllDeviceTypes()
 	numDevs := len(devs)
 	if numDevs == 0 || !slices.Contains(devs, atype) {
 		return nil, errors.New("no devices found")
 	}
-
+	logging.Debugf("Found %d device(s): %v", numDevs, devs)
 	logging.Debugf("Initializing the Accelerator of type %v", atype)
 
 	for i := 0; i < maxDeviceInitRetry; i++ {
 		if d = devices.Startup(atype); d == nil {
 			logging.Errorf("Could not init the %s device going to try again", atype)
 			if sleep {
-				// The GPU operators typically takes longer time to initialize than kepler resulting in error to start the gpu driver
+				// The GPU operators typically takes longer time to initialize resulting in error to start the gpu driver
 				// therefore, we wait up to 1 min to allow the gpu operator initialize
 				time.Sleep(6 * time.Second)
 			}

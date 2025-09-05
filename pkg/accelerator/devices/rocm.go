@@ -243,7 +243,7 @@ func (r *gpuROCm) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 }
 
 func (r *gpuROCm) GetAllSummaries() ([]DeviceSummary, error) {
-	cache, err := loadCache()
+	cache, err := loadAndUpdateCache()
 	if err == nil {
 		if cachedDevice, ok := cache.Devices[r.Name()]; ok {
 			logging.Debugf("Returning cached summaries for ROCm device %s", r.Name())

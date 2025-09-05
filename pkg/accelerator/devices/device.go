@@ -40,6 +40,7 @@ const (
 var (
 	deviceRegistry *Registry
 	once           sync.Once
+	cacheFilePath  = constants.DefaultCacheFilePath
 )
 
 type (
@@ -106,6 +107,7 @@ type GPUGroup struct {
 
 // Registry gets the default device Registry instance
 func GetRegistry() *Registry {
+	logging.Debugf("Retrieving the global device registry")
 	once.Do(func() {
 		deviceRegistry = newRegistry()
 		registerDevices(deviceRegistry)
@@ -130,43 +132,15 @@ func SetRegistry(registry *Registry) {
 
 // Register all available devices in the global registry
 func registerDevices(r *Registry) {
-	if config.IsGPUEnabled() {
+	if config.IsStubEnabled() {
+		cacheFilePath = constants.StubbedCacheFile
+		logging.Debugf("Running in stubbed mode, loading static device config")
+		staticCheck(r)
+	} else {
 		// Call individual device check functions
 		amdCheck(r)
 		nvmlCheck(r)
 		rocmCheck(r)
-	} else {
-		logging.Debugf("Running in no-gpu mode, loading static device config")
-		// Create a new stubbed device cache
-		cache := NewStubbedDeviceCache()
-		for key, cachedDevice := range cache.Devices {
-			dev := cachedDevice // capture for closure
-			r.MustRegister(key, dev.DeviceType, func() Device {
-				return &StaticDevice{
-					name:       dev.Name,
-					deviceType: dev.DeviceType,
-					hwType:     dev.HwType,
-					tritonInfo: dev.TritonInfo,
-					summaries:  dev.Summaries,
-				}
-			})
-
-			// Save the registered device to the cache
-			err := saveCache(map[string]Device{
-				key: &StaticDevice{
-					name:       dev.Name,
-					deviceType: dev.DeviceType,
-					hwType:     dev.HwType,
-					tritonInfo: dev.TritonInfo,
-					summaries:  dev.Summaries,
-				},
-			})
-			if err != nil {
-				logging.Errorf("Failed to save cache for device %s: %v", key, err)
-			}
-
-			logging.Debugf("Registered static device %s of type %s from cache", key, dev.DeviceType.String())
-		}
 	}
 }
 
@@ -224,9 +198,12 @@ func addDeviceInterface(registry *Registry, dtype DeviceType, accType string, de
 	return nil
 }
 
-func loadCache() (*DeviceCache, error) {
-	logging.Debugf("Loading device cache from %s", constants.DefaultCacheFilePath)
-	file, err := os.Open(constants.DefaultCacheFilePath)
+func loadAndUpdateCache() (*DeviceCache, error) {
+	if _, err := os.Stat(cacheFilePath); os.IsNotExist(err) {
+		return nil, errors.New("cache file does not exist")
+	}
+	logging.Debugf("Loading device cache from %s", cacheFilePath)
+	file, err := os.Open(cacheFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -237,53 +214,56 @@ func loadCache() (*DeviceCache, error) {
 		return nil, err
 	}
 
-	if config.IsGPUEnabled() {
-		// Check if the cache is still valid
-		if time.Since(cache.Timestamp) < constants.CacheTTL {
-			// Log the loaded cache for debugging
-			logging.Debugf("Loaded cache with %d devices", len(cache.Devices))
-			return &cache, nil
-		}
+	// Check if the cache is still valid - if it's expired, update it
+	if time.Since(cache.Timestamp) > constants.CacheTTL {
+		return nil, errors.New("cache expired")
+	}
 
-		// Delete the old cache file if it exists
-		if _, err := os.Stat(constants.DefaultCacheFilePath); err == nil {
-			err := os.Remove(constants.DefaultCacheFilePath)
-			if err != nil {
-				logging.Errorf("Failed to delete old cache file: %v", err)
-			}
-		}
+	logging.Debugf("Loaded cache with %d devices", len(cache.Devices))
+	return &cache, nil
+}
 
-		// Retrieve the global registry
-		registry := GetRegistry()
-
-		// Probe and save to cache as before
-		for a, deviceTypes := range registry.Registry {
-			for d, deviceStartup := range deviceTypes {
-				logging.Debugf("Starting up %s", d.String())
-				device := deviceStartup()
-
-				// Save the device to the cache
-				err := saveCache(map[string]Device{a: device})
-				if err != nil {
-					logging.Errorf("Failed to save cache: %v", err)
-					continue
-				}
-
-				return &DeviceCache{
-					Timestamp: time.Now(),
-					Devices: map[string]CachedDevice{
-						a: {
-							Name:       device.Name(),
-							DeviceType: device.DevType(),
-							HwType:     device.HwType(),
-						},
-					},
-				}, nil
-			}
+// updateCache deletes the old cache, probes devices, and creates a new cache
+func updateCache() (*DeviceCache, error) {
+	logging.Debugf("Updating device cache")
+	// Delete the old cache file if it exists
+	if _, err := os.Stat(cacheFilePath); err == nil {
+		err := os.Remove(cacheFilePath)
+		if err != nil {
+			logging.Errorf("Failed to delete old cache file: %v", err)
 		}
 	}
 
-	return &cache, nil
+	// Retrieve the global registry
+	registry := GetRegistry()
+
+	// Probe and save to cache as before
+	for a, deviceTypes := range registry.Registry {
+		for d, deviceStartup := range deviceTypes {
+			logging.Debugf("Starting up %s", d.String())
+			device := deviceStartup()
+
+			// Save the device to the cache
+			err := saveCache(map[string]Device{a: device})
+			if err != nil {
+				logging.Errorf("Failed to save cache: %v", err)
+				continue
+			}
+
+			return &DeviceCache{
+				Timestamp: time.Now(),
+				Devices: map[string]CachedDevice{
+					a: {
+						Name:       device.Name(),
+						DeviceType: device.DevType(),
+						HwType:     device.HwType(),
+					},
+				},
+			}, nil
+		}
+	}
+
+	return nil, errors.New("no devices found to cache")
 }
 
 func saveCache(devices map[string]Device) error {
@@ -315,7 +295,7 @@ func saveCache(devices map[string]Device) error {
 		}
 	}
 
-	file, err := os.Create(constants.DefaultCacheFilePath)
+	file, err := os.Create(cacheFilePath)
 	if err != nil {
 		return err
 	}
@@ -326,8 +306,9 @@ func saveCache(devices map[string]Device) error {
 
 // Startup initializes and returns a new Device according to the given DeviceType [NVML|OTHER].
 func Startup(a string) Device {
-	// 1. Try to load the device cache
-	cache, err := loadCache()
+	logging.Debugf("Starting up device of type %s", a)
+
+	cache, err := loadAndUpdateCache()
 	if err == nil {
 		if cachedDevice, ok := cache.Devices[a]; ok {
 			logging.Debugf("Using cached configuration for %s", a)
@@ -341,19 +322,21 @@ func Startup(a string) Device {
 		}
 	}
 
-	// Retrieve the global registry
+	// Fall back: Retrieve the global registry and Probe devices
 	registry := GetRegistry()
 
-	// 2. Probe and save to cache as before
 	for d := range registry.Registry[a] {
 		// Attempt to start the device from the registry
 		if deviceStartup, ok := registry.Registry[a][d]; ok {
 			logging.Debugf("Starting up %s", d.String())
 			device := deviceStartup()
+
+			// Save the device to the cache
+			saveCache(map[string]Device{a: device})
+
 			return device
 		}
 	}
-
 	// The device type is unsupported
 	logging.Errorf("unsupported Device")
 	return nil

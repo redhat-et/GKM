@@ -65,17 +65,15 @@ type ImgMgr interface {
 func New() ImgMgr {
 	var a accelerator.Accelerator
 
-	if config.IsGPUEnabled() {
-		r := accelerator.GetRegistry()
-		acc, err := accelerator.New(config.GPU, true)
-		if err != nil {
-			logging.Errorf("failed to init GPU accelerators: %v", err)
-		} else {
-			r.MustRegister(acc) // Register the accelerator with the registry
-			a = acc
-		}
-		// defer accelerator.Shutdown() // TODO CALL IN CLEANUP
+	r := accelerator.GetRegistry()
+	acc, err := accelerator.New(config.GPU, true)
+	if err != nil {
+		logging.Warnf("failed to init GPU accelerators: %v", err)
+	} else {
+		r.MustRegister(acc) // Register the accelerator with the registry
+		a = acc
 	}
+	// defer accelerator.Shutdown() // TODO CALL IN CLEANUP
 
 	return &imgMgr{
 		fetcher:   NewImgFetcher(),
