@@ -178,7 +178,7 @@ func validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, 
 	}
 
 	// Stub flag validation
-	if stubFlag && !(hwInfoFlag || gpuInfoFlag) {
+	if stubFlag && !(hwInfoFlag || gpuInfoFlag) { //nolint:staticcheck // QF1001: De Morgan's law intentionally not applied for readability
 		return fmt.Errorf("--stub can only be used with --hw-info or --gpu-info")
 	}
 
