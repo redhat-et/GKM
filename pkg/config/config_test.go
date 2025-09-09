@@ -40,7 +40,7 @@ func TestInitialize_Defaults(t *testing.T) {
 func TestEnvironmentOverrides(t *testing.T) {
 	t.Setenv("ENABLE_GPU", "false")
 	t.Setenv("ENABLE_BAREMETAL", "true")
-	t.Setenv("KEPLER_NAMESPACE", "custom-ns")
+	t.Setenv("MCV_NAMESPACE", "custom-ns")
 	t.Setenv("KUBE_CONFIG", "/path/to/kubeconfig")
 
 	tempDir := t.TempDir()

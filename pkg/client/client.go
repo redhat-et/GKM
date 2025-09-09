@@ -42,9 +42,17 @@ type xPU struct {
 // FPGAs) for the current system using the ghw library. Used for diagnostics
 // or --hw-info output.
 func GetXPUInfo(opts HwOptions) (*xPU, error) {
+	if !config.IsInitialized() {
+		if _, err := config.Initialize(config.ConfDir); err != nil {
+			return nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
+	}
+
 	if opts.EnableStub != nil {
 		config.SetEnabledStub(*opts.EnableStub)
 		if *opts.EnableStub {
+			logging.Debug("Stub Mode enabled via client options")
+		} else {
 			logging.Debug("Stub Mode disabled via client options")
 		}
 	}
@@ -92,8 +100,10 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		return nil, nil, fmt.Errorf("image name must be specified")
 	}
 
-	if _, err = config.Initialize(config.ConfDir); err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+	if !config.IsInitialized() {
+		if _, err = config.Initialize(config.ConfDir); err != nil {
+			return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
 	}
 
 	if err = logformat.ConfigureLogging(opts.LogLevel); err != nil {
@@ -159,15 +169,19 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 // If GPU support is not explicitly enabled, it auto-detects hardware
 // accelerators and enables GPU logic if supported hardware is found.
 func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
-	if opts.EnableStub != nil {
-		config.SetEnabledStub(*opts.EnableStub)
-		if *opts.EnableStub {
-			logging.Debug("Stub Mode disabled via client options")
+	if !config.IsInitialized() {
+		if _, err := config.Initialize(config.ConfDir); err != nil {
+			return nil, fmt.Errorf("failed to initialize config: %w", err)
 		}
 	}
 
-	if _, err := config.Initialize(config.ConfDir); err != nil {
-		return nil, fmt.Errorf("failed to initialize config: %w", err)
+	if opts.EnableStub != nil {
+		config.SetEnabledStub(*opts.EnableStub)
+		if *opts.EnableStub {
+			logging.Debug("Stub Mode enabled via client options")
+		} else {
+			logging.Debug("Stub Mode disabled via client options")
+		}
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
@@ -216,8 +230,10 @@ func PrintGPUSummary(summary *devices.GPUFleetSummary) {
 //
 // Returns slices of matched and unmatched GPUs, along with any error encountered.
 func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error) {
-	if _, err = config.Initialize(config.ConfDir); err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+	if !config.IsInitialized() {
+		if _, err = config.Initialize(config.ConfDir); err != nil {
+			return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
 	}
 
 	// Initialize the GPU accelerator

@@ -70,12 +70,17 @@ func Instance() *Config {
 	return instance
 }
 
+func IsInitialized() bool {
+	return instance != nil
+}
+
 func getMCVConfig(confDir string) MCVConfig {
 	return MCVConfig{
 		EnabledGPU:       parseBoolEnv(envEnableGPU, true),
 		SkipPrecheck:     parseBoolEnv(envSkipPrecheck, false),
 		EnabledBaremetal: parseBoolEnv(envEnableBaremetal, false),
-		MCVNamespace:     getConfig(envKeplerNamespace, defaultNamespace, confDir),
+		EnabledStub:      parseBoolEnv(envEnableSTUB, false),
+		MCVNamespace:     getConfig(envMCVNamespace, defaultNamespace, confDir),
 		KubeConfig:       getConfig(envKubeConfig, defaultKubeConfig, confDir),
 	}
 }
@@ -102,6 +107,7 @@ func getConfig(key, defaultValue, confDir string) string {
 func logBoolConfigs() {
 	logging.Infof("ENABLE_GPU: %t", IsGPUEnabled())
 	logging.Infof("ENABLE_BAREMETAL: %t", IsBaremetalEnabled())
+	logging.Infof("ENABLE_STUB: %t", IsStubEnabled())
 }
 
 func LogConfigs() {
