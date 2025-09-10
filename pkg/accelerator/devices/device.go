@@ -275,17 +275,38 @@ func Startup(a string, registry *Registry) Device {
 		if cachedDevice, ok := cache.Devices[a]; ok {
 			logging.Debugf("Using cached configuration for %s", a)
 			if deviceInfo, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
-				if deviceInfo.instance != nil {
-					logging.Debugf("Restored device instance for %s from cache", a)
-					return deviceInfo.instance
+				// Create an empty instance of the device
+				var device Device
+				switch cachedDevice.DeviceType {
+				case AMD:
+					device = &gpuAMD{}
+				case NVML:
+					device = &gpuNvml{}
+				case ROCM:
+					device = &gpuROCm{}
+				default:
+					logging.Errorf("Unsupported device type %s", cachedDevice.DeviceType.String())
+					return nil
 				}
-				logging.Errorf("No instances found for device type %s", cachedDevice.DeviceType.String())
-				return nil
+
+				// Initialize the device with cached data
+				if err := initializeDeviceFromCache(device, cachedDevice); err != nil {
+					logging.Errorf("Failed to initialize device %s from cache: %v", a, err)
+					return nil
+				}
+
+				// Update the registry with the restored device instance
+				deviceInfo.instance = device
+				registry.Registry[a][cachedDevice.DeviceType] = deviceInfo
+
+				logging.Debugf("Restored device instance for %s from cache", a)
+				return device
 			}
 			logging.Errorf("No startup function found for cached device type %s", cachedDevice.DeviceType.String())
 		}
 	}
 
+	// If no cache or restoration failed, probe for the device
 	for d := range registry.Registry[a] {
 		// Check if there are already instances of the device
 		deviceInfo, ok := registry.Registry[a][d]
@@ -303,6 +324,7 @@ func Startup(a string, registry *Registry) Device {
 
 		// Add the new device instance
 		deviceInfo.instance = device
+		registry.Registry[a][d] = deviceInfo
 
 		// Save the device to the cache
 		saveCache(map[string]Device{a: device})
@@ -313,6 +335,26 @@ func Startup(a string, registry *Registry) Device {
 	// The device type is unsupported
 	logging.Errorf("unsupported Device")
 	return nil
+}
+
+// initializeDeviceFromCache initializes a device instance with cached data.
+func initializeDeviceFromCache(device Device, cachedDevice CachedDevice) error {
+	// Set device properties based on cached data
+	if setter, ok := device.(interface {
+		SetName(string)
+		SetDeviceType(DeviceType)
+		SetHwType(string)
+		SetTritonInfo([]TritonGPUInfo)
+		SetSummaries([]DeviceSummary)
+	}); ok {
+		setter.SetName(cachedDevice.Name)
+		setter.SetDeviceType(cachedDevice.DeviceType)
+		setter.SetHwType(cachedDevice.HwType)
+		setter.SetTritonInfo(cachedDevice.TritonInfo)
+		setter.SetSummaries(cachedDevice.Summaries)
+		return nil
+	}
+	return errors.New("device does not support initialization from cache")
 }
 
 // SummarizeDevice generates a summary of GPU devices grouped by their product name

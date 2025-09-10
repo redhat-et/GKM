@@ -341,7 +341,7 @@ func getAMDListInfo(ctx context.Context) (map[int]*AMDListInfo, error) {
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute amd-smi: %v", err)
-	}GOFLAGS=-mod=vendor golangci-lint run --timeout=5m --modules-download-mode=vendor ./...
+	}
 
 	var listInfo []*AMDListInfo
 	if err = json.Unmarshal(output, &listInfo); err != nil {
@@ -398,4 +398,9 @@ func (r *gpuAMD) GetSummary(gpuID int) (DeviceSummary, error) {
 		return DeviceSummary{}, fmt.Errorf("GPU device %d not found", gpuID)
 	}
 	return dev.Summary, nil
+}
+
+// NewAMDGPUDevice creates a new AMD GPU device instance.
+func NewAMDGPUDevice() Device {
+	return &gpuAMD{}
 }
