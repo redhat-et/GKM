@@ -37,8 +37,38 @@ var (
 )
 
 type gpuNvml struct {
-	libInited bool
-	devices   map[int]GPUDevice // List of GPU identifiers for the device
+	libInited  bool
+	devices    map[int]GPUDevice // List of GPU identifiers for the device
+	name       string
+	deviceType DeviceType
+	hwType     string
+	tritonInfo []TritonGPUInfo
+	summaries  []DeviceSummary
+}
+
+// SetName sets the name of the NVML device.
+func (d *gpuNvml) SetName(name string) {
+	d.name = name
+}
+
+// SetDeviceType sets the device type of the NVML device.
+func (d *gpuNvml) SetDeviceType(deviceType DeviceType) {
+	d.deviceType = deviceType
+}
+
+// SetHwType sets the hardware type of the NVML device.
+func (d *gpuNvml) SetHwType(hwType string) {
+	d.hwType = hwType
+}
+
+// SetTritonInfo sets the Triton GPU information for the NVML device.
+func (d *gpuNvml) SetTritonInfo(info []TritonGPUInfo) {
+	d.tritonInfo = info
+}
+
+// SetSummaries sets the summaries for the NVML device.
+func (d *gpuNvml) SetSummaries(summaries []DeviceSummary) {
+	d.summaries = summaries
 }
 
 func nvmlCheck(r *Registry) {
@@ -236,12 +266,10 @@ func nvmlErrorString(errno nvml.Return) string {
 
 // GetAllSummaries implements Device.
 func (n *gpuNvml) GetAllSummaries() ([]DeviceSummary, error) {
-	cache, err := loadCache()
-	if err == nil {
-		if cachedDevice, ok := cache.Devices[n.Name()]; ok {
-			logging.Debugf("Returning cached summaries for NVML device %s", n.Name())
-			return cachedDevice.Summaries, nil
-		}
+	// Check if summaries are already cached
+	if len(n.summaries) > 0 {
+		logging.Debugf("Returning cached summaries for NVML device %s", n.Name())
+		return n.summaries, nil
 	}
 
 	// Fallback to default behavior if cache is unavailable
@@ -249,8 +277,9 @@ func (n *gpuNvml) GetAllSummaries() ([]DeviceSummary, error) {
 	for gpuID := range n.devices {
 		dev := n.devices[gpuID]
 		allAccInfo = append(allAccInfo, dev.Summary)
-		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.Summary)
 	}
+	n.summaries = allAccInfo // Cache the summaries for future calls
 	return allAccInfo, nil
 }
 

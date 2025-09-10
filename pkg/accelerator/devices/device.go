@@ -224,7 +224,7 @@ func loadCache() (*DeviceCache, error) {
 		return nil, errors.New("cache expired")
 	}
 
-	logging.Debugf("Loaded cache with %d devices", len(cache.Devices))
+	logging.Debugf("Loaded %d devices from the device cache", len(cache.Devices))
 	return &cache, nil
 }
 
@@ -352,6 +352,8 @@ func initializeDeviceFromCache(device Device, cachedDevice CachedDevice) error {
 		setter.SetHwType(cachedDevice.HwType)
 		setter.SetTritonInfo(cachedDevice.TritonInfo)
 		setter.SetSummaries(cachedDevice.Summaries)
+		logging.Debugf("Device %s restored from cache with %d summaries and %d Triton GPU info entries",
+			cachedDevice.Name, len(cachedDevice.Summaries), len(cachedDevice.TritonInfo))
 		return nil
 	}
 	return errors.New("device does not support initialization from cache")
