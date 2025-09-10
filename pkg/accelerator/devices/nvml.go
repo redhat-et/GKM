@@ -236,7 +236,7 @@ func nvmlErrorString(errno nvml.Return) string {
 
 // GetAllSummaries implements Device.
 func (n *gpuNvml) GetAllSummaries() ([]DeviceSummary, error) {
-	cache, err := loadAndUpdateCache()
+	cache, err := loadCache()
 	if err == nil {
 		if cachedDevice, ok := cache.Devices[n.Name()]; ok {
 			logging.Debugf("Returning cached summaries for NVML device %s", n.Name())

@@ -47,10 +47,14 @@ type (
 	DeviceType        int
 	deviceStartupFunc func() Device // Function prototype to startup a new device instance.
 	Registry          struct {
-		Registry map[string]map[DeviceType]deviceStartupFunc // Static map of supported Devices Startup functions
+		Registry map[string]map[DeviceType]DeviceInfo // Static map of supported Devices Startup functions
 	}
 )
 
+type DeviceInfo struct {
+	startupFunc deviceStartupFunc
+	instance    Device
+}
 type DeviceCache struct {
 	Timestamp time.Time
 	Devices   map[string]CachedDevice // Store serialized device information
@@ -118,7 +122,7 @@ func GetRegistry() *Registry {
 // NewRegistry creates a new instance of Registry without registering devices
 func newRegistry() *Registry {
 	return &Registry{
-		Registry: map[string]map[DeviceType]deviceStartupFunc{},
+		Registry: map[string]map[DeviceType]DeviceInfo{},
 	}
 }
 
@@ -139,8 +143,8 @@ func registerDevices(r *Registry) {
 	} else {
 		// Call individual device check functions
 		amdCheck(r)
-		nvmlCheck(r)
 		rocmCheck(r)
+		nvmlCheck(r)
 	}
 }
 
@@ -151,8 +155,8 @@ func (r *Registry) MustRegister(a string, d DeviceType, deviceStartup deviceStar
 		return
 	}
 	logging.Debugf("Adding the device to the registry [%s][%s]", a, d.String())
-	r.Registry[a] = map[DeviceType]deviceStartupFunc{
-		d: deviceStartup,
+	r.Registry[a] = map[DeviceType]DeviceInfo{
+		d: {startupFunc: deviceStartup},
 	}
 }
 
@@ -198,10 +202,11 @@ func addDeviceInterface(registry *Registry, dtype DeviceType, accType string, de
 	return nil
 }
 
-func loadAndUpdateCache() (*DeviceCache, error) {
+func loadCache() (*DeviceCache, error) {
 	if _, err := os.Stat(cacheFilePath); os.IsNotExist(err) {
 		return nil, errors.New("cache file does not exist")
 	}
+
 	logging.Debugf("Loading device cache from %s", cacheFilePath)
 	file, err := os.Open(cacheFilePath)
 	if err != nil {
@@ -221,49 +226,6 @@ func loadAndUpdateCache() (*DeviceCache, error) {
 
 	logging.Debugf("Loaded cache with %d devices", len(cache.Devices))
 	return &cache, nil
-}
-
-// updateCache deletes the old cache, probes devices, and creates a new cache
-func updateCache() (*DeviceCache, error) {
-	logging.Debugf("Updating device cache")
-	// Delete the old cache file if it exists
-	if _, err := os.Stat(cacheFilePath); err == nil {
-		err := os.Remove(cacheFilePath)
-		if err != nil {
-			logging.Errorf("Failed to delete old cache file: %v", err)
-		}
-	}
-
-	// Retrieve the global registry
-	registry := GetRegistry()
-
-	// Probe and save to cache as before
-	for a, deviceTypes := range registry.Registry {
-		for d, deviceStartup := range deviceTypes {
-			logging.Debugf("Starting up %s", d.String())
-			device := deviceStartup()
-
-			// Save the device to the cache
-			err := saveCache(map[string]Device{a: device})
-			if err != nil {
-				logging.Errorf("Failed to save cache: %v", err)
-				continue
-			}
-
-			return &DeviceCache{
-				Timestamp: time.Now(),
-				Devices: map[string]CachedDevice{
-					a: {
-						Name:       device.Name(),
-						DeviceType: device.DevType(),
-						HwType:     device.HwType(),
-					},
-				},
-			}, nil
-		}
-	}
-
-	return nil, errors.New("no devices found to cache")
 }
 
 func saveCache(devices map[string]Device) error {
@@ -305,31 +267,38 @@ func saveCache(devices map[string]Device) error {
 }
 
 // Startup initializes and returns a new Device according to the given DeviceType [NVML|OTHER].
-func Startup(a string) Device {
+func Startup(a string, registry *Registry) Device {
 	logging.Debugf("Starting up device of type %s", a)
 
-	cache, err := loadAndUpdateCache()
+	cache, err := loadCache()
 	if err == nil {
 		if cachedDevice, ok := cache.Devices[a]; ok {
 			logging.Debugf("Using cached configuration for %s", a)
-			registry := GetRegistry()
-			if deviceStartup, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
-				device := deviceStartup()
-				logging.Debugf("Restored device instance for %s from cache", a)
-				return device
+			if deviceInfo, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
+				if deviceInfo.instance != nil {
+					logging.Debugf("Restored device instance for %s from cache", a)
+					return deviceInfo.instance
+				}
+				logging.Errorf("No instances found for device type %s", cachedDevice.DeviceType.String())
+				return nil
 			}
 			logging.Errorf("No startup function found for cached device type %s", cachedDevice.DeviceType.String())
 		}
 	}
 
-	// Fall back: Retrieve the global registry and Probe devices
-	registry := GetRegistry()
-
 	for d := range registry.Registry[a] {
-		// Attempt to start the device from the registry
-		if deviceStartup, ok := registry.Registry[a][d]; ok {
+		// Check if there are already instances of the device
+		if deviceInfo, ok := registry.Registry[a][d]; ok {
+			// Attempt to start the device
 			logging.Debugf("Starting up %s", d.String())
-			device := deviceStartup()
+			device := deviceInfo.startupFunc()
+			if device == nil {
+				logging.Errorf("Failed to start device of type %s", d.String())
+				continue
+			}
+
+			// Add the new device instance
+			deviceInfo.instance = device
 
 			// Save the device to the cache
 			saveCache(map[string]Device{a: device})
@@ -337,6 +306,7 @@ func Startup(a string) Device {
 			return device
 		}
 	}
+
 	// The device type is unsupported
 	logging.Errorf("unsupported Device")
 	return nil
@@ -344,14 +314,11 @@ func Startup(a string) Device {
 
 // SummarizeGPUs starts the currently-registered GPU device, collects all
 // summaries, coalesces them into your desired output shape, and returns it.
-func SummarizeGPUs() (*GPUFleetSummary, error) {
-	dev := Startup(config.GPU)
-	if dev == nil {
-		return nil, errors.New("no GPU device available")
-	}
-	defer dev.Shutdown()
 
-	summaries, err := dev.GetAllSummaries()
+func SummarizeDevice(device Device) (*GPUFleetSummary, error) {
+
+	// Fetch summaries from the device
+	summaries, err := device.GetAllSummaries()
 	if err != nil {
 		return nil, err
 	}

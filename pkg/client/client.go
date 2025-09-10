@@ -201,7 +201,7 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 	accelerator.GetRegistry().MustRegister(acc)
 
 	// Fetch GPU device information
-	summary, err := devices.SummarizeGPUs()
+	summary, err := accelerator.SummarizeGPUs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GPU info: %w", err)
 	}

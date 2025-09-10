@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -121,10 +122,11 @@ func (r *Registry) activeAcceleratorByType(t string) Accelerator {
 
 func New(atype string, sleep bool) (Accelerator, error) {
 	var d devices.Device
-	maxDeviceInitRetry := 10
+	maxDeviceInitRetry := 2
 	// Init the available devices.
 	logging.Debugf("Starting up device of type %s", atype)
-	devs := devices.GetRegistry().GetAllDeviceTypes()
+	r := devices.GetRegistry()
+	devs := r.GetAllDeviceTypes()
 	numDevs := len(devs)
 	if numDevs == 0 || !slices.Contains(devs, atype) {
 		return nil, errors.New("no devices found")
@@ -133,7 +135,7 @@ func New(atype string, sleep bool) (Accelerator, error) {
 	logging.Debugf("Initializing the Accelerator of type %v", atype)
 
 	for i := 0; i < maxDeviceInitRetry; i++ {
-		if d = devices.Startup(atype); d == nil {
+		if d = devices.Startup(atype, r); d == nil {
 			logging.Errorf("Could not init the %s device going to try again", atype)
 			if sleep {
 				// The GPU operators typically takes longer time to initialize resulting in error to start the gpu driver
@@ -199,4 +201,14 @@ func GetActiveAcceleratorByType(t string) Accelerator {
 
 func GetAccelerators() map[string]Accelerator {
 	return GetRegistry().accelerators()
+}
+
+// SummarizeGPUs starts the currently-registered GPU device, collects all
+// summaries, coalesces them into your desired output shape, and returns it.
+func SummarizeGPUs() (*devices.GPUFleetSummary, error) {
+	acc := GetActiveAcceleratorByType(config.GPU)
+	if acc == nil {
+		return nil, errors.New("no active accelerator found")
+	}
+	return devices.SummarizeDevice(acc.Device())
 }
