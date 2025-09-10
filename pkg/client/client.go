@@ -189,23 +189,21 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 		return nil, err
 	}
 
-	logging.Debug("Try to startup the accelerator")
+	logging.Debug("Initializing the accelerator")
 	// Initialize the GPU accelerator
 	acc, err := accelerator.New(config.GPU, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
 	}
-	logging.Debugf("GPU enabled after accelerator: %v", config.IsGPUEnabled())
 
 	// Register the accelerator
-	accelerator.GetRegistry().MustRegister(acc)
+	accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
 
 	// Fetch GPU device information
 	summary, err := accelerator.SummarizeGPUs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GPU info: %w", err)
 	}
-
 	return summary, nil
 }
 
@@ -243,7 +241,7 @@ func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error
 	}
 
 	// Register the accelerator
-	accelerator.GetRegistry().MustRegister(acc)
+	accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
 	// Get device info (handles detection + accelerator setup)
 	devInfo, err := preflightcheck.GetAllGPUInfo(acc)
 	if err != nil {

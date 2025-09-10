@@ -341,7 +341,7 @@ func getAMDListInfo(ctx context.Context) (map[int]*AMDListInfo, error) {
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute amd-smi: %v", err)
-	}
+	}GOFLAGS=-mod=vendor golangci-lint run --timeout=5m --modules-download-mode=vendor ./...
 
 	var listInfo []*AMDListInfo
 	if err = json.Unmarshal(output, &listInfo); err != nil {
@@ -382,7 +382,7 @@ func (r *gpuAMD) GetAllSummaries() ([]DeviceSummary, error) {
 		}
 	}
 
-	// Fallback to default behaloadAndUpdateCachevior if cache is unavailable
+	// Fallback to default behavior if cache is unavailable
 	var allAccInfo []DeviceSummary
 	for gpuID := range r.devices {
 		dev := r.devices[gpuID]

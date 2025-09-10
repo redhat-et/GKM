@@ -288,23 +288,26 @@ func Startup(a string, registry *Registry) Device {
 
 	for d := range registry.Registry[a] {
 		// Check if there are already instances of the device
-		if deviceInfo, ok := registry.Registry[a][d]; ok {
-			// Attempt to start the device
-			logging.Debugf("Starting up %s", d.String())
-			device := deviceInfo.startupFunc()
-			if device == nil {
-				logging.Errorf("Failed to start device of type %s", d.String())
-				continue
-			}
-
-			// Add the new device instance
-			deviceInfo.instance = device
-
-			// Save the device to the cache
-			saveCache(map[string]Device{a: device})
-
-			return device
+		deviceInfo, ok := registry.Registry[a][d]
+		if !ok {
+			continue
 		}
+
+		// Attempt to start the device
+		logging.Debugf("Starting up %s", d.String())
+		device := deviceInfo.startupFunc()
+		if device == nil {
+			logging.Errorf("Failed to start device of type %s", d.String())
+			continue
+		}
+
+		// Add the new device instance
+		deviceInfo.instance = device
+
+		// Save the device to the cache
+		saveCache(map[string]Device{a: device})
+
+		return device
 	}
 
 	// The device type is unsupported
@@ -312,11 +315,23 @@ func Startup(a string, registry *Registry) Device {
 	return nil
 }
 
-// SummarizeGPUs starts the currently-registered GPU device, collects all
-// summaries, coalesces them into your desired output shape, and returns it.
-
+// SummarizeDevice generates a summary of GPU devices grouped by their product name
+// and driver version. It fetches all summaries from the provided device, organizes
+// them into groups, and returns a sorted summary of GPU groups.
+//
+// The function performs the following steps:
+// 1. Fetches all summaries from the device using the GetAllSummaries method.
+// 2. Groups the summaries by a combination of product name and driver version.
+// 3. Converts string-based IDs to integers for sorting purposes.
+// 4. Builds a deterministic, sorted output of GPU groups based on GPU type and driver version.
+//
+// Parameters:
+//   - device: The Device interface that provides access to GPU summaries.
+//
+// Returns:
+//   - *GPUFleetSummary: A pointer to a GPUFleetSummary containing the grouped and sorted GPU data.
+//   - error: An error if fetching summaries from the device fails.
 func SummarizeDevice(device Device) (*GPUFleetSummary, error) {
-
 	// Fetch summaries from the device
 	summaries, err := device.GetAllSummaries()
 	if err != nil {
