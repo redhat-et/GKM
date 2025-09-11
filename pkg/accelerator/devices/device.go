@@ -290,7 +290,7 @@ func Startup(a string, registry *Registry) Device {
 				}
 
 				// Initialize the device with cached data
-				if err := initializeDeviceFromCache(device, cachedDevice); err != nil {
+				if err := initializeDeviceFromCache(device, &cachedDevice); err != nil {
 					logging.Errorf("Failed to initialize device %s from cache: %v", a, err)
 					return nil
 				}
@@ -338,7 +338,7 @@ func Startup(a string, registry *Registry) Device {
 }
 
 // initializeDeviceFromCache initializes a device instance with cached data.
-func initializeDeviceFromCache(device Device, cachedDevice CachedDevice) error {
+func initializeDeviceFromCache(device Device, cachedDevice *CachedDevice) error {
 	// Set device properties based on cached data
 	if setter, ok := device.(interface {
 		SetName(string)
