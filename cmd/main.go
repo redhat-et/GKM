@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/containers/buildah"
 	"github.com/containers/storage/pkg/unshare"
@@ -170,6 +171,14 @@ func validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, 
 	// Image name requirements
 	if (createFlag || extractFlag || checkCompatFlag) && imageName == "" {
 		return fmt.Errorf("--image is required when using --create, --extract, or --check-compat")
+	}
+
+	// Validate imageName against imageNameRegex
+	if imageName != "" {
+		matched, err := regexp.MatchString(imageNameRegex, imageName)
+		if err != nil || !matched {
+			return fmt.Errorf("invalid image name format: %s", imageName)
+		}
 	}
 
 	// Cache directory requirements
