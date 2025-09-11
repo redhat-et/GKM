@@ -49,8 +49,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dialog \
     rsync \
     pciutils \
-    hwdata \
+   hwdata \
+   buildah \
+   netavark aardvark-dns \
+   fuse-overlayfs fuse3 \
  && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/containers && \
+ printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+   > /etc/containers/storage.conf
 
 # Install ROCm apt repo
 RUN wget https://repo.radeon.com/amdgpu-install/6.4.3/ubuntu/jammy/amdgpu-install_6.4.60403-1_all.deb && \

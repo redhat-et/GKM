@@ -474,3 +474,47 @@ configuration. This is useful for testing or CI environments.
 
 Run MCV with the `--stub` flag. It will use the static config and behave as if those
 devices are present.
+
+## Using MCV image to build cache images
+
+MCV provides a docker image called `quay.io/gkm/mcv`.
+
+To use docker on the host with an MCV image, you need to
+mount the cache directory to the container and run the following command:
+
+```bash
+docker run --rm -it --privileged \
+  -v /home/mtahhan/TKDK/mcv/example:/example \
+  quay.io/gkm/mcv bash -lc '
+    /mcv -c -i quay.io/gkm/vector-add-cache:rocm -d /example/vector-add-cache-rocm &&
+    buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
+                  docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
+  '
+INFO[2025-09-11 16:46:54] Setting log level: info
+INFO[2025-09-11 16:46:54] Using buildah to build the image
+INFO[2025-09-11 16:46:54] Detected cache components: [triton]
+INFO[2025-09-11 16:46:55] Image built! 8ce4bc2e98abfa8c0a5a6f6046c1c7bc8ac09805ecb029427a995dc2897828f8
+INFO[2025-09-11 16:46:55] OCI image created successfully.
+Getting image source signatures
+Copying blob 24b82d6fef87 done
+Copying config 8ce4bc2e98 done
+Writing manifest to image destination
+Storing signatures
+```
+
+Then on host:
+
+```bash
+docker load -i /home/mtahhan/TKDK/mcv/example/vector-add-cache-rocm.tar
+24b82d6fef87: Loading layer [==================================================>]  93.18kB/93.18kB
+The image quay.io/gkm/vector-add-cache:rocm already exists, renaming the old one with ID sha256:5dc90b88f536e44e186c5a076afbb7a54389aed6f0ddfa21365ae2c7f79cb21d to empty string
+Loaded image: quay.io/gkm/vector-add-cache:rocm
+```
+
+Check the images:
+
+```bash
+$ docker images
+REPOSITORY                               TAG       IMAGE ID       CREATED          SIZE
+quay.io/gkm/vector-add-cache             rocm      8ce4bc2e98ab   15 seconds ago   80.7kB
+```
