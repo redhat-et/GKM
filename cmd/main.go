@@ -22,6 +22,7 @@ const (
 	exitCreateError  = 2
 	exitLogError     = 3
 	imageNameRegex   = `^([a-z0-9]+([._-][a-z0-9]+)*(:[0-9]+)?/)?[a-z0-9]+([._-][a-z0-9]+)*(\/[a-z0-9]+([._-][a-z0-9]+)*)*(?::[\w][\w.-]{0,127})?$`
+	version          = "1.0.0" // Application version
 )
 
 func main() {
@@ -53,8 +54,8 @@ func logFatal(message string, err error, exitCode int) {
 }
 
 func buildRootCommand() *cobra.Command {
-	var imageName, cacheDirName, logLevel string
-	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool
+	var imageName, cacheDirName, logLevel, builder string
+	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag, versionFlag bool
 
 	cmd := &cobra.Command{
 		Use:   "mcv",
@@ -68,15 +69,20 @@ and performing hardware compatibility checks.`,
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			handleRunCommand(imageName, cacheDirName, logLevel, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag)
+			if versionFlag {
+				fmt.Printf("mcv version %s\n", version)
+				os.Exit(exitNormal)
+			}
+			handleRunCommand(imageName, cacheDirName, logLevel, builder, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag)
 		},
 	}
 
-	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag)
+	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &builder, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag)
+	cmd.Flags().BoolVar(&versionFlag, "version", false, "Display the version of the application")
 	return cmd
 }
 
-func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag *bool) {
+func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag *bool) {
 	// Image operations
 	cmd.Flags().StringVarP(imageName, "image", "i", "", "OCI image name (required for create, extract, check-compat)")
 	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton/vLLM cache directory path")
@@ -95,6 +101,7 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, cre
 	cmd.Flags().BoolVarP(baremetalFlag, "baremetal", "b", false, "Enable detailed baremetal preflight checks")
 	cmd.Flags().BoolVar(noGPUFlag, "no-gpu", false, "Disable GPU detection and preflight checks (for testing)")
 	cmd.Flags().BoolVar(stubFlag, "stub", false, "Use mock/stub data for hardware info (for testing)")
+	cmd.Flags().StringVar(builder, "builder", "", "Specify the builder to use (buildah or docker)")
 
 	// Mark mutually exclusive flags
 	cmd.MarkFlagsMutuallyExclusive("create", "extract")
@@ -103,11 +110,16 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel *string, cre
 	cmd.MarkFlagsMutuallyExclusive("no-gpu", "check-compat")
 }
 
-func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool) {
+func handleRunCommand(imageName, cacheDirName, logLevel, builder string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool) {
 	// Validate flag combinations
 	if err := validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, checkCompatFlag, imageName, cacheDirName, stubFlag); err != nil {
 		logging.Error(err)
 		os.Exit(exitLogError)
+	}
+
+	if createFlag {
+		runCreate(imageName, cacheDirName, builder)
+		return
 	}
 
 	configureBoolFlags(baremetalFlag, noGPUFlag, stubFlag)
@@ -124,11 +136,6 @@ func handleRunCommand(imageName, cacheDirName, logLevel string, createFlag, extr
 
 	if checkCompatFlag {
 		handleCheckCompat(imageName)
-		return
-	}
-
-	if createFlag {
-		runCreate(imageName, cacheDirName)
 		return
 	}
 
@@ -279,7 +286,7 @@ func configureBoolFlags(baremetalFlag, noGPUFlag, stub bool) {
 	}
 }
 
-func runCreate(imageName, cacheDir string) {
+func runCreate(imageName, cacheDir, builder string) {
 	// Check if the cache directory exists
 	if _, err := utils.FilePathExists(cacheDir); err != nil {
 		logging.Errorf("Error checking cache file path: %v", err)
@@ -287,14 +294,22 @@ func runCreate(imageName, cacheDir string) {
 	}
 
 	// Initialize the image builder
-	builder, _ := imgbuild.New()
-	if builder == nil {
-		logging.Errorf("Failed to create builder")
+	var builderInstance imgbuild.ImageBuilder
+	var err error
+	if builder == "" {
+		// Default to old behavior: auto-detect builder
+		builderInstance, err = imgbuild.New()
+	} else {
+		builderInstance, err = imgbuild.NewWithBuilder(builder)
+	}
+
+	if err != nil {
+		logging.Errorf("Failed to create builder: %v", err)
 		os.Exit(exitCreateError)
 	}
 
 	// Create the OCI image
-	if err := builder.CreateImage(imageName, cacheDir); err != nil {
+	if err := builderInstance.CreateImage(imageName, cacheDir); err != nil {
 		logging.Errorf("Failed to create the OCI image: %v", err)
 		os.Exit(exitCreateError)
 	}
