@@ -196,6 +196,10 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 		return nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
 	}
 
+	if acc == nil || acc.Device() == nil {
+		return nil, fmt.Errorf("accelerator initialization returned nil")
+	}
+
 	// Register the accelerator
 	accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
 
