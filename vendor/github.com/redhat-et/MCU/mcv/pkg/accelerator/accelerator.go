@@ -15,6 +15,7 @@ package accelerator
 
 //nolint:gci // The supported device imports are kept separate.
 import (
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -68,6 +69,10 @@ func SetAcceleratorRegistry(registry *AcceleratorRegistry) {
 
 // RegisterAccelerator adds an accelerator to the registry
 func (r *AcceleratorRegistry) RegisterAccelerator(a Accelerator) {
+	if a == nil || a.Device() == nil {
+		logging.Errorf("Cannot register a nil accelerator or device")
+		return
+	}
 	_, ok := r.Accelerators[a.Device().HwType()]
 	if ok {
 		logging.Debugf("Accelerator with type %s already exists", a.Device().HwType())
@@ -124,7 +129,7 @@ func (r *AcceleratorRegistry) GetActiveAcceleratorByType(t string) Accelerator {
 
 func New(atype string, sleep bool) (Accelerator, error) {
 	var d devices.Device
-	maxDeviceInitRetry := 2
+	maxDeviceInitRetry := 10
 	// Init the available devices.
 	logging.Debugf("Starting up device of type %s", atype)
 	r := devices.GetRegistry()
@@ -140,14 +145,17 @@ func New(atype string, sleep bool) (Accelerator, error) {
 		if d = devices.Startup(atype, r); d == nil {
 			logging.Errorf("Could not init the %s device going to try again", atype)
 			if sleep {
-				// The GPU operators typically takes longer time to initialize resulting in error to start the gpu driver
-				// therefore, we wait up to 1 min to allow the gpu operator initialize
+				// The GPU operators can be slow to start up, so we wait a bit before retrying.
 				time.Sleep(6 * time.Second)
 			}
 			continue
 		}
 		logging.Debugf("Startup %s Accelerator successful", atype)
 		break
+	}
+
+	if d == nil {
+		return nil, fmt.Errorf("failed to initialize device of type %s after %d retries", atype, maxDeviceInitRetry)
 	}
 
 	return &accelerator{
