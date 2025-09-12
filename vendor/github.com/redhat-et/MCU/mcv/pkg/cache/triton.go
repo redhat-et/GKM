@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -25,18 +26,6 @@ type TritonCache struct {
 	allMetadata []TritonCacheMetadata
 }
 
-type TritonCacheMetadata struct {
-	Hash       string `json:"hash"`
-	Backend    string `json:"backend"`
-	Arch       string `json:"arch"`
-	WarpSize   int    `json:"warp_size"`
-	PTXVersion *int   `json:"ptx_version,omitempty"`
-	NumStages  int    `json:"num_stages,omitempty"`
-	NumWarps   int    `json:"num_warps,omitempty"`
-	Debug      bool   `json:"debug,omitempty"`
-	DummyKey   string `json:"dummy_key"`
-}
-
 func DetectTritonCache(cacheDir string) *TritonCache {
 	found := false
 
@@ -44,13 +33,14 @@ func DetectTritonCache(cacheDir string) *TritonCache {
 		if err != nil {
 			return err
 		}
+
 		if d.IsDir() && (strings.Contains(path, "vendor") || strings.HasPrefix(d.Name(), ".")) {
 			return fs.SkipDir
 		}
+
 		name := d.Name()
 		if strings.HasPrefix(name, "__grp__") && strings.HasSuffix(name, ".json") ||
 			strings.HasSuffix(name, ".ttir") ||
-			strings.HasSuffix(name, ".hsaco") ||
 			name == "__triton_launcher.so" {
 			found = true
 			return filepath.SkipDir
@@ -64,15 +54,20 @@ func DetectTritonCache(cacheDir string) *TritonCache {
 	}
 
 	if found {
+		logging.Debugf("Triton cache detected in directory: %s", cacheDir)
 		metadata := getTritonMetadata(cacheDir)
 		if len(metadata) > 0 {
 			return &TritonCache{path: cacheDir, allMetadata: metadata}
 		}
 	}
+
+	logging.Debugf("No Triton cache found in directory: %s", cacheDir)
 	return nil
 }
 
 func getTritonMetadata(root string) []TritonCacheMetadata {
+	logging.Debugf("getTritonMetadata:%v", root)
+
 	files, err := findAllTritonCacheJSON(root)
 	if err != nil {
 		logging.WithError(err).Error("Could not enumerate Triton cache JSON files")
@@ -98,20 +93,27 @@ func getTritonMetadata(root string) []TritonCacheMetadata {
 			logging.WithFields(logging.Fields{
 				"file": f,
 				"err":  err,
-			}).Error("Failed to compute dummy key")
+			}).Error("Failed to compute dummy key for Triton cache JSON")
 			continue
 		}
 
 		allMetadata = append(allMetadata, TritonCacheMetadata{
-			Hash:       data.Hash,
-			Backend:    data.Target.Backend,
-			Arch:       ConvertArchToString(data.Target.Arch),
-			WarpSize:   data.Target.WarpSize,
-			PTXVersion: data.PtxVersion,
-			NumStages:  data.NumStages,
-			NumWarps:   data.NumWarps,
-			Debug:      data.Debug,
-			DummyKey:   dummyKey,
+			Hash: data.Hash,
+			Target: Target{
+				Backend:  data.Target.Backend,
+				Arch:     ConvertArchToString(data.Target.Arch),
+				WarpSize: data.Target.WarpSize,
+			},
+			PtxVersion: func() int {
+				if data.PtxVersion != nil {
+					return *data.PtxVersion
+				}
+				return 0
+			}(),
+			NumStages: data.NumStages,
+			NumWarps:  data.NumWarps,
+			Debug:     data.Debug,
+			DummyKey:  dummyKey,
 		})
 	}
 
@@ -329,7 +331,7 @@ func ConvertArchToString(arch any) string {
 }
 
 // BuildTritonSummary deduplicates kernel targets and produces a compact summary for labeling.
-func BuildTritonSummary(metadata []TritonCacheMetadata) (*TritonSummary, error) {
+func BuildTritonSummary(metadata []TritonCacheMetadata) (*Summary, error) {
 	if len(metadata) == 0 {
 		return nil, errors.New("no metadata provided to summarize")
 	}
@@ -341,7 +343,7 @@ func BuildTritonSummary(metadata []TritonCacheMetadata) (*TritonSummary, error) 
 		if _, exists := seen[key]; !exists {
 			seen[key] = SummaryTargetInfo{
 				Backend:  entry.Backend,
-				Arch:     entry.Arch,
+				Arch:     ConvertArchToString(entry.Arch),
 				WarpSize: entry.WarpSize,
 			}
 		}
@@ -352,11 +354,21 @@ func BuildTritonSummary(metadata []TritonCacheMetadata) (*TritonSummary, error) 
 		targets = append(targets, v)
 	}
 
-	return &TritonSummary{Targets: targets}, nil
+	return &Summary{Targets: targets}, nil
 }
 
 func (t *TritonCache) SetTmpPath(path string) {
 	if path != "" {
 		t.tmpPath = path
 	}
+}
+
+func ExtractTritonCacheDirectory(r io.Reader) ([]string, error) {
+	return extractCacheAndManifestDirectory(
+		r,
+		constants.MCVTritonCacheDir,
+		"io.triton.manifest/",
+		constants.ExtractCacheDir,
+		constants.ExtractManifestDir,
+	)
 }

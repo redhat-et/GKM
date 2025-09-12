@@ -6,7 +6,7 @@ type SummaryTargetInfo struct {
 	WarpSize int    `json:"warp_size"`
 }
 
-type TritonSummary struct {
+type Summary struct {
 	Targets []SummaryTargetInfo `json:"targets"`
 }
 
@@ -43,7 +43,7 @@ type TritonCacheData struct {
 	InstructionSchedVariant *string `json:"instruction_sched_variant,omitempty"`
 }
 
-type TritonImageData struct {
+type TritonCacheMetadata struct {
 	Hash       string `json:"hash"`
 	DummyKey   string `json:"dummy_key,omitempty"`
 	PtxVersion int    `json:"ptx_version,omitempty"`
@@ -57,4 +57,12 @@ type Target struct {
 	Backend  string `json:"backend"`
 	Arch     any    `json:"arch"`
 	WarpSize int    `json:"warp_size"`
+}
+
+type TritonManifest struct {
+	Triton []TritonCacheMetadata `json:"triton"`
+}
+
+type VLLMManifest struct {
+	VLLM []VLLMCacheMetadata `json:"vllm"`
 }

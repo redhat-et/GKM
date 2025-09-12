@@ -16,12 +16,16 @@ limitations under the License.
 package devices
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 )
@@ -36,15 +40,33 @@ const (
 var (
 	deviceRegistry *Registry
 	once           sync.Once
+	cacheFilePath  = constants.DefaultCacheFilePath
 )
 
 type (
 	DeviceType        int
 	deviceStartupFunc func() Device // Function prototype to startup a new device instance.
 	Registry          struct {
-		Registry map[string]map[DeviceType]deviceStartupFunc // Static map of supported Devices Startup functions
+		Registry map[string]map[DeviceType]DeviceInfo // Static map of supported Devices Startup functions
 	}
 )
+
+type DeviceInfo struct {
+	startupFunc deviceStartupFunc
+	instance    Device
+}
+type DeviceCache struct {
+	Timestamp time.Time
+	Devices   map[string]CachedDevice // Store serialized device information
+}
+
+type CachedDevice struct {
+	Name       string          `json:"name"`
+	DeviceType DeviceType      `json:"deviceType"`
+	HwType     string          `json:"hwType"`
+	TritonInfo []TritonGPUInfo `json:"tritonInfo"`
+	Summaries  []DeviceSummary `json:"summaries"`
+}
 
 func (d DeviceType) String() string {
 	return [...]string{"MOCK", "AMD", "NVML", "ROCM"}[d]
@@ -89,6 +111,7 @@ type GPUGroup struct {
 
 // Registry gets the default device Registry instance
 func GetRegistry() *Registry {
+	logging.Debugf("Retrieving the global device registry")
 	once.Do(func() {
 		deviceRegistry = newRegistry()
 		registerDevices(deviceRegistry)
@@ -99,7 +122,7 @@ func GetRegistry() *Registry {
 // NewRegistry creates a new instance of Registry without registering devices
 func newRegistry() *Registry {
 	return &Registry{
-		Registry: map[string]map[DeviceType]deviceStartupFunc{},
+		Registry: map[string]map[DeviceType]DeviceInfo{},
 	}
 }
 
@@ -113,21 +136,27 @@ func SetRegistry(registry *Registry) {
 
 // Register all available devices in the global registry
 func registerDevices(r *Registry) {
-	// Call individual device check functions
-	amdCheck(r)
-	nvmlCheck(r)
-	rocmCheck(r)
+	if config.IsStubEnabled() {
+		cacheFilePath = constants.StubbedCacheFile
+		logging.Debugf("Running in stubbed mode, loading static device config")
+		staticCheck(r)
+	} else {
+		// Call individual device check functions
+		amdCheck(r)
+		rocmCheck(r)
+		nvmlCheck(r)
+	}
 }
 
 func (r *Registry) MustRegister(a string, d DeviceType, deviceStartup deviceStartupFunc) {
 	_, ok := r.Registry[a][d]
 	if ok {
-		logging.Infof("Device with type %s already exists", d)
+		logging.Debugf("Device with type %s already exists", d)
 		return
 	}
-	logging.Infof("Adding the device to the registry [%s][%s]", a, d.String())
-	r.Registry[a] = map[DeviceType]deviceStartupFunc{
-		d: deviceStartup,
+	logging.Debugf("Adding the device to the registry [%s][%s]", a, d.String())
+	r.Registry[a] = map[DeviceType]DeviceInfo{
+		d: {startupFunc: deviceStartup},
 	}
 }
 
@@ -173,17 +202,134 @@ func addDeviceInterface(registry *Registry, dtype DeviceType, accType string, de
 	return nil
 }
 
-// Startup initializes and returns a new Device according to the given DeviceType [NVML|OTHER].
-func Startup(a string) Device {
-	// Retrieve the global registry
-	registry := GetRegistry()
+func loadCache() (*DeviceCache, error) {
+	if _, err := os.Stat(cacheFilePath); os.IsNotExist(err) {
+		return nil, errors.New("cache file does not exist")
+	}
 
-	for d := range registry.Registry[a] {
-		// Attempt to start the device from the registry
-		if deviceStartup, ok := registry.Registry[a][d]; ok {
-			logging.Infof("Starting up %s", d.String())
-			return deviceStartup()
+	logging.Debugf("Loading device cache from %s", cacheFilePath)
+	file, err := os.Open(cacheFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var cache DeviceCache
+	if err := json.NewDecoder(file).Decode(&cache); err != nil {
+		return nil, err
+	}
+
+	// Check if the cache is still valid - if it's expired, update it
+	if time.Since(cache.Timestamp) > constants.CacheTTL {
+		return nil, errors.New("cache expired")
+	}
+
+	logging.Debugf("Loaded %d devices from the device cache", len(cache.Devices))
+	return &cache, nil
+}
+
+func saveCache(devices map[string]Device) error {
+	cache := DeviceCache{
+		Timestamp: time.Now(),
+		Devices:   make(map[string]CachedDevice),
+	}
+
+	for name, device := range devices {
+		tritonInfo, err := device.GetAllGPUInfo()
+		if err != nil {
+			logging.Errorf("Failed to get GPU info for device %s: %v", name, err)
+			continue
 		}
+
+		summaries, err := device.GetAllSummaries()
+		if err != nil {
+			logging.Errorf("Failed to get summaries for device %s: %v", name, err)
+			continue
+		}
+
+		// Store all relevant information in the cache
+		cache.Devices[name] = CachedDevice{
+			Name:       device.Name(),
+			DeviceType: device.DevType(),
+			HwType:     device.HwType(),
+			TritonInfo: tritonInfo,
+			Summaries:  summaries,
+		}
+	}
+
+	file, err := os.Create(cacheFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return json.NewEncoder(file).Encode(cache)
+}
+
+// Startup initializes and returns a new Device according to the given DeviceType [NVML|OTHER].
+func Startup(a string, registry *Registry) Device {
+	logging.Debugf("Starting up device of type %s", a)
+
+	cache, err := loadCache()
+	if err == nil {
+		if cachedDevice, ok := cache.Devices[a]; ok {
+			logging.Debugf("Using cached configuration for %s", a)
+			if deviceInfo, ok := registry.Registry[a][cachedDevice.DeviceType]; ok {
+				// Create an empty instance of the device
+				var device Device
+				switch cachedDevice.DeviceType {
+				case AMD:
+					device = &gpuAMD{}
+				case NVML:
+					device = &gpuNvml{}
+				case ROCM:
+					device = &gpuROCm{}
+				default:
+					logging.Errorf("Unsupported device type %s", cachedDevice.DeviceType.String())
+					return nil
+				}
+
+				// Initialize the device with cached data
+				if err := initializeDeviceFromCache(device, &cachedDevice); err != nil {
+					logging.Errorf("Failed to initialize device %s from cache: %v", a, err)
+					return nil
+				}
+
+				// Update the registry with the restored device instance
+				deviceInfo.instance = device
+				registry.Registry[a][cachedDevice.DeviceType] = deviceInfo
+
+				logging.Debugf("Restored device instance for %s from cache", a)
+				return device
+			}
+			logging.Errorf("No startup function found for cached device type %s", cachedDevice.DeviceType.String())
+		}
+	}
+
+	// If no cache or restoration failed, probe for the device
+	for d := range registry.Registry[a] {
+		// Check if there are already instances of the device
+		deviceInfo, ok := registry.Registry[a][d]
+		if !ok {
+			continue
+		}
+
+		// Attempt to start the device
+		logging.Debugf("Starting up %s", d.String())
+		device := deviceInfo.startupFunc()
+		if device == nil {
+			logging.Errorf("Failed to start device of type %s", d.String())
+			continue
+		}
+
+		// Add the new device instance
+		deviceInfo.instance = device
+		registry.Registry[a][d] = deviceInfo
+
+		// Save the device to the cache
+		saveCache(map[string]Device{a: device})
+
+		return device
 	}
 
 	// The device type is unsupported
@@ -191,16 +337,47 @@ func Startup(a string) Device {
 	return nil
 }
 
-// SummarizeGPUs starts the currently-registered GPU device, collects all
-// summaries, coalesces them into your desired output shape, and returns it.
-func SummarizeGPUs() (*GPUFleetSummary, error) {
-	dev := Startup(config.GPU)
-	if dev == nil {
-		return nil, errors.New("no GPU device available")
+// initializeDeviceFromCache initializes a device instance with cached data.
+func initializeDeviceFromCache(device Device, cachedDevice *CachedDevice) error {
+	// Set device properties based on cached data
+	if setter, ok := device.(interface {
+		SetName(string)
+		SetDeviceType(DeviceType)
+		SetHwType(string)
+		SetTritonInfo([]TritonGPUInfo)
+		SetSummaries([]DeviceSummary)
+	}); ok {
+		setter.SetName(cachedDevice.Name)
+		setter.SetDeviceType(cachedDevice.DeviceType)
+		setter.SetHwType(cachedDevice.HwType)
+		setter.SetTritonInfo(cachedDevice.TritonInfo)
+		setter.SetSummaries(cachedDevice.Summaries)
+		logging.Debugf("Device %s restored from cache with %d summaries and %d Triton GPU info entries",
+			cachedDevice.Name, len(cachedDevice.Summaries), len(cachedDevice.TritonInfo))
+		return nil
 	}
-	defer dev.Shutdown()
+	return errors.New("device does not support initialization from cache")
+}
 
-	summaries, err := dev.GetAllSummaries()
+// SummarizeDevice generates a summary of GPU devices grouped by their product name
+// and driver version. It fetches all summaries from the provided device, organizes
+// them into groups, and returns a sorted summary of GPU groups.
+//
+// The function performs the following steps:
+// 1. Fetches all summaries from the device using the GetAllSummaries method.
+// 2. Groups the summaries by a combination of product name and driver version.
+// 3. Converts string-based IDs to integers for sorting purposes.
+// 4. Builds a deterministic, sorted output of GPU groups based on GPU type and driver version.
+//
+// Parameters:
+//   - device: The Device interface that provides access to GPU summaries.
+//
+// Returns:
+//   - *GPUFleetSummary: A pointer to a GPUFleetSummary containing the grouped and sorted GPU data.
+//   - error: An error if fetching summaries from the device fails.
+func SummarizeDevice(device Device) (*GPUFleetSummary, error) {
+	// Fetch summaries from the device
+	summaries, err := device.GetAllSummaries()
 	if err != nil {
 		return nil, err
 	}

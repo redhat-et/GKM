@@ -8,7 +8,6 @@ kind: Kustomization
 configMapGenerator:
 - behavior: merge
   literals:
-  - gkm.nogpu=true
   - gkm.agent.image=quay.io/gkm/agent:latest
   - gkm.csi.image=quay.io/gkm/gkm-csi-plugin:latest
   name: config

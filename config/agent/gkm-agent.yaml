@@ -24,6 +24,8 @@ spec:
           privileged: true
           capabilities:
             add: ["CAP_DAC_OVERRIDE", "CAP_FOWNER"]
+          seccompProfile:
+            type: Unconfined
         env:
           - name: NO_GPU
             valueFrom:
@@ -50,6 +52,11 @@ spec:
           - name: gkm-runtime
             mountPath: /run/gkm
             mountPropagation: Bidirectional
+          - name: sys
+            mountPath: /sys
+            readOnly: true
+          - name: dev
+            mountPath: /dev
 
       volumes:
         # This volume is the GKM State directory. This is where GPU Kernel Cache
@@ -64,3 +71,11 @@ spec:
           hostPath:
             path: /run/gkm
             type: DirectoryOrCreate
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory

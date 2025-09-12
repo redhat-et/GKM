@@ -2,6 +2,6 @@
 apiVersion: gkm.io/v1alpha1
 kind: ClusterGKMCache
 metadata:
-  name: flash-attention-rocm
+  name: vector-add-cache-rocm
 spec:
-  image: quay.io/mtahhan/flash-attention-rocm:latest
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm

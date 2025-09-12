@@ -22,10 +22,14 @@ import (
 type Options struct {
 	ImageName       string // The name of the OCI image (e.g., quay.io/user/image:tag)
 	CacheDir        string // Path to store the cache; for triton defaults to ~/.triton/cache
-	EnableGPU       *bool  // Whether to enable GPU logic (nil = auto-detect, false = disable, true = force)
+	EnableGPU       *bool  // Whether to enable GPU logic for preflight checks (nil = auto-detect, false = disable, true = force)
 	LogLevel        string // Logging level: debug, info, warning, error
 	EnableBaremetal *bool  // If true, enables full hardware checks including kernel dummy key validation (for baremetal envs only)
 	SkipPrecheck    *bool  // If true, skips summary-level preflight GPU compatibility checks
+}
+
+type HwOptions struct {
+	EnableStub *bool // If true, enables stub mode (Dummy devices); for testing/dev only (false = disable, true = force))
 }
 
 // xPU wraps CPU and GPU info
@@ -37,7 +41,21 @@ type xPU struct {
 // GetXPUInfo returns combined CPU and accelerator information (e.g., GPUs,
 // FPGAs) for the current system using the ghw library. Used for diagnostics
 // or --hw-info output.
-func GetXPUInfo() (*xPU, error) {
+func GetXPUInfo(opts HwOptions) (*xPU, error) {
+	if !config.IsInitialized() {
+		if _, err := config.Initialize(config.ConfDir); err != nil {
+			return nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
+	}
+
+	if opts.EnableStub != nil {
+		config.SetEnabledStub(*opts.EnableStub)
+		if *opts.EnableStub {
+			logging.Debug("Stub Mode enabled via client options")
+		} else {
+			logging.Debug("Stub Mode disabled via client options")
+		}
+	}
 	cpuInfo, accInfo, err := devices.GetSystemHW()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hardware info: %w", err)
@@ -82,23 +100,14 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		return nil, nil, fmt.Errorf("image name must be specified")
 	}
 
-	if _, err = config.Initialize(config.ConfDir); err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+	if !config.IsInitialized() {
+		if _, err = config.Initialize(config.ConfDir); err != nil {
+			return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
 	}
 
 	if err = logformat.ConfigureLogging(opts.LogLevel); err != nil {
 		return nil, nil, fmt.Errorf("error configuring logging: %v", err)
-	}
-
-	// Auto-detect accelerator hardware if GPU is not already enabled
-	accInfo, err := ghw.Accelerator()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
-	}
-	if accInfo == nil || len(accInfo.Devices) == 0 {
-		config.SetEnabledGPU(false)
-	} else {
-		config.SetEnabledGPU(true)
 	}
 
 	if opts.SkipPrecheck != nil {
@@ -113,6 +122,27 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		if !*opts.EnableBaremetal {
 			logging.Debug("Baremetal checks disabled via client options")
 		}
+	}
+
+	if opts.EnableGPU != nil {
+		config.SetEnabledGPU(*opts.EnableGPU)
+		if *opts.EnableGPU {
+			logging.Debug("GPU support enabled via client options")
+		} else {
+			logging.Debug("GPU support disabled via client options")
+		}
+	}
+
+	if config.IsGPUEnabled() {
+		logging.Debug("GPU support is enabled")
+
+		// Auto-detect accelerator hardware if GPU is not already enabled
+		if _, err = devices.DetectAccelerators(); err != nil {
+			logging.Warn("No accelerators detected, GPU logic disabled.")
+		}
+	} else {
+		logging.Debug("GPU support is disabled So skipping accelerator detection and disabling preflight check")
+		config.SetSkipPrecheck(true) // No GPU, so skip preflight
 	}
 
 	// If caller asked to skip preflight, do not run it here or downstream.
@@ -135,16 +165,13 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		logging.Debug("Skipping preflight (GPU disabled)")
 	}
 
-	cacheDir := opts.CacheDir
-	if cacheDir == "" {
-		cacheDir = constants.TritonCacheDir // default from init()
+	if opts.CacheDir != "" {
+		cacheDir := opts.CacheDir
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
+		}
+		constants.ExtractCacheDir = cacheDir
 	}
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
-	}
-	constants.TritonCacheDir = cacheDir
-
-	logging.Infof("Using Triton cache directory: %s", constants.TritonCacheDir)
 
 	return nil, nil, fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
@@ -157,39 +184,46 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 //
 // If GPU support is not explicitly enabled, it auto-detects hardware
 // accelerators and enables GPU logic if supported hardware is found.
-func GetSystemGPUInfo() (*devices.GPUFleetSummary, error) {
-	if _, err := config.Initialize(config.ConfDir); err != nil {
-		return nil, fmt.Errorf("failed to initialize config: %w", err)
+func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
+	if !config.IsInitialized() {
+		if _, err := config.Initialize(config.ConfDir); err != nil {
+			return nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
+	}
+
+	if opts.EnableStub != nil {
+		config.SetEnabledStub(*opts.EnableStub)
+		if *opts.EnableStub {
+			logging.Debug("Stub Mode enabled via client options")
+		} else {
+			logging.Debug("Stub Mode disabled via client options")
+		}
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	accInfo, err := ghw.Accelerator()
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
+	if _, err := devices.DetectAccelerators(); err != nil {
+		return nil, err
 	}
 
-	if accInfo == nil || len(accInfo.Devices) == 0 {
-		return nil, fmt.Errorf("no hardware accelerator present")
-	}
-
-	logging.Infof("Hardware accelerator(s) detected (%d). GPU support enabled.", len(accInfo.Devices))
-	config.SetEnabledGPU(true)
-
+	logging.Debug("Initializing the accelerator")
 	// Initialize the GPU accelerator
 	acc, err := accelerator.New(config.GPU, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
 	}
 
+	if acc == nil || acc.Device() == nil {
+		return nil, fmt.Errorf("accelerator initialization returned nil")
+	}
+
 	// Register the accelerator
-	accelerator.GetRegistry().MustRegister(acc)
+	accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
 
 	// Fetch GPU device information
-	summary, err := devices.SummarizeGPUs()
+	summary, err := accelerator.SummarizeGPUs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GPU info: %w", err)
 	}
-
 	return summary, nil
 }
 
@@ -214,9 +248,10 @@ func PrintGPUSummary(summary *devices.GPUFleetSummary) {
 //
 // Returns slices of matched and unmatched GPUs, along with any error encountered.
 func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error) {
-	// Initialize config
-	if _, err = config.Initialize(config.ConfDir); err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+	if !config.IsInitialized() {
+		if _, err = config.Initialize(config.ConfDir); err != nil {
+			return nil, nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
 	}
 
 	// Initialize the GPU accelerator
@@ -226,7 +261,7 @@ func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error
 	}
 
 	// Register the accelerator
-	accelerator.GetRegistry().MustRegister(acc)
+	accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
 	// Get device info (handles detection + accelerator setup)
 	devInfo, err := preflightcheck.GetAllGPUInfo(acc)
 	if err != nil {
@@ -240,7 +275,7 @@ func PreflightCheck(imageName string) (matchedIDs, unmatchedIDs []int, err error
 	}
 
 	// Run the compatibility check
-	matched, unmatched, err := preflightcheck.CompareTritonSummaryLabelToGPU(img, devInfo)
+	matched, unmatched, err := preflightcheck.CompareCacheSummaryLabelToGPU(img, nil, devInfo)
 	if err != nil {
 		return nil, nil, fmt.Errorf("preflight check failed: %w", err)
 	}

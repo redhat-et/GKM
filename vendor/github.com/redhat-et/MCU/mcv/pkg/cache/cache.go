@@ -1,11 +1,18 @@
 package cache
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/MCU/mcv/pkg/utils"
+	logging "github.com/sirupsen/logrus"
 )
 
 // Cache defines the minimal interface each cache implementation must satisfy
@@ -29,12 +36,10 @@ type Labels map[string]string
 func DetectCaches(root string) []Cache {
 	var caches []Cache
 
-	if triton := DetectTritonCache(root); triton != nil {
-		caches = append(caches, triton)
-	}
-
 	if vllm := DetectVLLMCache(root); vllm != nil {
 		caches = append(caches, vllm)
+	} else if triton := DetectTritonCache(root); triton != nil {
+		caches = append(caches, triton)
 	}
 
 	return caches
@@ -137,7 +142,7 @@ func CacheTypes(caches []Cache) []string {
 // GetTagsFromCaches returns the manifest and cache directory tags for the available cache type
 func GetTagsFromCaches(caches []Cache) (manifestTag, cacheTag string, err error) {
 	for _, c := range caches {
-		if c.Name() == "vllm" || c.Name() == "triton" {
+		if c.Name() == constants.VLLM || c.Name() == constants.Triton {
 			return c.ManifestTag(), c.CacheTag(), nil
 		}
 	}
@@ -151,4 +156,142 @@ func SetCachesBuildDir(caches []Cache, path string) {
 			c.SetTmpPath(path)
 		}
 	}
+}
+
+func ExtractCacheDirectory(r io.Reader, cacheType string) ([]string, error) {
+	if cacheType == "" {
+		return nil, fmt.Errorf("cache type is empty")
+	}
+	switch cacheType {
+	case constants.Triton:
+		return ExtractTritonCacheDirectory(r)
+	case constants.VLLM:
+		return ExtractVLLMCacheDirectory(r)
+	default:
+		return nil, fmt.Errorf("unsupported cache type: %s", cacheType)
+	}
+}
+
+// Shared extraction logic for Triton/VLLM cache and manifest directories.
+func extractCacheAndManifestDirectory(
+	r io.Reader,
+	cacheDirPrefix, manifestDirPrefix, extractCacheDir, extractManifestDir string,
+) ([]string, error) {
+	var extractedDirs []string
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse layer as tar.gz: %v", err)
+	}
+	defer gr.Close()
+
+	tr := tar.NewReader(gr)
+
+	// Ensure top-level output directories exist once
+	if err = os.MkdirAll(extractCacheDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create cache directory: %w", err)
+	}
+	if err = os.MkdirAll(extractManifestDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create manifest directory: %w", err)
+	}
+
+	for {
+		h, ret := tr.Next()
+		if ret == io.EOF {
+			break
+		} else if ret != nil {
+			return nil, fmt.Errorf("error reading tar archive: %w", ret)
+		}
+
+		// Skip irrelevant files
+		if !strings.HasPrefix(h.Name, cacheDirPrefix) &&
+			!strings.HasPrefix(h.Name, manifestDirPrefix+"manifest.json") {
+			continue
+		}
+
+		// Determine output path
+		var filePath string
+		if strings.HasPrefix(h.Name, cacheDirPrefix) {
+			rel := strings.TrimPrefix(h.Name, cacheDirPrefix)
+			if rel == "" {
+				continue
+			}
+			filePath = filepath.Join(extractCacheDir, rel)
+
+			topDir := filepath.Join(extractCacheDir, filepath.Dir(rel))
+			if !stringInSlice(topDir, extractedDirs) {
+				extractedDirs = append(extractedDirs, topDir)
+			}
+		} else if strings.HasPrefix(h.Name, manifestDirPrefix) {
+			rel := strings.TrimPrefix(h.Name, manifestDirPrefix)
+			filePath = filepath.Join(extractManifestDir, rel)
+		}
+
+		// Ensure parent dir exists
+		if err = os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return nil, fmt.Errorf("failed to create directory for %s: %w", filePath, err)
+		}
+
+		switch h.Typeflag {
+		case tar.TypeDir:
+			if err = os.MkdirAll(filePath, os.FileMode(h.Mode)); err != nil {
+				return nil, fmt.Errorf("failed to create directory %s: %w", filePath, err)
+			}
+		case tar.TypeReg:
+			if err = writeFile(filePath, tr, os.FileMode(h.Mode)); err != nil {
+				return nil, fmt.Errorf("failed to write file %s: %w", filePath, err)
+			}
+		default:
+			logging.Debugf("Skipping unsupported type: %c in file %s", h.Typeflag, h.Name)
+		}
+	}
+
+	// Fix up cache JSONs
+	err = filepath.Walk(extractCacheDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasPrefix(info.Name(), "__grp__") && strings.HasSuffix(info.Name(), ".json") {
+			if err := utils.RestoreFullPathsInGroupJSON(path, extractCacheDir); err != nil {
+				logging.Warnf("failed to restore full paths in %s: %v", path, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error restoring full paths in cache JSON files: %w", err)
+	}
+
+	return extractedDirs, nil
+}
+
+func stringInSlice(str string, list []string) bool {
+	for _, s := range list {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
+func writeFile(filePath string, tarReader io.Reader, mode os.FileMode) error {
+	// Create any parent directories if needed
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return fmt.Errorf("failed to create parent directories for %s: %w", filePath, err)
+	}
+
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", filePath, err)
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, tarReader); err != nil {
+		return fmt.Errorf("failed to copy content to file %s: %w", filePath, err)
+	}
+
+	if err := os.Chmod(filePath, mode); err != nil {
+		return fmt.Errorf("failed to set file permissions for %s: %w", filePath, err)
+	}
+
+	return nil
 }

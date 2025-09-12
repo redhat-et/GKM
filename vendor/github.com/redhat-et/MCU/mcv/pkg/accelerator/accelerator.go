@@ -15,17 +15,19 @@ package accelerator
 
 //nolint:gci // The supported device imports are kept separate.
 import (
+	"fmt"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/MCU/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 
 var (
-	globalRegistry *Registry
+	globalRegistry *AcceleratorRegistry
 	once           sync.Once
 )
 
@@ -44,56 +46,62 @@ type accelerator struct {
 	running bool
 }
 
-type Registry struct {
-	Registry map[string]Accelerator
+type AcceleratorRegistry struct {
+	Accelerators map[string]Accelerator
 }
 
-// Registry gets the default device Registry instance
-func GetRegistry() *Registry {
+// GetAcceleratorRegistry gets the default AcceleratorRegistry instance
+func GetAcceleratorRegistry() *AcceleratorRegistry {
 	once.Do(func() {
-		globalRegistry = &Registry{
-			Registry: map[string]Accelerator{},
+		globalRegistry = &AcceleratorRegistry{
+			Accelerators: map[string]Accelerator{},
 		}
 	})
 	return globalRegistry
 }
 
-// SetRegistry replaces the global registry instance
+// SetAcceleratorRegistry replaces the global registry instance
 // NOTE: All plugins will need to be manually registered
 // after this function is called.
-func SetRegistry(registry *Registry) {
+func SetAcceleratorRegistry(registry *AcceleratorRegistry) {
 	globalRegistry = registry
 }
 
-func (r *Registry) MustRegister(a Accelerator) {
-	_, ok := r.Registry[a.Device().HwType()]
-	if ok {
-		logging.Infof("Accelerator with type %s already exists", a.Device().HwType())
+// RegisterAccelerator adds an accelerator to the registry
+func (r *AcceleratorRegistry) RegisterAccelerator(a Accelerator) {
+	if a == nil || a.Device() == nil {
+		logging.Errorf("Cannot register a nil accelerator or device")
 		return
 	}
-	r.Registry[a.Device().HwType()] = a
+	_, ok := r.Accelerators[a.Device().HwType()]
+	if ok {
+		logging.Debugf("Accelerator with type %s already exists", a.Device().HwType())
+		return
+	}
+	r.Accelerators[a.Device().HwType()] = a
 }
 
-func (r *Registry) Unregister(a Accelerator) bool {
-	_, exists := r.Registry[a.Device().HwType()]
+// UnregisterAccelerator removes an accelerator from the registry
+func (r *AcceleratorRegistry) UnregisterAccelerator(a Accelerator) bool {
+	_, exists := r.Accelerators[a.Device().HwType()]
 	if exists {
-		delete(r.Registry, a.Device().HwType())
+		delete(r.Accelerators, a.Device().HwType())
 		return true
 	}
 	logging.Errorf("Accelerator with type %s doesn't exist", a.Device().HwType())
 	return false
 }
 
-// Devices returns a map of supported accelerators.
-func (r *Registry) accelerators() map[string]Accelerator {
+// GetActiveAccelerators returns all active accelerators
+func (r *AcceleratorRegistry) GetActiveAccelerators() map[string]Accelerator {
 	acc := map[string]Accelerator{}
 
-	if len(r.Registry) == 0 {
+	if len(r.Accelerators) == 0 {
 		// No accelerators found
 		return nil
 	}
 
-	for _, a := range r.Registry {
+	for _, a := range r.Accelerators {
 		if a.IsRunning() {
 			d := a.Device()
 			acc[d.HwType()] = a
@@ -103,15 +111,15 @@ func (r *Registry) accelerators() map[string]Accelerator {
 	return acc
 }
 
-// ActiveAcceleratorByType returns a map of supported accelerators based on the specified type...
-func (r *Registry) activeAcceleratorByType(t string) Accelerator {
-	if len(r.Registry) == 0 {
+// GetActiveAcceleratorByType returns an active accelerator by type
+func (r *AcceleratorRegistry) GetActiveAcceleratorByType(t string) Accelerator {
+	if len(r.Accelerators) == 0 {
 		// No accelerators found
 		logging.Infof("No accelerators found")
 		return nil
 	}
 
-	for _, a := range r.Registry {
+	for _, a := range r.Accelerators {
 		if a.Device().HwType() == t && a.IsRunning() {
 			return a
 		}
@@ -122,29 +130,32 @@ func (r *Registry) activeAcceleratorByType(t string) Accelerator {
 func New(atype string, sleep bool) (Accelerator, error) {
 	var d devices.Device
 	maxDeviceInitRetry := 10
-
 	// Init the available devices.
-
-	devs := devices.GetRegistry().GetAllDeviceTypes()
+	logging.Debugf("Starting up device of type %s", atype)
+	r := devices.GetRegistry()
+	devs := r.GetAllDeviceTypes()
 	numDevs := len(devs)
 	if numDevs == 0 || !slices.Contains(devs, atype) {
 		return nil, errors.New("no devices found")
 	}
-
-	logging.Infof("Initializing the Accelerator of type %v", atype)
+	logging.Debugf("Found %d device(s): %v", numDevs, devs)
+	logging.Debugf("Initializing the Accelerator of type %v", atype)
 
 	for i := 0; i < maxDeviceInitRetry; i++ {
-		if d = devices.Startup(atype); d == nil {
+		if d = devices.Startup(atype, r); d == nil {
 			logging.Errorf("Could not init the %s device going to try again", atype)
 			if sleep {
-				// The GPU operators typically takes longer time to initialize than kepler resulting in error to start the gpu driver
-				// therefore, we wait up to 1 min to allow the gpu operator initialize
+				// The GPU operators can be slow to start up, so we wait a bit before retrying.
 				time.Sleep(6 * time.Second)
 			}
 			continue
 		}
-		logging.Infof("Startup %s Accelerator successful", atype)
+		logging.Debugf("Startup %s Accelerator successful", atype)
 		break
+	}
+
+	if d == nil {
+		return nil, fmt.Errorf("failed to initialize device of type %s after %d retries", atype, maxDeviceInitRetry)
 	}
 
 	return &accelerator{
@@ -153,14 +164,14 @@ func New(atype string, sleep bool) (Accelerator, error) {
 	}, nil
 }
 
-func Shutdown() {
-	if accelerators := GetRegistry().accelerators(); accelerators != nil {
+func ShutdownAccelerators() {
+	if accelerators := GetAcceleratorRegistry().GetActiveAccelerators(); accelerators != nil {
 		for _, a := range accelerators {
-			logging.Infof("Shutting down %s", a.Device().DevType())
+			logging.Debugf("Shutting down %s", a.Device().DevType())
 			a.stop()
 		}
 	} else {
-		logging.Info("No devices to shutdown")
+		logging.Debugf("No devices to shutdown")
 	}
 }
 
@@ -171,12 +182,12 @@ func (a *accelerator) stop() {
 		return
 	}
 
-	if shutdown := GetRegistry().Unregister(a); !shutdown {
+	if shutdown := GetAcceleratorRegistry().UnregisterAccelerator(a); !shutdown {
 		logging.Error("error shutting down the accelerator")
 		return
 	}
 
-	logging.Info("Accelerator stopped")
+	logging.Debug("Accelerator stopped")
 }
 
 // Device returns an accelerator interface
@@ -195,9 +206,23 @@ func (a *accelerator) IsRunning() bool {
 }
 
 func GetActiveAcceleratorByType(t string) Accelerator {
-	return GetRegistry().activeAcceleratorByType(t)
+	return GetAcceleratorRegistry().GetActiveAcceleratorByType(t)
 }
 
 func GetAccelerators() map[string]Accelerator {
-	return GetRegistry().accelerators()
+	return GetAcceleratorRegistry().GetActiveAccelerators()
+}
+
+// SummarizeGPUs provides a summary of the GPU fleet by retrieving the active GPU accelerator
+// and summarizing its associated device. If no active GPU accelerator is found, an error is returned.
+//
+// Returns:
+//   - *devices.GPUFleetSummary: A summary of the GPU fleet if an active accelerator is found.
+//   - error: An error if no active accelerator is found or if summarizing the device fails.
+func SummarizeGPUs() (*devices.GPUFleetSummary, error) {
+	acc := GetActiveAcceleratorByType(config.GPU)
+	if acc == nil {
+		return nil, errors.New("no active accelerator found")
+	}
+	return devices.SummarizeDevice(acc.Device())
 }

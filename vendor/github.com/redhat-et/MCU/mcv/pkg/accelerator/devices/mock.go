@@ -16,6 +16,8 @@ limitations under the License.
 package devices
 
 import (
+	"os"
+
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -29,21 +31,28 @@ type MockDevice struct {
 	collectionSupported bool
 }
 
-func RegisterMockDevice() {
-	r := GetRegistry()
+func mockCheck(r *Registry) {
+	logging.Debugf("Checking for mock device support")
+	if os.Getenv("MCV_ENABLE_MOCK_DEVICE") == "" {
+		return
+	}
+	logging.Debugf("Mock device enabled via MCV_ENABLE_MOCK_DEVICE environment variable")
+	// Register mock device under MOCK key
 	if err := addDeviceInterface(r, mockDevice, mockDevice.String(), MockDeviceDeviceStartup); err != nil {
 		logging.Debugf("couldn't register mock device %v", err)
 	}
+	logging.Debugf("Using %s interface to obtain Device info", mockDevice.String())
 }
 
 func MockDeviceDeviceStartup() Device {
-	d := MockDevice{
+	d := &MockDevice{
 		mockDevice:          mockDevice,
 		name:                mockDevice.String(),
 		collectionSupported: true,
 	}
 
-	return &d
+	logging.Debugf("MockDevice startup completed")
+	return d
 }
 
 func (d *MockDevice) Name() string {

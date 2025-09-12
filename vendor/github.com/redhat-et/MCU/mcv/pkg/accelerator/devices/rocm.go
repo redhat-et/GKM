@@ -22,7 +22,37 @@ var (
 )
 
 type gpuROCm struct {
-	devices map[int]GPUDevice // GPU identifiers mapped to device info
+	devices    map[int]GPUDevice // GPU identifiers mapped to device info
+	name       string
+	deviceType DeviceType
+	hwType     string
+	tritonInfo []TritonGPUInfo
+	summaries  []DeviceSummary
+}
+
+// SetName sets the name of the ROCM device.
+func (d *gpuROCm) SetName(name string) {
+	d.name = name
+}
+
+// SetDeviceType sets the device type of the ROCM device.
+func (d *gpuROCm) SetDeviceType(deviceType DeviceType) {
+	d.deviceType = deviceType
+}
+
+// SetHwType sets the hardware type of the ROCM device.
+func (d *gpuROCm) SetHwType(hwType string) {
+	d.hwType = hwType
+}
+
+// SetTritonInfo sets the Triton GPU information for the ROCM device.
+func (d *gpuROCm) SetTritonInfo(info []TritonGPUInfo) {
+	d.tritonInfo = info
+}
+
+// SetSummaries sets the summaries for the ROCM device.
+func (d *gpuROCm) SetSummaries(summaries []DeviceSummary) {
+	d.summaries = summaries
 }
 
 type ROCMGPUInfo struct {
@@ -38,7 +68,7 @@ type ROCMCardInfo struct {
 	VISVRAMTotalMemory string `json:"VIS_VRAM Total Memory (B)"`
 	VISVRAMUsedMemory  string `json:"VIS_VRAM Total Used Memory (B)"`
 	GTTTotalMemory     string `json:"GTT Total Memory (B)"`
-	GTTUsedMemory      string `json:"GTT Total Used Memory (B)"`
+	GTTUsedMemory      string `json:"GTT Used Memory (B)"`
 	CardSeries         string `json:"Card Series"`
 	CardModel          string `json:"Card Model"`
 	CardVendor         string `json:"Card Vendor"`
@@ -63,9 +93,9 @@ func rocmCheck(r *Registry) {
 	}
 	rocmType = ROCM
 	if err := addDeviceInterface(r, rocmType, rocmHwType, rocmDeviceStartup); err == nil {
-		logging.Infof("Using %s to obtain GPU info", rocmAccImpl.Name())
+		logging.Debugf("Using %s to obtain GPU info", rocmAccImpl.Name())
 	} else {
-		logging.Infof("Error registering rocm-smi: %v", err)
+		logging.Debugf("Error registering rocm-smi: %v", err)
 	}
 }
 
@@ -79,7 +109,8 @@ func rocmDeviceStartup() Device {
 		logging.Errorf("Failed to init device: %v", err)
 		return nil
 	}
-	logging.Infof("Using %s to obtain GPU info", rocmType.String())
+	logging.Debugf("Using %s to obtain GPU info", rocmType.String())
+	logging.Debugf("ROCm device startup completed")
 	return &a
 }
 
@@ -242,12 +273,20 @@ func (r *gpuROCm) GetGPUInfo(gpuID int) (TritonGPUInfo, error) {
 }
 
 func (r *gpuROCm) GetAllSummaries() ([]DeviceSummary, error) {
+	// Check if summaries are already cached
+	if len(r.summaries) > 0 {
+		logging.Debugf("Returning cached summaries for ROCM device %s", r.Name())
+		return r.summaries, nil
+	}
+
+	// Fallback to default behavior if cache is unavailable
 	var allAccInfo []DeviceSummary
 	for gpuID := range r.devices {
 		dev := r.devices[gpuID]
 		allAccInfo = append(allAccInfo, dev.Summary)
-		logging.Debugf("GPU %d: %+v", gpuID, dev.TritonInfo)
+		logging.Debugf("GPU %d: %+v", gpuID, dev.Summary)
 	}
+	r.summaries = allAccInfo // Cache the summaries for future calls
 	return allAccInfo, nil
 }
 

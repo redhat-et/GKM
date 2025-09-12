@@ -65,9 +65,9 @@ instance which points an OCI Image with GPU Kernel Cache. Example:
 apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
-  name: flash-attention-rocm
+  name: vector-add-cache-rocm
 spec:
-  image: quay.io/mtahhan/flash-attention-rocm:latest
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
 ```
 
 The example yaml also includes a test pod that references the `GKMCache` CR
@@ -98,14 +98,14 @@ spec:
     csi:
       driver: csi.gkm.io
       volumeAttributes:
-        csi.gkm.io/GKMCache: flash-attention-rocm
+        csi.gkm.io/GKMCache: vector-add-cache-rocm
 ```
 
 Pod Spec Highlights:
 
 - The `volumes:` named `kernel-volume` references the GKM CSI driver via
   `driver: csi.gkm.io` and references the GKM Cache CR via
-  `csi.gkm.io/GKMCache: flash-attention-rocm`.
+  `csi.gkm.io/GKMCache: vector-add-cache-rocm`.
 - The `volumeMounts:` named `kernel-volume` maps the GPU Kernel Cache to the
   directory `/cache` within the pod.
 - There is a Node Selector `gkm-test-node: "true"`.
@@ -131,7 +131,7 @@ gkm-csi-node-tkkc8             2/2     Running   0          102m   10.89.0.66   
 Now the example yaml can be applied:
 
 ```sh
-kubectl apply -f examples/flash-attention-rocm.yaml
+kubectl apply -f examples/vector-add-cache-rocm.yaml
 ```
 
 The `gkm-test-pod` should be running and the cache should be volume mounted in

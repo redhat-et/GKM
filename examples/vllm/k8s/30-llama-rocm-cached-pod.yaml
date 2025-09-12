@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: llama-rocm-cached-pod
+  namespace: gkm-test-ns-scoped
+spec:
+  containers:
+    - name: llama-container
+      image: quay.io/gkm/vllm-demo:rocm
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+      command: [./entrypoint-vllm.sh]
+      ports:
+        - containerPort: 8000
+      env:
+        - name: MODEL
+          value: RedHatAI/Llama-3.1-8B-Instruct
+        - name: PORT
+          value: "8000"
+        - name: MODE
+          value: serve
+        - name: VLLM_USE_COMPILED_ATTENTION
+          value: "1"
+        - name: VLLM_COMPILED_ATTENTION_BACKEND
+          value: "1"
+        - name: VLLM_USE_V1
+          value: "1"
+        - name: HUGGING_FACE_HUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-token-secret
+              key: token
+        # - name: EXTRA_ARGS
+        #   value: >-
+        #     --tensor-parallel-size 1
+        #     --gpu-memory-utilization 0.95
+        #     --max-model-len 4096
+        #     --max-num-seqs 16
+        #     --enforce-eager
+      volumeMounts:
+        - name: model-cache-volume
+          mountPath: /home/vllm/.cache/vllm/
+        - name: model-hf-volume
+          mountPath: /home/vllm/.cache/huggingface/
+      resources:
+        limits:
+          amd.com/gpu: 1
+
+  restartPolicy: Never
+  volumes:
+    - name: model-hf-volume
+      emptyDir: {}
+    - name: model-cache-volume
+      csi:
+        driver: csi.gkm.io
+        volumeAttributes:
+          csi.gkm.io/GKMCache: llama-3-1-8b-instruct-rocm
+          csi.gkm.io/namespace: gkm-test-ns-scoped

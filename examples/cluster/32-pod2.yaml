@@ -25,4 +25,4 @@ spec:
       csi:
         driver: csi.gkm.io
         volumeAttributes:
-          csi.gkm.io/GKMCache: flash-attention-rocm
+          csi.gkm.io/GKMCache: vector-add-cache-rocm
