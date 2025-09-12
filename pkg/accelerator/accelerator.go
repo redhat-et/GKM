@@ -129,7 +129,7 @@ func (r *AcceleratorRegistry) GetActiveAcceleratorByType(t string) Accelerator {
 
 func New(atype string, sleep bool) (Accelerator, error) {
 	var d devices.Device
-	maxDeviceInitRetry := 4
+	maxDeviceInitRetry := 10
 	// Init the available devices.
 	logging.Debugf("Starting up device of type %s", atype)
 	r := devices.GetRegistry()
@@ -145,7 +145,8 @@ func New(atype string, sleep bool) (Accelerator, error) {
 		if d = devices.Startup(atype, r); d == nil {
 			logging.Errorf("Could not init the %s device going to try again", atype)
 			if sleep {
-				time.Sleep(2 * time.Second)
+				// The GPU operators can be slow to start up, so we wait a bit before retrying.
+				time.Sleep(6 * time.Second)
 			}
 			continue
 		}
