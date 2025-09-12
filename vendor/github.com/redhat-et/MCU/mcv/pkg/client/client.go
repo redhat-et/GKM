@@ -110,11 +110,6 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		return nil, nil, fmt.Errorf("error configuring logging: %v", err)
 	}
 
-	// Auto-detect accelerator hardware if GPU is not already enabled
-	if _, err = devices.DetectAccelerators(); err != nil {
-		logging.Warn("No accelerators detected, GPU logic disabled.")
-	}
-
 	if opts.SkipPrecheck != nil {
 		config.SetSkipPrecheck(*opts.SkipPrecheck)
 		if *opts.SkipPrecheck {
@@ -127,6 +122,27 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		if !*opts.EnableBaremetal {
 			logging.Debug("Baremetal checks disabled via client options")
 		}
+	}
+
+	if opts.EnableGPU != nil {
+		config.SetEnabledGPU(*opts.EnableGPU)
+		if *opts.EnableGPU {
+			logging.Debug("GPU support enabled via client options")
+		} else {
+			logging.Debug("GPU support disabled via client options")
+		}
+	}
+
+	if config.IsGPUEnabled() {
+		logging.Debug("GPU support is enabled")
+
+		// Auto-detect accelerator hardware if GPU is not already enabled
+		if _, err = devices.DetectAccelerators(); err != nil {
+			logging.Warn("No accelerators detected, GPU logic disabled.")
+		}
+	} else {
+		logging.Debug("GPU support is disabled So skipping accelerator detection and disabling preflight check")
+		config.SetSkipPrecheck(true) // No GPU, so skip preflight
 	}
 
 	// If caller asked to skip preflight, do not run it here or downstream.
