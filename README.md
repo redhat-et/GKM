@@ -477,14 +477,20 @@ devices are present.
 
 ## Using MCV image to build cache images
 
-MCV provides a docker image called `quay.io/gkm/mcv`.
+MCV provides a container image called `quay.io/gkm/mcv`. This image
+can be used to wrap a vLLM/Triton cache in an OCI container image
+that can then be pushed to a container registry (without having
+to install mcv locally). This image can also be used as part
+of a [github workflow](./.github/workflows/mcv-build-example-images.yml).
+
+### MCV container image with docker
 
 To use docker on the host with an MCV image, you need to
 mount the cache directory to the container and run the following command:
 
 ```bash
 docker run --rm -it --privileged \
-  -v /home/mtahhan/TKDK/mcv/example:/example \
+  -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm -d /example/vector-add-cache-rocm &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
@@ -505,7 +511,7 @@ Storing signatures
 Then on host:
 
 ```bash
-docker load -i /home/mtahhan/TKDK/mcv/example/vector-add-cache-rocm.tar
+docker load -i <path-to-cache>/example/vector-add-cache-rocm.tar
 24b82d6fef87: Loading layer [==================================================>]  93.18kB/93.18kB
 The image quay.io/gkm/vector-add-cache:rocm already exists, renaming the old one with ID sha256:5dc90b88f536e44e186c5a076afbb7a54389aed6f0ddfa21365ae2c7f79cb21d to empty string
 Loaded image: quay.io/gkm/vector-add-cache:rocm
@@ -514,7 +520,32 @@ Loaded image: quay.io/gkm/vector-add-cache:rocm
 Check the images:
 
 ```bash
-$ docker images
+docker images
 REPOSITORY                               TAG       IMAGE ID       CREATED          SIZE
 quay.io/gkm/vector-add-cache             rocm      8ce4bc2e98ab   15 seconds ago   80.7kB
+```
+
+### MCV container image with podman
+
+To use podman on the host with an MCV image, you need to
+mount the cache directory to the container and run the following command:
+
+```bash
+podman run --rm -it --privileged \
+  -v <path-to-cache>/example:/example \
+  quay.io/gkm/mcv bash -lc '
+    /mcv -c -i quay.io/gkm/vector-add-cache:rocm -d /example/vector-add-cache-rocm &&
+    buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
+    oci-archive:/example/vector-add-cache-rocm.oci:quay.io/gkm/vector-add-cache:rocm
+  '
+```
+
+```bash
+podman load -i <path-to-cache>/example/vector-add-cache-rocm.oci
+```
+
+```bash
+podman images
+REPOSITORY                                TAG                         IMAGE ID      CREATED         SIZE
+quay.io/gkm/vector-add-cache              rocm                        b1bc2ae6bef1  25 seconds ago  94.7 kB
 ```
