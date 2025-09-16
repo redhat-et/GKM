@@ -12,6 +12,7 @@ NUM_PROMPTS=${NUM_PROMPTS:-1000}
 NUM_ROUNDS=${NUM_ROUNDS:-3}
 MAX_BATCH_TOKENS=${MAX_BATCH_TOKENS:-8192}
 NUM_CONCURRENT=${NUM_CONCURRENT:-8}
+BENCHMARK_SUMMARY_MODE=${BENCHMARK_SUMMARY_MODE:-"table"}  # Options: table, graph, none
 
 # Additional args passed directly to vLLM
 EXTRA_ARGS=${EXTRA_ARGS:-""}
@@ -127,7 +128,6 @@ summarize_logs() {
   echo "============================="
 }
 
-
 watch_for_startup_complete() {
   local logfile="$1"
   while read -r line; do
@@ -138,6 +138,133 @@ watch_for_startup_complete() {
     fi
   done
 }
+
+extract_compile_time() {
+  local logfile="$1"
+  local label="$2"
+  local time
+
+  time=$(grep "torch.compile takes" "$logfile" | tail -1 | awk '{print $(NF-3)}')
+
+  if [[ -n "$time" ]]; then
+    echo " Torch Compile Time (${label}): ${time} seconds"
+  fi
+}
+
+
+print_benchmark_summary_table() {
+  local dir="$1"
+
+  echo -e "\n===== Benchmark Summary (Table) ====="
+
+  if [[ -f "$dir/throughput.json" ]]; then
+    echo -e "\n-- Throughput Results --"
+    jq -r '
+      def fmt(x): if x == null then "n/a" else x|tostring end;
+      ["Metric", "Value"],
+      ["Elapsed Time (s)", fmt(.elapsed_time)],
+      ["Requests", fmt(.num_requests)],
+      ["Total Tokens", fmt(.total_num_tokens)],
+      ["Requests/sec", fmt(.requests_per_second)],
+      ["Tokens/sec", fmt(.tokens_per_second)]
+      | @tsv
+    ' "$dir/throughput.json" | column -t -s $'\t'
+  else
+    echo "Throughput result file not found!"
+  fi
+
+  if [[ -f "$dir/latency.json" ]]; then
+    echo -e "\n-- Latency Results (in seconds) --"
+    jq -r '
+      def fmt(x): if x == null then "n/a" else x|tostring end;
+      ["Metric", "Value"],
+      ["Avg", fmt(.avg_latency)],
+      ["P10", fmt(.percentiles["10"])],
+      ["P25", fmt(.percentiles["25"])],
+      ["P50", fmt(.percentiles["50"])],
+      ["P75", fmt(.percentiles["75"])],
+      ["P90", fmt(.percentiles["90"])],
+      ["P99", fmt(.percentiles["99"])]
+      | @tsv
+    ' "$dir/latency.json" | column -t -s $'\t'
+  else
+    echo "Latency result file not found!"
+  fi
+
+  echo "======================================"
+
+  echo -e "\n===== Torch Compile Time Summary ====="
+  extract_compile_time "$dir/throughput.log" "throughput"
+  extract_compile_time "$dir/latency.log" "latency"
+  echo "======================================"
+
+}
+
+print_benchmark_summary_graph() {
+  local dir="$1"
+  echo -e "\n===== Throughput Summary ====="
+  local file="$dir/throughput.json"
+  if [[ -f "$file" ]]; then
+    local rps=$(jq '.requests_per_second' "$file")
+    local tps=$(jq '.tokens_per_second' "$file")
+    local tokens=$(jq '.total_num_tokens' "$file")
+    local time=$(jq '.elapsed_time' "$file")
+    echo "Requests/sec:     $rps"
+    echo "Tokens/sec:       $tps"
+    echo "Total tokens:     $tokens"
+    echo "Elapsed time (s): $time"
+  else
+    echo "Throughput result file not found!"
+  fi
+
+  local file="$dir/latency.json"
+  echo -e "\n===== Latency Distribution (Graph) ====="
+  echo -e "Metric | Value (s) | Graph"
+  echo -e "-------+------------+-------------------------------"
+
+  if [[ -f "$file" ]]; then
+    local max_val
+    max_val=$(jq '.percentiles["99"]' "$file")
+
+    draw_bar() {
+      local label=$1
+      local value=$2
+      local max=$3
+      local width=30
+
+      # Use bc for float-safe calculations
+      local scale_factor
+      scale_factor=$(echo "scale=6; $width / $max" | bc)
+
+      local bar_len
+      bar_len=$(echo "$value * $scale_factor" | bc | awk '{printf "%d", $1}')
+
+      local bar
+      bar=$(printf "%${bar_len}s" | tr ' ' '#')
+
+      printf "%-6s | %10.3f | %s\n" "$label" "$value" "$bar"
+    }
+
+    draw_bar "Avg" "$(jq '.avg_latency' "$file")" "$max_val"
+    draw_bar "P10" "$(jq '.percentiles["10"]' "$file")" "$max_val"
+    draw_bar "P25" "$(jq '.percentiles["25"]' "$file")" "$max_val"
+    draw_bar "P50" "$(jq '.percentiles["50"]' "$file")" "$max_val"
+    draw_bar "P75" "$(jq '.percentiles["75"]' "$file")" "$max_val"
+    draw_bar "P90" "$(jq '.percentiles["90"]' "$file")" "$max_val"
+    draw_bar "P99" "$(jq '.percentiles["99"]' "$file")" "$max_val"
+
+    echo "========================================="
+
+    echo -e "\n===== Torch Compile Time Summary ====="
+    extract_compile_time "$dir/throughput.log" "throughput"
+    extract_compile_time "$dir/latency.log" "latency"
+    echo "======================================"
+
+  else
+    echo "Latency result file not found!"
+  fi
+}
+
 
 case $MODE in
   "serve")
@@ -173,8 +300,11 @@ case $MODE in
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BENCHMARK_DIR="/data/benchmarks/$TIMESTAMP"
     mkdir -p "$BENCHMARK_DIR"
+    THROUGHPUT_LOG="$BENCHMARK_DIR/throughput.log"
+    LATENCY_LOG="$BENCHMARK_DIR/latency.log"
 
     echo "Running throughput benchmark..."
+    START_TIME=$(date +%s)
     python3 /app/vllm/benchmarks/benchmark_throughput.py \
       --model "$MODEL" \
       --input-len "$INPUT_LEN" \
@@ -182,7 +312,7 @@ case $MODE in
       --num-prompts "$NUM_PROMPTS" \
       --max-num-batched-tokens "$MAX_BATCH_TOKENS" \
       --output-json "$BENCHMARK_DIR/throughput.json" \
-      $EXTRA_ARGS
+      $EXTRA_ARGS 2>&1 | tee "$THROUGHPUT_LOG"
     echo "Throughput benchmark complete - results saved in $BENCHMARK_DIR/throughput.json"
 
     echo "Running latency benchmark..."
@@ -191,8 +321,30 @@ case $MODE in
       --input-len "$INPUT_LEN" \
       --output-len "$OUTPUT_LEN" \
       --output-json "$BENCHMARK_DIR/latency.json" \
-      $EXTRA_ARGS
+      $EXTRA_ARGS 2>&1 | tee "$LATENCY_LOG"
+    END_TIME=$(date +%s)
+    TOTAL_TIME=$((END_TIME - START_TIME))
+
     echo "Latency benchmark complete - results saved in $BENCHMARK_DIR/latency.json"
+
+    echo -e "\n===== Total Benchmark Runtime ====="
+    echo " Total time: ${TOTAL_TIME} seconds"
+    echo "==================================="
+
+    case "$BENCHMARK_SUMMARY_MODE" in
+      "table")
+        print_benchmark_summary_table "$BENCHMARK_DIR"
+        ;;
+      "graph")
+        print_benchmark_summary_graph "$BENCHMARK_DIR"
+        ;;
+      "none")
+        echo "Benchmark summary display disabled."
+        ;;
+      *)
+        echo "Unknown BENCHMARK_SUMMARY_MODE: $BENCHMARK_SUMMARY_MODE"
+        ;;
+    esac
 
     echo "All results have been saved to $BENCHMARK_DIR"
     ;;

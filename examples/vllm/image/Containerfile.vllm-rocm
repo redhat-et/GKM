@@ -3,7 +3,7 @@ FROM rocm/vllm:latest
 ARG ENTRYPOINT_PATH=image/entrypoint-vllm.sh
 # Install basic development tools
 RUN apt-get update && apt-get install -y \
-    curl \
+    curl jq bsdmainutils bc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install additional dependencies
@@ -26,9 +26,11 @@ USER vllm
 
 # Make our entrypoint script executable
 
+WORKDIR /
 COPY --chown=vllm:vllm ${ENTRYPOINT_PATH} .
 RUN chmod +x entrypoint-vllm.sh
 
-ENTRYPOINT ["./entrypoint-vllm.sh"]
+WORKDIR /app
+ENTRYPOINT ["/entrypoint-vllm.sh"]
 
 # https://rocm.blogs.amd.com/software-tools-optimization/vllm-container/README.html
