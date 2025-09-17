@@ -129,6 +129,7 @@ func main() {
 	]{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
+		Recorder:        mgr.GetEventRecorderFor("GKM-Agent-NS"),
 		CacheDir:        utils.DefaultCacheDir,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
@@ -149,6 +150,7 @@ func main() {
 	]{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
+		Recorder:        mgr.GetEventRecorderFor("GKM-Agent-CL"),
 		CacheDir:        utils.DefaultCacheDir,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,

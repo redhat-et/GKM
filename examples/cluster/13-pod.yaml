@@ -1,0 +1,28 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: gkm-test-pod-2
+  namespace: gkm-test-cl-scoped
+spec:
+  tolerations:
+    - key: gpu
+      operator: Equal
+      effect: NoSchedule
+      value: "true"
+  nodeSelector:
+    gkm-test-node: "true"
+  containers:
+    - name: alpine
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      volumeMounts:
+        - name: kernel-volume
+          mountPath: /cache
+  volumes:
+    - name: kernel-volume
+      csi:
+        driver: csi.gkm.io
+        volumeAttributes:
+          csi.gkm.io/GKMCache: vector-add-cache-rocm

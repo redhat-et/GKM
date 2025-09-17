@@ -249,3 +249,43 @@ func (b GkmConditionType) IsConditionSet(conditions []metav1.Condition) bool {
 	}
 	return false
 }
+
+// GkmCacheNodeEventReason is an event reason and used to track the major events of a GKMCacheNode
+// or ClusterGKMCacheNode on a given node.
+type GkmCacheNodeEventReason string
+
+const (
+	// GkmCacheNodeEventReasonCreated indicates that a GKMCacheNode or ClusterGKMCacheNode was created.
+	GkmCacheNodeEventReasonCreated GkmCacheNodeEventReason = "Created"
+
+	// GkmCacheNodeEventReasonCacheUsed indicates that a GKMCacheNode or ClusterGKMCacheNode is being used
+	// by a given workload pod.
+	GkmCacheNodeEventReasonCacheUsed GkmCacheNodeEventReason = "CacheUsed"
+
+	// GkmCacheNodeEventReasonCacheReleased indicates that a GKMCacheNode or ClusterGKMCacheNode is no longer
+	// being used by a given workload pod.
+	GkmCacheNodeEventReasonCacheReleased GkmCacheNodeEventReason = "CacheRelease"
+
+	// GkmCacheNodeEventReasonDeleting indicates that a GKMCacheNode or ClusterGKMCacheNode is being deleted
+	// but the Cache is being used by one or more workload pods.
+	GkmCacheNodeEventReasonDeleting GkmCacheNodeEventReason = "Deleting"
+)
+
+/*
+// Condition is a helper method to promote any given GkmConditionType to a
+// full metav1.Condition in an opinionated fashion.
+func (b GkmCacheNodeEventReason) Event() metav1.Condition {
+	cond := metav1.Condition{}
+
+	switch b {
+	case GkmCacheNodeEventReasonCreated:
+		cond = metav1.Event{
+			Type:    string(GkmCacheNodeEventTypeNormal),
+			Reason:  string(GkmCacheNodeEventReasonCreated),
+			Message: "Not yet complete",
+			Timestamp: metav1.Now(),
+		}
+	}
+	return cond
+}
+*/

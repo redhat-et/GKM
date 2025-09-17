@@ -297,14 +297,20 @@ else
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+
+.PHONY: redeploy
+redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and undeploy have been called. Skips some onetime steps in deploy.
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) apply -f -
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
-	@echo "Undeploy cert-manager"
-	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
+undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
+	@echo "Calling undeploy script"
+	$(UNDEPLOY_SCRIPT) --force
+	@if [ $$? -ne 0 ]; then \
+    	exit 1; \
+    fi
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
@@ -342,8 +348,8 @@ GPU_TYPE ?= rocm
 get-example-images:
 	$(CONTAINER_TOOL) pull quay.io/gkm/vector-add-cache:rocm
 	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/vector-add-cache:rocm --cluster-name=$(KIND_CLUSTER_NAME)
-	$(CONTAINER_TOOL) pull quay.io/mtahhan/flash-attention-rocm:latest
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/mtahhan/flash-attention-rocm:latest --cluster-name=$(KIND_CLUSTER_NAME)
+	$(CONTAINER_TOOL) pull quay.io/gkm/cache-examples:vector-add-cache-rocm
+	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/cache-examples:vector-add-cache-rocm --cluster-name=$(KIND_CLUSTER_NAME)
 
 .PHONY: deploy-webhook-certs
 deploy-webhook-certs:
@@ -355,6 +361,10 @@ webhook-secret-file:
 	@[ -s config/secret/mutation.env ] || \
 	  (echo 'Generating config/secret/mutation.env'; \
 	   printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env)
+
+.PHONY: delete-webhook-secret-file
+delete-webhook-secret-file:
+	@rm -f 0config/secret/mutation.env
 
 .PHONY: rotate-webhook-secret
 rotate-webhook-secret:
@@ -392,6 +402,11 @@ deploy-cert-manager: get-cert-manager-images
 	$(KUBECTL) wait --for=condition=Available --timeout=120s -n cert-manager deployment/cert-manager-webhook
 	$(KUBECTL) wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
 
+.PHONY: undeploy-cert-manager
+undeploy-cert-manager: delete-webhook-secret-file
+	@echo "Undeploy cert-manager"
+	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
+
 .PHONY: setup-kind
 setup-kind:
 	@echo "Creating Kind GPU cluster with GPU type: $(GPU_TYPE) and cluster name: $(KIND_CLUSTER_NAME)"
@@ -414,22 +429,24 @@ tmp-cleanup:
 	@hack/tmp-cleanup.sh
 
 .PHONY: deploy-on-kind
-deploy-on-kind: tmp-cleanup manifests kustomize deploy-cert-manager ## Deploy operator and agent to the Kind GPU cluster.
+deploy-on-kind: kind-load-images tmp-cleanup
 	## NOTE: config/kind-gpu is an overlay of config/default
 	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
 	@echo "Add label gkm-test-node= to node kind-gpu-sim-worker."
 	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 
+.PHONY: redeploy-on-kind
+redeploy-on-kind: ## Redeploy controller and agent to Kind GPU cluster after run-on-kind and undeploy-on-kind have been called. Skips some onetime steps in deploy.
+	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
+	@echo "Deployment to $(DEPLOY_PATH) completed."
+
 .PHONY: undeploy-on-kind
 undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
 	$(MAKE) undeploy DEPLOY_PATH=config/kind-gpu ignore-not-found=$(ignore-not-found)
-	@echo "Undeploy cert-manager"
-	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
-	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node- 2>/dev/null || true
 	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
 
 .PHONY: run-on-kind
-run-on-kind: destroy-kind setup-kind kind-load-images deploy-on-kind ## Setup Kind cluster, load images, and deploy
+run-on-kind: destroy-kind setup-kind deploy-on-kind ## Setup Kind cluster, load images, and deploy
 	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
 
 .PHONY: destroy-kind
@@ -451,6 +468,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+UNDEPLOY_SCRIPT ?= $(shell pwd)/hack/undeploy.sh
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0

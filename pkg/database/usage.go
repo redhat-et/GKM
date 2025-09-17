@@ -35,6 +35,11 @@ func init() {
 // Allow overriding UsageDir location for Testing
 func initializeUsagePath(value string) {
 	defaultUsageDir = value
+
+	/*
+		// Start with an empty set of Usage Data and build it up during reconcile.
+		os.RemoveAll(defaultUsageDir)
+	*/
 }
 
 // UsageData contains metadata about a given Kernel Cache.

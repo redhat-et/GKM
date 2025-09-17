@@ -5,6 +5,14 @@ metadata:
   name: agent-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+- apiGroups:
   - gkm.io
   resources:
   - clustergkmcachenodes

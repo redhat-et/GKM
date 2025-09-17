@@ -41,13 +41,12 @@ Check the GKM installed pods:
 
 ```sh
 $ kubectl get pods -n gkm-system
-NAME                           READY   STATUS    RESTARTS   AGE
-gkm-agent-7ggr2                1/1     Running   0          74m
-gkm-agent-mc9h6                1/1     Running   0          74m
-gkm-operator-c7b6f4f87-9zgns   3/3     Running   0          74m
-gkm-csi-node-nd6qn             2/2     Running   0          74m
-gkm-csi-node-tkkc8             2/2     Running   0          74m
-gkm-test-pod                   1/1     Running   0          64m
+NAME                            READY   STATUS    RESTARTS   AGE
+gkm-agent-85lqg                 1/1     Running   0          5m7s
+gkm-agent-kzx6j                 1/1     Running   0          5m7s
+gkm-csi-node-w6flc              2/2     Running   0          5m7s
+gkm-csi-node-xc2sb              2/2     Running   0          5m7s
+gkm-operator-7dc756c84b-2w74z   3/3     Running   0          5m7s
 ```
 
 To delete a `kind` cluster with a simulated GPU:
@@ -58,16 +57,19 @@ make destroy-kind
 
 ### Install Test Pod Using GKM
 
-There is an example yaml that creates a `GKMCache` custom resource (CR)
-instance which points an OCI Image with GPU Kernel Cache. Example:
+There are example yamls that creates `GKMCache` and `ClusterGKMCache` custom
+resource (CR) instances, each of which points to an OCI Image with GPU Kernel
+Cache.
+See [./examples/](https://github.com/redhat-et/GKM/tree/main/examples).
+Sample:
 
 ```yaml
 apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
-  name: flash-attention-rocm
+  name: vector-add-cache-rocm-1
 spec:
-  image: quay.io/mtahhan/flash-attention-rocm:latest
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
 ```
 
 The example yaml also includes a test pod that references the `GKMCache` CR
@@ -77,8 +79,8 @@ instance. Example:
 kind: Pod
 apiVersion: v1
 metadata:
-  name: gkm-test-pod
-  namespace: gkm-system
+  name: gkm-test-pod-1
+  namespace: gkm-test-ns-scoped-1
 spec:
   tolerations:
     - key: gpu
@@ -98,14 +100,15 @@ spec:
     csi:
       driver: csi.gkm.io
       volumeAttributes:
-        csi.gkm.io/GKMCache: flash-attention-rocm
+        csi.gkm.io/GKMCache: vector-add-cache-rocm-1
+        csi.gkm.io/namespace: gkm-test-ns-scoped-1
 ```
 
 Pod Spec Highlights:
 
 - The `volumes:` named `kernel-volume` references the GKM CSI driver via
   `driver: csi.gkm.io` and references the GKM Cache CR via
-  `csi.gkm.io/GKMCache: flash-attention-rocm`.
+  `csi.gkm.io/GKMCache: vector-add-cache-rocm`.
 - The `volumeMounts:` named `kernel-volume` maps the GPU Kernel Cache to the
   directory `/cache` within the pod.
 - There is a Node Selector `gkm-test-node: "true"`.
@@ -119,39 +122,50 @@ Because of the Node Selector, the test pod will be launched on node
 <!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl get pods -n gkm-system -o wide
-NAME                           READY   STATUS    RESTARTS   AGE    IP           NODE
-gkm-agent-7ggr2                1/1     Running   0          102m   10.244.1.6   kind-gpu-sim-worker
-gkm-agent-mc9h6                1/1     Running   0          102m   10.244.2.3   kind-gpu-sim-worker2
-gkm-operator-c7b6f4f87-9zgns   3/3     Running   0          102m   10.244.0.5   kind-gpu-sim-control-plane
-gkm-csi-node-nd6qn             2/2     Running   0          102m   10.89.0.67   kind-gpu-sim-worker2
-gkm-csi-node-tkkc8             2/2     Running   0          102m   10.89.0.66   kind-gpu-sim-worker  <-- HERE
+NAME                            READY   STATUS    RESTARTS   AGE    IP           NODE
+gkm-agent-85lqg                 1/1     Running   0          5m7s   10.244.2.4   kind-gpu-sim-worker    <-- HERE
+gkm-agent-kzx6j                 1/1     Running   0          5m7s   10.244.1.5   kind-gpu-sim-worker2
+gkm-csi-node-w6flc              2/2     Running   0          5m7s   10.89.0.55   kind-gpu-sim-worker
+gkm-csi-node-xc2sb              2/2     Running   0          5m7s   10.89.0.54   kind-gpu-sim-worker2
+gkm-operator-7dc756c84b-2w74z   3/3     Running   0          5m7s   10.244.0.5   kind-gpu-sim-control-plane
 ```
 <!-- markdownlint-enable  MD013 -->
 
 Now the example yaml can be applied:
 
 ```sh
-kubectl apply -f examples/flash-attention-rocm.yaml
+make deploy-examples
 ```
 
-The `gkm-test-pod` should be running and the cache should be volume mounted in
-the pod:
+The test pods `gkm-test-pod-*` should be running and the cache should be volume
+mounted in the pods:
 
 <!-- markdownlint-disable  MD013 -->
 <!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
-$ kubectl get pods -n gkm-system
-NAME                           READY   STATUS    RESTARTS   AGE
-gkm-agent-7ggr2                1/1     Running   0          74m
-gkm-agent-mc9h6                1/1     Running   0          74m
-gkm-operator-c7b6f4f87-9zgns   3/3     Running   0          74m
-gkm-csi-node-nd6qn             2/2     Running   0          74m
-gkm-csi-node-tkkc8             2/2     Running   0          74m
-gkm-test-pod                   1/1     Running   0          64m
+$ kubectl get pods -A
+NAMESPACE              NAME                            READY   STATUS    RESTARTS   AGE
+:
+gkm-system             gkm-agent-85lqg                 1/1     Running   0          41s
+gkm-system             gkm-agent-kzx6j                 1/1     Running   0          41s
+gkm-system             gkm-csi-node-w6flc              2/2     Running   0          41s
+gkm-system             gkm-csi-node-xc2sb              2/2     Running   0          41s
+gkm-system             gkm-operator-7dc756c84b-2w74z   3/3     Running   0          41s
+gkm-test-cl-scoped     gkm-test-pod-1                  1/1     Running   0          19s
+gkm-test-cl-scoped     gkm-test-pod-2                  1/1     Running   0          19s
+gkm-test-cl-scoped     gkm-test-pod-3                  1/1     Running   0          19s
+gkm-test-ns-scoped-1   gkm-test-pod-1                  1/1     Running   0          22s
+gkm-test-ns-scoped-1   gkm-test-pod-2                  1/1     Running   0          22s
+gkm-test-ns-scoped-1   gkm-test-pod-3                  1/1     Running   0          22s
+gkm-test-ns-scoped-2   gkm-test-pod-1                  1/1     Running   0          21s
+gkm-test-ns-scoped-2   gkm-test-pod-2                  1/1     Running   0          21s
+gkm-test-ns-scoped-2   gkm-test-pod-3                  1/1     Running   0          21s
+:
 
-kubectl exec -it -n gkm-system gkm-test-pod -- sh
-sh-5.2# ls /cache/
-c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6  c880dcbe2ffa9f4c96a3c5ce87fbf0b61a04ee4c46f96ee728d2d1efb65133f6  e0a7f37fbe7bb678faad9ffe683ba5d53d92645aefa5b62195bc2683b9971485
+$ kubectl exec -it -n gkm-test-ns-scoped-1 gkm-test-pod-1  -- sh
+sh-5.2# ls /cache
+CETLGDE7YAKGU4FRJ26IM6S47TFSIUU7KWBWDR3H2K3QRNRABUCA  MCELTMXFCSPAMZYLZ3C3WPPYYVTVR4QOYNE52X3X6FIH7Z6N6X5A
+CHN6BLIJ7AJJRKY2IETERW2O7JXTFBUD3PH2WE3USNVKZEKXG64Q  c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6
 ```
 <!-- markdownlint-enable  MD013 -->
 
@@ -172,6 +186,92 @@ make build-images
 make push-images
 make run-on-kind
 ```
+
+### Deployment Options
+
+Steps to deploy GKM have been automated in the
+[Makefile](https://github.com/redhat-et/GKM/blob/main/Makefile).
+There are some complexities in deployment because GKM requires cert-manager
+running and has dependencies on GPUs in the system.
+For running in a KIND cluster, the GPU is being simulated from GKM perspective,
+not workload perspective.
+All of this has been automated, but running the wrong commands can cause
+undefined behavior.
+Below are the recommended steps for deploying and undeploying GKM in different
+environments.
+
+#### Managing GKM in KIND, No Existing Cluster
+
+Below are set of commands to manage the lifecycle of a KIND Cluster with the GKM
+Operator when no KIND Cluster exists:
+
+- `make run-on-kind`: This command creates a KIND Cluster with GKM and
+  cert-manager installed and simulated GPUs.
+  - `make undeploy-on-kind`: Optionally, this command can be used to unwind
+    the GKM deployment on a KIND Cluster.
+    It leaves cert-manager installed.
+    If there are workload pods running that have extracted GPU Kernel Cache
+    mounted, those pods will remain running.
+    GKM is still a work in progress and stranded resources are currently not
+    cleaned up properly.
+    It is recommended that these pods are stopped before GKM is removed.
+  - `make redeploy-on-kind`: Optionally, this command can be used to redeploy
+    the GKM deployment on a KIND Cluster.
+    It assumes that cert-manager is already installed.
+- `make destroy-kind`: This command stops the KIND Cluster completely.
+
+#### Managing GKM in Existing KIND Cluster
+
+Below are set of commands to manage the lifecycle of a KIND Cluster with the GKM
+Operator when a KIND Cluster already exists.
+This assumes that the GPUs are properly being simulated in the existing KIND
+Cluster.
+See [kind-gpu-sim](https://github.com/maryamtahhan/kind-gpu-sim) for reference.
+
+- `make deploy-on-kind`: This command deploys GKM and cert-manager in the
+  existing KIND Cluster.
+  - `make undeploy-on-kind`: Optionally, this command can be used to unwind
+    the GKM deployment on a KIND Cluster.
+    It leaves cert-manager installed.
+    If there are workload pods running that have extracted GPU Kernel Cache
+    mounted, those pods will remain running.
+    GKM is still a work in progress and stranded resources are currently not
+    cleaned up properly.
+    It is recommended that these pods are stopped before GKM is removed.
+  - `make redeploy-on-kind`: Optionally, this command can be used to redeploy
+    the GKM deployment on a KIND Cluster.
+    It assumes that cert-manager is already installed.
+- `make undeploy-on-kind`: Same as above, this command can be used to unwind the
+  GKM deployment on a KIND Cluster, leaving cert-manager installed.
+- `make undeploy-cert-manager`: The Makefile doesn't keep track of whether
+  cert-manager was installed before `make deploy-on-kind` was called or not, so
+  the user needs to manually remove cert-manager with this command if needed.
+
+#### Managing GKM in Existing Cluster With Hardware
+
+Below are set of commands to manage the lifecycle of a KIND Cluster with the GKM
+Operator when a Cluster already exists.
+
+- `make deploy`: This command deploys GKM and cert-manager in the existing
+  Cluster.
+  If cert-manager is already installed on the cluster, use `make redeploy`
+  instead.
+  - `make undeploy`: Optionally, this command can be used to unwind the GKM
+    deployment on a Cluster.
+    It leaves cert-manager installed.
+    If there are workload pods running that have extracted GPU Kernel Cache
+    mounted, those pods will remain running.
+    GKM is still a work in progress and stranded resources are currently not
+    cleaned up properly.
+    It is recommended that these pods are stopped before GKM is removed.
+  - `make redeploy`: Optionally, this command can be used to redeploy the GKM
+    deployment on a Cluster.
+    It assumes that cert-manager is already installed.
+- `make undeploy`: Same as above, this command can be used to unwind the GKM
+  deployment on a KIND Cluster, leaving cert-manager installed.
+- `make undeploy-cert-manager`: The Makefile doesn't keep track of whether
+  cert-manager was installed before `make deploy` was called or not, so the user
+  needs to manually remove cert-manager with this command if needed.
 
 ## Project Distribution
 
