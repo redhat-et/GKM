@@ -2,4 +2,4 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: gkm-test-ns-scoped
+  name: gkm-test-ns-scoped-2

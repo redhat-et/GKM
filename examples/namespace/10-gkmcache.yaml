@@ -1,9 +1,0 @@
----
-apiVersion: gkm.io/v1alpha1
-kind: GKMCache
-metadata:
-  name: flash-attention-rocm
-  namespace: gkm-test-ns-scoped
-  annotations:
-spec:
-  image: quay.io/mtahhan/flash-attention-rocm:latest

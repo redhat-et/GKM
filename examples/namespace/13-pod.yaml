@@ -3,7 +3,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: gkm-test-pod-2
-  namespace: gkm-test-ns-scoped
+  namespace: gkm-test-ns-scoped-1
 spec:
   tolerations:
     - key: gpu
@@ -25,5 +25,5 @@ spec:
       csi:
         driver: csi.gkm.io
         volumeAttributes:
-          csi.gkm.io/GKMCache: flash-attention-rocm
-          csi.gkm.io/namespace: gkm-test-ns-scoped
+          csi.gkm.io/GKMCache: vector-add-cache-rocm-1
+          csi.gkm.io/namespace: gkm-test-ns-scoped-1

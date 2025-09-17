@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -74,6 +75,7 @@ type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstan
 	client.Client
 	Scheme          *runtime.Scheme
 	Logger          logr.Logger
+	Recorder        record.EventRecorder
 	CacheDir        string
 	NodeName        string
 	NoGpu           bool
@@ -109,6 +111,13 @@ type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] in
 
 	cacheNodeAddFinalizer(ctx context.Context, gkmCacheNode *N, cacheName string) (bool, error)
 	cacheNodeRemoveFinalizer(ctx context.Context, gkmCacheNode *N, cacheName string) (bool, error)
+
+	cacheNodeRecordEvent(
+		gkmCacheNode *N,
+		eventReason gkmv1alpha1.GkmCacheNodeEventReason,
+		cacheName, podNamespace, podName string,
+		count int,
+	)
 }
 
 // reconcileCommonAgent is the common reconciler loop called by each the GKMCache
@@ -233,6 +242,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 				cnts, ok := nodeCnts[gkmCache.GetNamespace()]
 				if !ok {
 					cnts = gkmv1alpha1.CacheCounts{}
+					cnts.NodeCnt = 1
 				}
 
 				key := database.CacheKey{
@@ -512,6 +522,9 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 	}
 	nodeStatus.Counts.NodeCnt = 1
 
+	// Record the creation of GKMCacheNode/ClusterGKMCacheNode
+	reconciler.cacheNodeRecordEvent(gkmCacheNode, gkmv1alpha1.GkmCacheNodeEventReasonCreated, "", "", "", 0)
+
 	// Build up GKMCacheNode
 	return reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, &nodeStatus, "Update GPU list")
 }
@@ -652,17 +665,29 @@ func (r *ReconcilerCommonAgent[C, CL, N]) checkForCacheUpdateInCacheNode(
 				r.Logger)
 			if err == nil {
 				if !reflect.DeepEqual(cacheStatus.Pods, usage.Pods) {
+					r.processPodListChanges(reconciler, gkmCache, gkmCacheNode, cacheStatus.Pods, usage.Pods)
+
 					cacheStatus.Pods = make([]gkmv1alpha1.PodData, len(usage.Pods))
 					copy(cacheStatus.Pods, usage.Pods)
 				}
 
 				podUseCnt = len(usage.Pods)
-
-				// Condition: Running
-				if !gkmv1alpha1.GkmCondRunning.IsConditionSet(cacheStatus.Conditions) {
-					r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondRunning.Condition())
+				if podUseCnt != 0 {
+					// Condition: Running
+					if !gkmv1alpha1.GkmCondRunning.IsConditionSet(cacheStatus.Conditions) {
+						r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondRunning.Condition())
+					}
+				} else {
+					// Condition: Extracted
+					if !gkmv1alpha1.GkmCondExtracted.IsConditionSet(cacheStatus.Conditions) {
+						r.setCacheNodeConditions(&cacheStatus, gkmv1alpha1.GkmCondExtracted.Condition())
+					}
 				}
 			} else {
+				if len(cacheStatus.Pods) != 0 {
+					r.processPodListChanges(reconciler, gkmCache, gkmCacheNode, cacheStatus.Pods, []gkmv1alpha1.PodData{})
+				}
+
 				cacheStatus.Pods = nil
 
 				// Condition: Extracted
@@ -693,15 +718,15 @@ func (r *ReconcilerCommonAgent[C, CL, N]) checkForCacheUpdateInCacheNode(
 		} else {
 			r.Logger.Info("GKMCacheNode CacheStatus Missing!!!!",
 				"Namespace", (*gkmCache).GetNamespace(),
-				"Name", (*gkmCache).GetName(),
-				"CacheNodeName", (*gkmCacheNode).GetNamespace(),
+				"CacheName", (*gkmCache).GetName(),
+				"CacheNodeName", (*gkmCacheNode).GetName(),
 				"Digest", resolvedDigest)
 		}
 	} else {
-		r.Logger.Info("GKMCacheNode CacheStatus Missing!!!!",
+		r.Logger.Info("GKMCacheNode NodeStatus Missing!!!!",
 			"Namespace", (*gkmCache).GetNamespace(),
-			"Name", (*gkmCache).GetName(),
-			"CacheNodeName", (*gkmCacheNode).GetNamespace(),
+			"CacheName", (*gkmCache).GetName(),
+			"CacheNodeName", (*gkmCacheNode).GetName(),
 			"Digest", resolvedDigest)
 	}
 
@@ -835,3 +860,117 @@ func addCounts(cnts *gkmv1alpha1.CacheCounts, condType string) {
 		// PodOutdatedCnt is collected in the Garbage Collection portion of the Reconcile loop.
 	}
 }
+
+// processPodListChanges is used to walk the list of pods in the usage data and the list
+// of pods for a given cache in the Node object. CSI Agent detects pods coming and going and
+// adds them to the usage data. The Agent periodically polls the usage data for changes.
+// Several pods could come and go in between the polling period, so this function walks
+// each list and publishes the changes in Events in the Node Object.
+func (r *ReconcilerCommonAgent[C, CL, N]) processPodListChanges(
+	reconciler AgentReconciler[C, CL, N],
+	gkmCache *C,
+	gkmCacheNode *N,
+	oldPodList, newPodList []gkmv1alpha1.PodData,
+) {
+	currPodCnt := len(oldPodList)
+
+	// Look for pods removed from Node Object by walking the OldPodList (which is currently
+	// in the Node Object) and see which pods aren't in the NewPodList (the usage data)
+	for _, currPod := range oldPodList {
+		found := false
+		for _, pod := range newPodList {
+			if currPod.PodNamespace == pod.PodNamespace &&
+				currPod.PodName == pod.PodName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			currPodCnt--
+			reconciler.cacheNodeRecordEvent(
+				gkmCacheNode,
+				gkmv1alpha1.GkmCacheNodeEventReasonCacheReleased,
+				(*gkmCache).GetName(),
+				currPod.PodNamespace,
+				currPod.PodName,
+				currPodCnt,
+			)
+		}
+	}
+
+	// Look for pods added to Node Object by walking the NewPodList (the usage data)
+	// and see which pods aren't in the OldPodLis t(which is currently in the Node Object)
+	for _, currPod := range newPodList {
+		found := false
+		for _, pod := range oldPodList {
+			if currPod.PodNamespace == pod.PodNamespace &&
+				currPod.PodName == pod.PodName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			currPodCnt++
+			reconciler.cacheNodeRecordEvent(
+				gkmCacheNode,
+				gkmv1alpha1.GkmCacheNodeEventReasonCacheUsed,
+				(*gkmCache).GetName(),
+				currPod.PodNamespace,
+				currPod.PodName,
+				currPodCnt,
+			)
+		}
+	}
+}
+
+/*
+// initCommonAgent is called as the Agent initializes by each the GKMCache
+// and ClusterGKMCache Agent. It reads the database files and then calls KubeAPI
+// server to retrieve the list of GKMCache or ClusterGKMCache and fixes inconsistencies.
+// On a fresh start, there should be no database files and no GKMCache or ClusterGKMCache
+// instances. If the Agent pod is restarted, there may be some of each, and they may not
+// fully match.
+func (r *ReconcilerCommonAgent[C, CL, N]) initCommonAgent(
+	ctx context.Context,
+	reconciler AgentReconciler[C, CL, N],
+) {
+	//errorHit := false
+	//stillInUse := false
+	//nodeCnts := make(map[string]gkmv1alpha1.CacheCounts)
+
+	r.Logger.V(1).Info("Start reconcileCommonAgent()")
+
+	// Get the list of existing GKMCache or ClusterGKMCache objects from KubeAPI Server.
+	gkmCacheList, err := reconciler.getCacheList(ctx, []client.ListOption{})
+	if err != nil {
+		return
+	}
+
+	extractedList, err := database.GetExtractedCacheList(r.Logger)
+	if err != nil {
+		r.Logger.Error(err, "failed to list Extracted Cache")
+		return
+	}
+
+	if (*gkmCacheList).GetItemsLen() == 0 {
+		// KubeAPI doesn't have any GKMCache instances
+		r.Logger.Info("No GKMCache entries found")
+		if len(*extractedList) == 0 {
+			// There are no extracted Caches on host, so nothing to do.
+			r.Logger.V(1).Info("No extracted cache found, nothing to do")
+			return
+		}
+		// No GKMCache, but there are some Caches that are installed. Check for stranded
+		// Cache (Cache still in use) below.
+	} else {
+		// There are GKMCache instances created, so loop through each and reconcile each.
+		for _, gkmCache := range (*gkmCacheList).GetItems() {
+			r.Logger.V(1).Info("Reconciling",
+				"Object", r.CrdCacheStr,
+				"Namespace", gkmCache.GetNamespace(),
+				"Name", gkmCache.GetNamespace())
+
+		}
+	}
+}
+*/

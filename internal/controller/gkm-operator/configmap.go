@@ -31,7 +31,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -73,12 +72,14 @@ func (r *GKMConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, nil
 		}
 	} else {
-		if updated := controllerutil.AddFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer); updated {
-			if err := r.Update(ctx, gkmConfigMap); err != nil {
-				r.Logger.Error(err, "failed adding gkm-operator finalizer to GKM ConfigMap")
-				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
+		/*
+			if updated := controllerutil.AddFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer); updated {
+				if err := r.Update(ctx, gkmConfigMap); err != nil {
+					r.Logger.Error(err, "failed adding gkm-operator finalizer to GKM ConfigMap")
+					return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
+				}
 			}
-		}
+		*/
 		return r.ReconcileGKMConfigMap(ctx, req, gkmConfigMap)
 	}
 
@@ -141,12 +142,14 @@ func (r *GKMConfigMapReconciler) ReconcileGKMConfigMap(ctx context.Context, req 
 			}
 		}
 
-		controllerutil.RemoveFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer)
-		err := r.Update(ctx, gkmConfigMap)
-		if err != nil {
-			r.Logger.Error(err, "failed removing gkm-operator finalizer from GKM ConfigMap")
-			return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
-		}
+		/*
+			controllerutil.RemoveFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer)
+			err := r.Update(ctx, gkmConfigMap)
+			if err != nil {
+				r.Logger.Error(err, "failed removing gkm-operator finalizer from GKM ConfigMap")
+				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
+			}
+		*/
 
 		return ctrl.Result{}, nil
 	}

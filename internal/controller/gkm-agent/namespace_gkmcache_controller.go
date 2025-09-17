@@ -21,7 +21,9 @@ package gkmAgent
 import (
 	"context"
 	"fmt"
+	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -39,6 +41,7 @@ import (
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcachenodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcachenodes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcachenodes/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch;update
 
 // GKMCacheAgentReconciler reconciles a GKMCache object
 type GKMCacheAgentReconciler struct {
@@ -257,4 +260,60 @@ func (r *GKMCacheAgentReconciler) cacheNodeRemoveFinalizer(
 		return changed, nil
 	}
 	return false, nil
+}
+
+func (r *GKMCacheAgentReconciler) cacheNodeRecordEvent(
+	cacheNode *gkmv1alpha1.GKMCacheNode,
+	eventReason gkmv1alpha1.GkmCacheNodeEventReason,
+	cacheName, podNamespace, podName string,
+	count int,
+) {
+	var message string
+	var eventType string
+
+	switch eventReason {
+	case gkmv1alpha1.GkmCacheNodeEventReasonCreated:
+		// Record the creation of GKMCacheNode
+		eventType = corev1.EventTypeNormal
+		message =
+			"GKMCacheNode created for Namespace \"" +
+				(*cacheNode).GetNamespace() +
+				"\" on node \"" +
+				(*cacheNode).GetNodeName() +
+				"\"."
+	case gkmv1alpha1.GkmCacheNodeEventReasonCacheUsed:
+		eventType = corev1.EventTypeNormal
+		message =
+			"GKMCache \"" +
+				cacheName +
+				"\" used by pod \"" +
+				podNamespace + "\\" + podName +
+				"\". Use count \"" +
+				strconv.Itoa(count) +
+				"\"."
+	case gkmv1alpha1.GkmCacheNodeEventReasonCacheReleased:
+		eventType = corev1.EventTypeNormal
+		message =
+			"GKMCache \"" +
+				cacheName +
+				"\" no longer used by pod \"" +
+				podNamespace + "\\" + podName +
+				"\". Use count \"" +
+				strconv.Itoa(count) +
+				"\"."
+	case gkmv1alpha1.GkmCacheNodeEventReasonDeleting:
+		eventType = corev1.EventTypeWarning
+		message =
+			"GKMCache \"" +
+				cacheName +
+				"\" being deleted but still in use. Use count \"" +
+				strconv.Itoa(count) +
+				"\"."
+	}
+
+	// Record the event
+	r.Recorder.Event((*cacheNode).GetClientObject(),
+		eventType,
+		string(eventReason),
+		message)
 }
