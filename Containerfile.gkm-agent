@@ -58,9 +58,10 @@ RUN apt-get update && \
         libseccomp2 && \
     apt-get clean
 
-ARG ROCM_VERSION=6.4.2.1
-ARG AMDGPU_VERSION=6.4.60402
-ARG OPT_ROCM_VERSION=6.4.2
+ARG ROCM_VERSION=7.0.1
+ARG AMDGPU_VERSION=7.0.1.70001
+ARG OPT_ROCM_VERSION=7.0.1
+
 # Install ROCm apt repo
 RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb
 RUN apt install -y ./*.deb
