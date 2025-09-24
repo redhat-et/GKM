@@ -1,9 +1,0 @@
----
-apiVersion: gkm.io/v1alpha1
-kind: GKMCache
-metadata:
-  name: vector-add-cache-rocm
-  namespace: gkm-test-ns-scoped
-  annotations:
-spec:
-  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
