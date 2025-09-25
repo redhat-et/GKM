@@ -66,10 +66,11 @@ ARG OPT_ROCM_VERSION=7.0.1
 RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb
 RUN apt install -y ./*.deb
 RUN apt update &&  DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf ./*.deb
 RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi
 RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
 
+COPY --from=quay.io/gkm/mcv /mcv /mcv
 # Run as non-root user
 USER 65532:65532
 

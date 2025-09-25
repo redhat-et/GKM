@@ -183,6 +183,11 @@ func (r *GKMCacheAgentReconciler) cacheNodeUpdateStatus(
 	nodeStatus *gkmv1alpha1.GKMCacheNodeStatus,
 	reason string,
 ) error {
+	// Ensure Counts is initialized
+	if nodeStatus.Counts.NodeCnt == 0 {
+		nodeStatus.Counts.NodeCnt = 1
+	}
+
 	gkmCacheNode.Status = *nodeStatus.DeepCopy()
 
 	r.Logger.Info("Calling KubeAPI to Update GKMCacheNode Status",

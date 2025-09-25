@@ -353,14 +353,18 @@ func getAMDGPUInfo(ctx context.Context) (map[int]*AMDCardInfo, error) {
 		return nil, fmt.Errorf("failed to execute amd-smi: %v", err)
 	}
 
-	var gpuInfo []*AMDCardInfo
-	if err := json.Unmarshal(output, &gpuInfo); err != nil {
+	// Define a wrapper struct to match the new JSON structure
+	var wrapper struct {
+		GPUData []*AMDCardInfo `json:"gpu_data"`
+	}
+
+	if err := json.Unmarshal(output, &wrapper); err != nil {
 		logging.Debugf("failed to parse amd-smi output: %v", err)
 		return nil, fmt.Errorf("failed to parse amd-smi output: %v", err)
 	}
 
 	parsedGPUs := make(map[int]*AMDCardInfo)
-	for _, gpu := range gpuInfo {
+	for _, gpu := range wrapper.GPUData {
 		parsedGPUs[gpu.GPU] = gpu
 	}
 	return parsedGPUs, nil
