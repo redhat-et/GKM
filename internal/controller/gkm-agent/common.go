@@ -486,7 +486,6 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
 		if err != nil {
 			r.Logger.Error(err, "error retrieving GPU info")
-			// return err
 		} else {
 			r.Logger.Info("Detected GPU Devices:", "gpus", gpus)
 		}
@@ -495,6 +494,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 	// Add GPU Data to Status
 	nodeStatus := gkmv1alpha1.GKMCacheNodeStatus{
 		NodeName: r.NodeName,
+		Counts:   gkmv1alpha1.CacheCounts{NodeCnt: 1}, // Ensure Counts is initialized
 	}
 
 	if gpus != nil {
@@ -510,7 +510,6 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 			GpuType: "None Detected",
 		})
 	}
-	nodeStatus.Counts.NodeCnt = 1
 
 	// Record the creation of GKMCacheNode/ClusterGKMCacheNode
 	reconciler.cacheNodeRecordEvent(gkmCacheNode, gkmv1alpha1.GkmCacheNodeEventReasonCreated, "", "", "", 0)
