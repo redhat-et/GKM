@@ -60,13 +60,17 @@ RUN mkdir -p /etc/containers && \
    > /etc/containers/storage.conf
 
 # Install ROCm apt repo
-RUN wget https://repo.radeon.com/amdgpu-install/6.4.3/ubuntu/jammy/amdgpu-install_6.4.60403-1_all.deb && \
-   apt install -y ./amdgpu-install_6.4.60403-1_all.deb && \
-   apt update && \
-   apt install -y amd-smi-lib \
-   && rm -rf /var/lib/apt/lists/*
+ARG ROCM_VERSION=7.0.1
+ARG AMDGPU_VERSION=7.0.1.70001
+ARG OPT_ROCM_VERSION=7.0.1
 
-RUN ln -s /opt/rocm-6.4.3/bin/amd-smi /usr/bin/amd-smi
+# Install ROCm apt repo
+RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb
+RUN apt install -y ./*.deb
+RUN apt update &&  DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf ./*.deb
+RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi
+RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
