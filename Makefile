@@ -72,6 +72,10 @@ ENVTEST_K8S_VERSION = 1.31.0
 
 DEPLOY_PATH ?= config/default
 
+# On undeploy, force indicates all workload pods and GKMCache and ClusterGKMCaches
+# instances should be deleted. Default is not to cleanup but fail if they exist.
+FORCE ?= ""
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -308,12 +312,16 @@ redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and u
 .PHONY: undeploy
 undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
 	@echo "Calling undeploy script"
-	$(UNDEPLOY_SCRIPT) --force
+	$(UNDEPLOY_SCRIPT) $(FORCE)
 	@if [ $$? -ne 0 ]; then \
     	exit 1; \
     fi
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
+
+.PHONY: undeploy-force
+undeploy-force: ## Same as "make undeploy" but also delete any dependencies.
+	$(MAKE) undeploy FORCE=--force
 
 .PHONY: deploy-examples
 deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/config.
@@ -429,6 +437,10 @@ kind-load-images: get-example-images
 tmp-cleanup:
 	@hack/tmp-cleanup.sh
 
+.PHONY: run-on-kind
+run-on-kind: destroy-kind setup-kind deploy-on-kind ## Setup Kind cluster, load images, and deploy
+	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
+
 .PHONY: deploy-on-kind
 deploy-on-kind: kind-load-images tmp-cleanup
 	## NOTE: config/kind-gpu is an overlay of config/default
@@ -443,12 +455,12 @@ redeploy-on-kind: ## Redeploy controller and agent to Kind GPU cluster after run
 
 .PHONY: undeploy-on-kind
 undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
-	$(MAKE) undeploy DEPLOY_PATH=config/kind-gpu ignore-not-found=$(ignore-not-found)
+	$(MAKE) undeploy FORCE=$(FORCE) DEPLOY_PATH=config/kind-gpu ignore-not-found=$(ignore-not-found)
 	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
 
-.PHONY: run-on-kind
-run-on-kind: destroy-kind setup-kind deploy-on-kind ## Setup Kind cluster, load images, and deploy
-	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
+.PHONY: undeploy-on-kind-force
+undeploy-on-kind-force: ## Same as "make undeploy-on-kind" but also delete any dependencies.
+	$(MAKE) undeploy-on-kind FORCE=--force
 
 .PHONY: destroy-kind
 destroy-kind: ## Delete the Kind GPU cluster
