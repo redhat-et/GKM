@@ -283,9 +283,9 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 ##@ Deployment
 .PHONY: prepare-deploy
 prepare-deploy:
-	cd config/operator && $(KUSTOMIZE) edit set image $(REPO)/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image $(REPO)/agent=${AGENT_IMG}
-	cd config/csi-plugin && $(KUSTOMIZE) edit set image $(REPO)/gkm-csi-plugin=${CSI_IMG}
+	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
+	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
 ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
