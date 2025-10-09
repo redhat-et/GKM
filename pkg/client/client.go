@@ -30,6 +30,7 @@ type Options struct {
 
 type HwOptions struct {
 	EnableStub *bool // If true, enables stub mode (Dummy devices); for testing/dev only (false = disable, true = force))
+	Timeout    int   // Timeout in seconds for hardware detection operations (0 = disable timeout)
 }
 
 // xPU wraps CPU and GPU info
@@ -56,6 +57,14 @@ func GetXPUInfo(opts HwOptions) (*xPU, error) {
 			logging.Debug("Stub Mode disabled via client options")
 		}
 	}
+
+	if opts.Timeout > 0 {
+		config.SetTimeout(opts.Timeout)
+		logging.Debugf("Hardware detection timeout set to %d seconds", opts.Timeout)
+	} else {
+		logging.Debug("Hardware detection timeout disabled")
+	}
+
 	cpuInfo, accInfo, err := devices.GetSystemHW()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hardware info: %w", err)

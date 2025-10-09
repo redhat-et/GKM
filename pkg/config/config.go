@@ -23,6 +23,7 @@ type MCVConfig struct {
 	KubeConfig       string
 	EnabledBaremetal *bool
 	SkipPrecheck     *bool
+	Timeout          int
 }
 
 type Config struct {
@@ -125,6 +126,10 @@ func SetEnabledStub(enabled bool) {
 	instance.MCV.EnabledStub = &b
 }
 
+func SetTimeout(timeout int) {
+	instance.MCV.Timeout = timeout
+}
+
 func SetSkipPrecheck(enabled bool) {
 	b := enabled
 	instance.MCV.SkipPrecheck = &b
@@ -157,4 +162,8 @@ func IsSkipPrecheckEnabled() bool {
 
 func IsBaremetalEnabled() bool {
 	return instance.MCV.EnabledBaremetal != nil && *instance.MCV.EnabledBaremetal
+}
+
+func Timeout() int {
+	return instance.MCV.Timeout
 }
