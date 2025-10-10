@@ -468,28 +468,9 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 	gkmCacheNode *N,
 ) error {
 	// Retrieve GPU Data
-	var gpus *mcvDevices.GPUFleetSummary
-	var err error
-
-	// Stub out the GPU Ids when in TestMode (No GPUs)
-	if r.NoGpu {
-		stub := true
-		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
-		if err != nil {
-			r.Logger.Error(err, "error retrieving stubbed GPU info")
-			// return err
-		} else {
-			r.Logger.Info("Detected Stubbed GPU Devices:", "gpus", gpus)
-		}
-	} else {
-		stub := false
-		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
-		if err != nil {
-			r.Logger.Error(err, "error retrieving GPU info")
-			// return err
-		} else {
-			r.Logger.Info("Detected GPU Devices:", "gpus", gpus)
-		}
+	gpus, err := GetGpuList(r.NoGpu, r.Logger)
+	if err != nil {
+		return err
 	}
 
 	// Add GPU Data to Status
@@ -517,6 +498,35 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 
 	// Build up GKMCacheNode
 	return reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, &nodeStatus, "Update GPU list")
+}
+
+func GetGpuList(noGpu bool, log logr.Logger) (*mcvDevices.GPUFleetSummary, error) {
+	// Retrieve GPU Data
+	var gpus *mcvDevices.GPUFleetSummary
+	var err error
+
+	// Stub out the GPU Ids when in TestMode (No GPUs)
+	if noGpu {
+		stub := true
+		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
+		if err != nil {
+			log.Error(err, "error retrieving stubbed GPU info")
+			return gpus, err
+		} else {
+			log.Info("Detected Stubbed GPU Devices:", "gpus", gpus)
+		}
+	} else {
+		stub := false
+		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
+		if err != nil {
+			log.Error(err, "error retrieving GPU info")
+			return gpus, err
+		} else {
+			log.Info("Detected GPU Devices:", "gpus", gpus)
+		}
+	}
+
+	return gpus, err
 }
 
 // addCacheToCacheNode adds a GKMCache status to the GKMCacheNode.Status.CacheStatuses field.
@@ -706,18 +716,25 @@ func (r *ReconcilerCommonAgent[C, CL, N]) checkForCacheUpdateInCacheNode(
 					"Digest", resolvedDigest)
 			}
 		} else {
-			r.Logger.Info("GKMCacheNode CacheStatus Missing!!!!",
+			// GKMCacheNode was probably read before the previous call to KubeAPI Server to
+			// add the CacheStatus finished writing. Exit and reenter Reconcile(), which will
+			// reread GKMCacheNode.
+			r.Logger.Info("GKMCacheNode CacheStatus missing, retry Reconcile",
 				"Namespace", (*gkmCache).GetNamespace(),
 				"CacheName", (*gkmCache).GetName(),
 				"CacheNodeName", (*gkmCacheNode).GetName(),
 				"Digest", resolvedDigest)
+			return false, podUseCnt, fmt.Errorf("GKMCacheNode CacheStatus missing, retry")
 		}
 	} else {
-		r.Logger.Info("GKMCacheNode NodeStatus Missing!!!!",
+		// NodeStatus probably should have existed at this point. Exit and reenter Reconcile(),
+		// which will reread GKMCacheNode and hopefully find a NodeStatus.
+		r.Logger.Info("GKMCacheNode NodeStatus missing, retry Reconcile",
 			"Namespace", (*gkmCache).GetNamespace(),
 			"CacheName", (*gkmCache).GetName(),
 			"CacheNodeName", (*gkmCacheNode).GetName(),
 			"Digest", resolvedDigest)
+		return false, podUseCnt, fmt.Errorf("GKMCacheNode NodeStatus missing, retry")
 	}
 
 	return false, podUseCnt, nil

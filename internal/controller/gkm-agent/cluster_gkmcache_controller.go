@@ -184,7 +184,7 @@ func (r *ClusterGKMCacheAgentReconciler) cacheNodeUpdateStatus(
 ) error {
 	gkmCacheNode.Status = *nodeStatus.DeepCopy()
 
-	r.Logger.Info("Calling KubeAPI to Update ClusaterGKMCacheNode Status",
+	r.Logger.Info("Calling KubeAPI to Update ClusterGKMCacheNode Status",
 		"reason", reason,
 		"Namespace", gkmCacheNode.Namespace,
 		"CacheNodeName", gkmCacheNode.Name,

@@ -111,6 +111,22 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	// Call MCV to read GPU Hardware. Sometime this can take a few iterations, so
+	// call now to seed the MCV cache.
+	setupLog.Info("Call MCV to read GPUs")
+	detected := false
+	for i := 1; i < 8; i++ {
+		_, err := gkmAgent.GetGpuList(noGpu, setupLog)
+		if err == nil {
+			detected = true
+			setupLog.Info("GPUs detected", "attempts", i)
+			break
+		}
+	}
+	if detected == false {
+		setupLog.Info("GPUs not detected by MCV")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
