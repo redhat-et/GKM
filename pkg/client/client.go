@@ -154,6 +154,14 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		config.SetSkipPrecheck(true) // No GPU, so skip preflight
 	}
 
+	if opts.CacheDir != "" {
+		cacheDir := opts.CacheDir
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
+		}
+		constants.ExtractCacheDir = cacheDir
+	}
+
 	// If caller asked to skip preflight, do not run it here or downstream.
 	// Otherwise, run it ONCE here, and then set SkipPrecheck=true so downstream won’t repeat it.
 	shouldRunPreflight := config.IsGPUEnabled() && !config.IsSkipPrecheckEnabled()
@@ -174,15 +182,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		logging.Debug("Skipping preflight (GPU disabled)")
 	}
 
-	if opts.CacheDir != "" {
-		cacheDir := opts.CacheDir
-		if err := os.MkdirAll(cacheDir, 0755); err != nil {
-			return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
-		}
-		constants.ExtractCacheDir = cacheDir
-	}
-
-	return nil, nil, fetcher.New().FetchAndExtractCache(opts.ImageName)
+	return matchedIDs, unmatchedIDs, fetcher.New().FetchAndExtractCache(opts.ImageName)
 }
 
 // GetSystemGPUInfo returns a summary of GPU devices with information
