@@ -193,6 +193,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 //
 // If GPU support is not explicitly enabled, it auto-detects hardware
 // accelerators and enables GPU logic if supported hardware is found.
+// If no GPUs are found, it returns nil without an error.
 func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 	if !config.IsInitialized() {
 		if _, err := config.Initialize(config.ConfDir); err != nil {
@@ -209,31 +210,41 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 		}
 	}
 
+	if opts.Timeout > 0 {
+		config.SetTimeout(opts.Timeout)
+		logging.Debugf("Hardware detection timeout set to %d seconds", opts.Timeout)
+	} else {
+		logging.Debug("Hardware detection timeout disabled")
+	}
+
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if _, err := devices.DetectAccelerators(); err != nil {
-		return nil, err
+	if accs, err := devices.DetectAccelerators(); accs != nil && err == nil {
+		logging.Infof("Detected %d accelerator(s)", len(accs.Devices))
+		logging.Debug("Initializing the accelerator(s)")
+		// Initialize the GPU accelerator
+		acc, err := accelerator.New(config.GPU, true)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
+		}
+
+		if acc == nil || acc.Device() == nil {
+			return nil, fmt.Errorf("accelerator initialization returned nil")
+		}
+
+		// Register the accelerator
+		accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
+
+		// Fetch GPU device information
+		summary, err := accelerator.SummarizeGPUs()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GPU info: %w", err)
+		}
+		return summary, nil
+	} else {
+		logging.Debug("No accelerators detected.")
 	}
 
-	logging.Debug("Initializing the accelerator")
-	// Initialize the GPU accelerator
-	acc, err := accelerator.New(config.GPU, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GPU accelerator: %w", err)
-	}
-
-	if acc == nil || acc.Device() == nil {
-		return nil, fmt.Errorf("accelerator initialization returned nil")
-	}
-
-	// Register the accelerator
-	accelerator.GetAcceleratorRegistry().RegisterAccelerator(acc)
-
-	// Fetch GPU device information
-	summary, err := accelerator.SummarizeGPUs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get GPU info: %w", err)
-	}
-	return summary, nil
+	return nil, nil
 }
 
 // PrintGPUSummary prints the fleet summary in a human-friendly form.

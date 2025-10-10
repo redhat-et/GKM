@@ -48,6 +48,8 @@ func GetProductName(id int) (name string, err error) {
 }
 
 // DetectAccelerators detects hardware accelerators and enables GPU logic if supported hardware is found.
+// If stub mode is enabled, it simulates the presence of an AMD Aldebaran MI200 GPU.
+// If no hardware accelerators are found, it returns nil without an error.
 func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
 	if config.IsStubEnabled() {
 		logging.Debug("Stub mode configured, simulating accelerator device")
@@ -96,7 +98,8 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
 
 	acc, err := ghw.Accelerator()
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
+		logging.Debugf("failed to detect hardware accelerator: %v", err)
+		return nil, nil
 	}
 	return acc, nil
 }
