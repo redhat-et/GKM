@@ -21,7 +21,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	logging "github.com/sirupsen/logrus"
@@ -56,7 +56,7 @@ func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
 	}
 	defer tar.Close()
 
-	buildOptions := types.ImageBuildOptions{
+	buildOptions := build.ImageBuildOptions{
 		Dockerfile: "Dockerfile",
 		Tags:       []string{imageName},
 		NoCache:    true,

@@ -29,6 +29,7 @@ RUN go version
 COPY mcv/ /usr/src/mcv
 WORKDIR /usr/src/mcv
 
+RUN make tidy-vendor
 RUN make build
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
