@@ -56,6 +56,7 @@ func logFatal(message string, err error, exitCode int) {
 func buildRootCommand() *cobra.Command {
 	var imageName, cacheDirName, logLevel, builder string
 	var createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag, versionFlag bool
+	var timeout int
 
 	cmd := &cobra.Command{
 		Use:   "mcv",
@@ -73,16 +74,16 @@ and performing hardware compatibility checks.`,
 				fmt.Printf("mcv version %s\n", version)
 				os.Exit(exitNormal)
 			}
-			handleRunCommand(imageName, cacheDirName, logLevel, builder, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag)
+			handleRunCommand(imageName, cacheDirName, logLevel, builder, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag, timeout)
 		},
 	}
 
-	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &builder, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag)
+	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &builder, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &hwInfoFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag, &timeout)
 	cmd.Flags().BoolVar(&versionFlag, "version", false, "Display the version of the application")
 	return cmd
 }
 
-func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag *bool) {
+func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag *bool, timeout *int) {
 	// Image operations
 	cmd.Flags().StringVarP(imageName, "image", "i", "", "OCI image name (required for create, extract, check-compat)")
 	cmd.Flags().StringVarP(cacheDirName, "dir", "d", "", "Triton/vLLM cache directory path")
@@ -102,6 +103,7 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *st
 	cmd.Flags().BoolVar(noGPUFlag, "no-gpu", false, "Disable GPU detection and preflight checks (for testing)")
 	cmd.Flags().BoolVar(stubFlag, "stub", false, "Use mock/stub data for hardware info (for testing)")
 	cmd.Flags().StringVar(builder, "builder", "", "Specify the builder to use (buildah or docker)")
+	cmd.Flags().IntVarP(timeout, "timeout", "t", 10, "Timeout in minutes for hardware detection operations (0 = disable timeout)")
 
 	// Mark mutually exclusive flags
 	cmd.MarkFlagsMutuallyExclusive("create", "extract")
@@ -110,7 +112,7 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *st
 	cmd.MarkFlagsMutuallyExclusive("no-gpu", "check-compat")
 }
 
-func handleRunCommand(imageName, cacheDirName, logLevel, builder string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool) {
+func handleRunCommand(imageName, cacheDirName, logLevel, builder string, createFlag, extractFlag, baremetalFlag, noGPUFlag, hwInfoFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool, timeout int) {
 	// Validate flag combinations
 	if err := validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, checkCompatFlag, imageName, cacheDirName, stubFlag); err != nil {
 		logging.Error(err)
@@ -125,12 +127,12 @@ func handleRunCommand(imageName, cacheDirName, logLevel, builder string, createF
 	configureBoolFlags(baremetalFlag, noGPUFlag, stubFlag)
 
 	if hwInfoFlag {
-		handleHWInfo()
+		handleHWInfo(timeout)
 		return
 	}
 
 	if gpuInfoFlag {
-		handleGPUInfo()
+		handleGPUInfo(timeout)
 		return
 	}
 
@@ -201,9 +203,9 @@ func validateFlagCombinations(createFlag, extractFlag, hwInfoFlag, gpuInfoFlag, 
 	return nil
 }
 
-func handleHWInfo() {
+func handleHWInfo(timeout int) {
 	stub := config.IsStubEnabled()
-	xpu, err := client.GetXPUInfo(client.HwOptions{EnableStub: &stub})
+	xpu, err := client.GetXPUInfo(client.HwOptions{EnableStub: &stub, Timeout: timeout})
 	if err != nil {
 		logging.Errorf("Error getting system hardware: %v", err)
 		os.Exit(exitLogError)
@@ -213,9 +215,9 @@ func handleHWInfo() {
 	os.Exit(exitNormal)
 }
 
-func handleGPUInfo() {
+func handleGPUInfo(timeout int) {
 	stub := config.IsStubEnabled()
-	summary, err := client.GetSystemGPUInfo(client.HwOptions{EnableStub: &stub})
+	summary, err := client.GetSystemGPUInfo(client.HwOptions{EnableStub: &stub, Timeout: timeout})
 	if err != nil {
 		logging.Errorf("Error getting system hardware: %v", err)
 		os.Exit(exitLogError)

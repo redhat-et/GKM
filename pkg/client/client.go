@@ -101,6 +101,15 @@ func PrintXPUInfo(xpu *xPU) {
 	}
 }
 
+func InspectCacheImage(img string) (labels map[string]string, err error) {
+
+	if img == "" {
+		return nil, fmt.Errorf("image name must be specified")
+	}
+
+	return fetcher.NewImgFetcher().InspectImg(img)
+}
+
 // ExtractCache pulls and extracts a kernel cache from the specified OCI image.
 // It uses the provided options to configure behavior such as GPU checks, logging, and
 // output directory. If GPU checks are enabled, it also verifies hardware compatibility.

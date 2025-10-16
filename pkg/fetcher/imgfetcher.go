@@ -87,8 +87,29 @@ type imgFetcher struct {
 	fetcher Fetcher
 }
 
+// InspectImg implements ImgFetcher.
+func (i *imgFetcher) InspectImg(imgName string) (map[string]string, error) {
+	img, err := i.fetcher.FetchImg(imgName)
+	if err != nil {
+		return nil, err
+	}
+
+	configFile, err := img.ConfigFile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image config: %w", err)
+	}
+
+	labels := configFile.Config.Labels
+	if labels == nil {
+		return nil, errors.New("image has no labels")
+	}
+
+	return labels, nil
+}
+
 type ImgFetcher interface {
 	FetchImg(imgName string) (v1.Image, error)
+	InspectImg(imgName string) (map[string]string, error)
 }
 
 // func saveImageLocally(path string, img v1.Image, ref name.Reference) error {
