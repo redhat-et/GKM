@@ -85,6 +85,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 			config.SetEnabledGPU(enable)
 		} else {
 			logging.Debug("GPU support disabled via client options")
+			config.SetEnabledGPU(false)
 		}
 	}
 
