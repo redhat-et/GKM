@@ -41,7 +41,7 @@ var (
 	deviceRegistry *Registry
 	once           sync.Once
 	cacheFilePath  = constants.DefaultCacheFilePath
-	Timeout        = config.Timeout()                     // Timeout in minutes for device detection (0 = disabled)
+	Timeout        = 10                                   // Timeout in minutes for device detection (0 = disabled)
 	CacheTTL       = time.Duration(Timeout) * time.Minute // Cache Time-To-Live
 )
 
@@ -115,6 +115,9 @@ type GPUGroup struct {
 func GetRegistry() *Registry {
 	logging.Debugf("Retrieving the global device registry")
 	once.Do(func() {
+		Timeout = config.Timeout()
+		logging.Debugf("Timeout set to %v", Timeout)
+		CacheTTL = time.Duration(Timeout) * time.Minute
 		deviceRegistry = newRegistry()
 		registerDevices(deviceRegistry)
 		if Timeout == 0 {

@@ -397,7 +397,7 @@ import (
 func main() {
     stub := false
     gpus, err := client.GetSystemGPUInfo(client.HwOptions{EnableStub: &stub})
-    if err != nil {
+    if err != nil && gpus == nil {
         log.Fatalf("Error retrieving GPU info: %v", err)
     }
 
@@ -408,28 +408,6 @@ func main() {
 
     fmt.Println("Detected GPU Devices:")
     fmt.Println(string(output))
-}
-```
-
-### Retrieving Full System Hardware Info (CPU, GPU, Accelerator)
-
-```go
-package main
-
-import (
-    "log"
-
-    "github.com/redhat-et/MCU/mcv/pkg/client"
-)
-
-func main() {
-    stub := false
-    xpu, err := client.GetXPUInfo(client.HwOptions{EnableStub: &stub})
-    if err != nil {
-        log.Fatalf("Failed to get system hardware info: %v", err)
-    }
-
-    client.PrintXPUInfo(xpu)
 }
 ```
 

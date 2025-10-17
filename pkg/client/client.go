@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jaypipes/ghw"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
@@ -33,76 +32,7 @@ type HwOptions struct {
 	Timeout    int   // Timeout in seconds for hardware detection operations (0 = disable timeout)
 }
 
-// xPU wraps CPU and GPU info
-type xPU struct {
-	CPU *ghw.CPUInfo
-	Acc *ghw.AcceleratorInfo
-}
-
-// GetXPUInfo returns combined CPU and accelerator information (e.g., GPUs,
-// FPGAs) for the current system using the ghw library. Used for diagnostics
-// or --hw-info output.
-func GetXPUInfo(opts HwOptions) (*xPU, error) {
-	if !config.IsInitialized() {
-		if _, err := config.Initialize(config.ConfDir); err != nil {
-			return nil, fmt.Errorf("failed to initialize config: %w", err)
-		}
-	}
-
-	if opts.EnableStub != nil {
-		config.SetEnabledStub(*opts.EnableStub)
-		if *opts.EnableStub {
-			logging.Debug("Stub Mode enabled via client options")
-		} else {
-			logging.Debug("Stub Mode disabled via client options")
-		}
-	}
-
-	if opts.Timeout > 0 {
-		config.SetTimeout(opts.Timeout)
-		logging.Debugf("Hardware detection timeout set to %d seconds", opts.Timeout)
-	} else {
-		logging.Debug("Hardware detection timeout disabled")
-	}
-
-	cpuInfo, accInfo, err := devices.GetSystemHW()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hardware info: %w", err)
-	}
-	return &xPU{
-		CPU: cpuInfo,
-		Acc: accInfo,
-	}, nil
-}
-
-// PrintXPUInfo logs or prints system CPU and accelerator (GPU) info
-// in a human-readable format for CLI users.
-func PrintXPUInfo(xpu *xPU) {
-	fmt.Println("=== CPU Information ===")
-	for _, proc := range xpu.CPU.Processors {
-		fmt.Printf("Vendor: %s, Model: %s, Cores: %d, Threads: %d\n",
-			proc.Vendor, proc.Model, proc.NumCores, proc.NumThreads)
-	}
-
-	fmt.Println("\n=== Accelerator Information ===")
-	if xpu.Acc == nil || len(xpu.Acc.Devices) == 0 {
-		fmt.Println("No Accelerator detected.")
-	} else {
-		for i, device := range xpu.Acc.Devices {
-			fmt.Printf("Accelerator %d:\n", i)
-			fmt.Printf("  Address: %s\n", device.Address)
-			if device.PCIDevice != nil {
-				fmt.Printf("  Vendor: %s\n", device.PCIDevice.Vendor.Name)
-				fmt.Printf("  Product: %s\n", device.PCIDevice.Product.Name)
-			} else {
-				fmt.Println("  PCI device information unavailable")
-			}
-		}
-	}
-}
-
 func InspectCacheImage(img string) (labels map[string]string, err error) {
-
 	if img == "" {
 		return nil, fmt.Errorf("image name must be specified")
 	}
@@ -143,29 +73,29 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 	}
 
 	if opts.EnableGPU != nil {
-		config.SetEnabledGPU(*opts.EnableGPU)
 		if *opts.EnableGPU {
-			logging.Debug("GPU support enabled via client options")
+			enable := true
+			// double check we have hardware accelerators
+			if acc := devices.DetectAccelerators(); len(acc.Devices) == 0 {
+				logging.Warn("No accelerators detected, GPU logic disabled.")
+				enable = false
+			} else {
+				logging.Debugf("Detected %d accelerator(s), enabling GPU logic", len(acc.Devices))
+			}
+			config.SetEnabledGPU(enable)
 		} else {
 			logging.Debug("GPU support disabled via client options")
 		}
 	}
 
-	if config.IsGPUEnabled() {
-		logging.Debug("GPU support is enabled")
-
-		// Auto-detect accelerator hardware if GPU is not already enabled
-		if _, err = devices.DetectAccelerators(); err != nil {
-			logging.Warn("No accelerators detected, GPU logic disabled.")
-		}
-	} else {
+	if !config.IsGPUEnabled() {
 		logging.Debug("GPU support is disabled So skipping accelerator detection and disabling preflight check")
 		config.SetSkipPrecheck(true) // No GPU, so skip preflight
 	}
 
 	if opts.CacheDir != "" {
 		cacheDir := opts.CacheDir
-		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		if err = os.MkdirAll(cacheDir, 0755); err != nil {
 			return nil, nil, fmt.Errorf("failed to create cache dir: %w", err)
 		}
 		constants.ExtractCacheDir = cacheDir
@@ -219,15 +149,18 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 		}
 	}
 
+	config.SetTimeout(opts.Timeout)
 	if opts.Timeout > 0 {
-		config.SetTimeout(opts.Timeout)
 		logging.Debugf("Hardware detection timeout set to %d seconds", opts.Timeout)
 	} else {
 		logging.Debug("Hardware detection timeout disabled")
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if accs, err := devices.DetectAccelerators(); accs != nil && err == nil {
+	if accs := devices.DetectAccelerators(); len(accs.Devices) == 0 {
+		logging.Info("No accelerators detected, GPU logic disabled.")
+		return nil, nil
+	} else {
 		logging.Infof("Detected %d accelerator(s)", len(accs.Devices))
 		logging.Debug("Initializing the accelerator(s)")
 		// Initialize the GPU accelerator
@@ -249,11 +182,7 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 			return nil, fmt.Errorf("failed to get GPU info: %w", err)
 		}
 		return summary, nil
-	} else {
-		logging.Debug("No accelerators detected.")
 	}
-
-	return nil, nil
 }
 
 // PrintGPUSummary prints the fleet summary in a human-friendly form.

@@ -83,6 +83,7 @@ func getMCVConfig(confDir string) MCVConfig {
 		EnabledStub:      parseBoolEnv(envEnableSTUB, false),
 		MCVNamespace:     getConfig(envMCVNamespace, defaultNamespace, confDir),
 		KubeConfig:       getConfig(envKubeConfig, defaultKubeConfig, confDir),
+		Timeout:          10, // TODO should add a max timeout check
 	}
 }
 
