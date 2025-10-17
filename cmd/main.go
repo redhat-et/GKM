@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"regexp"
 
 	"github.com/containers/buildah"
 	"github.com/containers/storage/pkg/unshare"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/MCU/mcv/pkg/client"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
 	"github.com/redhat-et/MCU/mcv/pkg/imgbuild"
@@ -21,7 +21,6 @@ const (
 	exitExtractError = 1
 	exitCreateError  = 2
 	exitLogError     = 3
-	imageNameRegex   = `^([a-z0-9]+([._-][a-z0-9]+)*(:[0-9]+)?/)?[a-z0-9]+([._-][a-z0-9]+)*(\/[a-z0-9]+([._-][a-z0-9]+)*)*(?::[\w][\w.-]{0,127})?$`
 	version          = "1.0.0" // Application version
 )
 
@@ -174,9 +173,9 @@ func validateFlagCombinations(createFlag, extractFlag, gpuInfoFlag, checkCompatF
 
 	// Validate imageName against imageNameRegex
 	if imageName != "" {
-		matched, err := regexp.MatchString(imageNameRegex, imageName)
-		if err != nil || !matched {
-			return fmt.Errorf("invalid image name format: %s", imageName)
+		_, err := name.ParseReference(imageName, name.StrictValidation)
+		if err != nil {
+			return fmt.Errorf("error validating image name: %v", err)
 		}
 	}
 
