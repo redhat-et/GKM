@@ -6,11 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testImg = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+
 // check that extracting cache detects the lack of a GPU and continues without error
 func TestExtractCacheWithGPUEnabled(t *testing.T) {
 	gpu := true
 	opts := Options{
-		ImageName: "quay.io/gkm/cache-examples:vector-add-cache-cuda",
+		ImageName: testImg,
 		EnableGPU: &gpu,
 	}
 
@@ -20,6 +22,7 @@ func TestExtractCacheWithGPUEnabled(t *testing.T) {
 	assert.Nil(t, unmatchedIDs, "Unmatched IDs should not be nil") // as we are on a no GPU system
 }
 
+// TODO test needs debug
 // func TestExtractCacheWithBaremetalEnabled(t *testing.T) {
 // 	baremetal := true
 // 	opts := Options{
@@ -28,7 +31,7 @@ func TestExtractCacheWithGPUEnabled(t *testing.T) {
 // 	}
 
 // 	matchedIDs, unmatchedIDs, err := ExtractCache(opts)
-// 	assert.NoError(t, err, "ExtractCache should not return an error")
+// 	assert.Error(t, err, "ExtractCache should return an error")
 // 	assert.Nil(t, matchedIDs, "Matched IDs should be nil")
 // 	assert.Nil(t, unmatchedIDs, "Unmatched IDs should not be nil")
 // }
@@ -36,7 +39,7 @@ func TestExtractCacheWithGPUEnabled(t *testing.T) {
 func TestExtractCacheWithSkipPrecheck(t *testing.T) {
 	skipPrecheck := true
 	opts := Options{
-		ImageName:    "quay.io/gkm/cache-examples:vector-add-cache-cuda",
+		ImageName:    testImg,
 		SkipPrecheck: &skipPrecheck,
 	}
 
@@ -78,15 +81,14 @@ func TestGetSystemGPUInfoWithTimeoutEnabled(t *testing.T) {
 	}
 }
 
-// This test needs actual GPU hardware to pass
-// func TestPreflightCheck(t *testing.T) {
-// 	imageName := "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+func TestPreflightCheck(t *testing.T) {
+	imageName := testImg
 
-// 	matchedIDs, unmatchedIDs, err := PreflightCheck(imageName)
-// 	assert.NoError(t, err, "PreflightCheck should not return an error")
-// 	assert.NotNil(t, matchedIDs, "Matched IDs should not be nil")
-// 	assert.NotNil(t, unmatchedIDs, "Unmatched IDs should not be nil")
-// }
+	matchedIDs, unmatchedIDs, err := PreflightCheck(imageName)
+	assert.Error(t, err, "PreflightCheck should return an error") // in a non-GPU environment
+	assert.Nil(t, matchedIDs, "Matched IDs should not be nil")
+	assert.Nil(t, unmatchedIDs, "Unmatched IDs should not be nil")
+}
 
 func TestGetSystemGPUInfo(t *testing.T) {
 	stub := true
@@ -105,10 +107,80 @@ func TestGetSystemGPUInfo(t *testing.T) {
 }
 
 func TestInspectCacheImage(t *testing.T) {
-	imageName := "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+	imageName := testImg
 
 	labels, err := InspectCacheImage(imageName)
 	assert.NoError(t, err, "InspectCacheImage should not return an error")
 	assert.NotNil(t, labels, "Labels should not be nil")
 	assert.Greater(t, len(labels), 0, "Labels should contain at least one entry")
+}
+
+func TestExtractCacheWithInvalidImageName(t *testing.T) {
+	opts := Options{
+		ImageName: "invalid-image-name",
+	}
+
+	matchedIDs, unmatchedIDs, err := ExtractCache(opts)
+	assert.Error(t, err, "ExtractCache should return an error for an invalid image name")
+	assert.Nil(t, matchedIDs, "Matched IDs should be nil for an invalid image name")
+	assert.Nil(t, unmatchedIDs, "Unmatched IDs should be nil for an invalid image name")
+}
+
+func TestInspectCacheImageWithInvalidImageName(t *testing.T) {
+	imageName := "invalid-image-name"
+
+	labels, err := InspectCacheImage(imageName)
+	assert.Error(t, err, "InspectCacheImage should return an error for an invalid image name")
+	assert.Nil(t, labels, "Labels should be nil for an invalid image name")
+}
+
+func TestExtractCacheWithCacheDir(t *testing.T) {
+	cacheDir := "/tmp/test-cache-dir"
+	opts := Options{
+		ImageName: testImg,
+		CacheDir:  cacheDir,
+	}
+
+	matchedIDs, unmatchedIDs, err := ExtractCache(opts)
+	assert.NoError(t, err, "ExtractCache should not return an error")
+	assert.Nil(t, matchedIDs, "Matched IDs should be nil")
+	assert.Nil(t, unmatchedIDs, "Unmatched IDs should not be nil")
+}
+
+func TestExtractCacheWithGPUDisabled(t *testing.T) {
+	gpu := false
+	opts := Options{
+		ImageName: testImg,
+		EnableGPU: &gpu,
+	}
+
+	matchedIDs, unmatchedIDs, err := ExtractCache(opts)
+	assert.NoError(t, err, "ExtractCache should not return an error")
+	assert.Nil(t, matchedIDs, "Matched IDs should be nil")
+	assert.Nil(t, unmatchedIDs, "Unmatched IDs should not be nil")
+}
+
+func TestGetSystemGPUInfoWithStubDisabled(t *testing.T) {
+	stub := false
+	opts := HwOptions{
+		EnableStub: &stub,
+		Timeout:    10,
+	}
+
+	summary, err := GetSystemGPUInfo(opts)
+	assert.NoError(t, err, "GetSystemGPUInfo should not return an error")
+	if summary != nil {
+		assert.Greater(t, len(summary.GPUs), 0, "There should be at least one GPU detected")
+	} else {
+		t.Log("No GPUs detected, which is acceptable in some environments")
+	}
+}
+
+func TestInspectCacheImageWithValidImageName(t *testing.T) {
+	imageName := testImg
+
+	labels, err := InspectCacheImage(imageName)
+	assert.NoError(t, err, "InspectCacheImage should not return an error for a valid image name")
+	assert.NotNil(t, labels, "Labels should not be nil for a valid image name")
+	assert.Greater(t, len(labels), 0, "Labels should contain at least one entry for a valid image name")
 }

@@ -70,7 +70,9 @@ mcv: build ## Build triton cache vault.
 build: clean_build_local _build_local  ##  Build binary and copy to $(OUTPUT_DIR)/bin
 .PHONY: build
 
-_build_local:  ##  Build mcv binary locally.
+_build_local: format vet tidy-vendor ##  Build mcv binary locally.
+	@echo "******     build     ******"
+	@echo
 	@mkdir -p "$(BUILD_BINDIR)/$(GOOS)_$(GOARCH)"
 	+@$(GOENV) go build \
 		-v -tags ${GO_BUILD_TAGS} \
@@ -92,11 +94,17 @@ clean_build_local: ## Clean local build directory
 	rm -rf $(BUILD_BINDIR)
 
 format:
-	@echo "******     Go Format     ******"
+	@echo "******     go fmt     ******"
 	@echo
-	go fmt github.com/redhat-et/MCU/mcv...
+	go fmt github.com/redhat-et/MCU/mcv/...
 	@echo
 	@echo
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	@echo "******     go Vet     ******"
+	@echo
+	go vet github.com/redhat-et/MCU/mcv/...
 
 lint:
 	@echo "******     golangci-lint     ******"
@@ -104,6 +112,11 @@ lint:
 	golangci-lint run ./...
 	@echo
 	@echo
+
+test:
+	@echo "******     testing     ******"
+	@echo
+	go test github.com/redhat-et/MCU/mcv/...
 
 ##@ Installation
 .PHONY: install

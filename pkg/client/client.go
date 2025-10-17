@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
 	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
@@ -35,6 +36,11 @@ type HwOptions struct {
 func InspectCacheImage(img string) (labels map[string]string, err error) {
 	if img == "" {
 		return nil, fmt.Errorf("image name must be specified")
+	}
+
+	_, err = name.ParseReference(img, name.StrictValidation)
+	if err != nil {
+		return nil, fmt.Errorf("error validating image name: %v", err)
 	}
 
 	return fetcher.NewImgFetcher().InspectImg(img)
@@ -76,7 +82,7 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		if *opts.EnableGPU {
 			enable := true
 			// double check we have hardware accelerators
-			if acc := devices.DetectAccelerators(); len(acc.Devices) == 0 {
+			if acc := devices.DetectAccelerators(); acc == nil || len(acc.Devices) == 0 {
 				logging.Warn("No accelerators detected, GPU logic disabled.")
 				enable = false
 			} else {
@@ -158,7 +164,7 @@ func GetSystemGPUInfo(opts HwOptions) (*devices.GPUFleetSummary, error) {
 	}
 
 	// Auto-detect accelerator hardware if GPU is not already enabled
-	if accs := devices.DetectAccelerators(); len(accs.Devices) == 0 {
+	if accs := devices.DetectAccelerators(); accs == nil || len(accs.Devices) == 0 {
 		logging.Info("No accelerators detected, GPU logic disabled.")
 		return nil, nil
 	} else {
