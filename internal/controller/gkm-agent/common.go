@@ -508,7 +508,7 @@ func GetGpuList(noGpu bool, log logr.Logger) (*mcvDevices.GPUFleetSummary, error
 	// Stub out the GPU Ids when in TestMode (No GPUs)
 	if noGpu {
 		stub := true
-		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
+		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub, Timeout: 0})
 		if err != nil {
 			log.Error(err, "error retrieving stubbed GPU info")
 			return gpus, err
@@ -517,7 +517,7 @@ func GetGpuList(noGpu bool, log logr.Logger) (*mcvDevices.GPUFleetSummary, error
 		}
 	} else {
 		stub := false
-		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub})
+		gpus, err = mcvClient.GetSystemGPUInfo(mcvClient.HwOptions{EnableStub: &stub, Timeout: 0})
 		if err != nil {
 			log.Error(err, "error retrieving GPU info")
 			return gpus, err

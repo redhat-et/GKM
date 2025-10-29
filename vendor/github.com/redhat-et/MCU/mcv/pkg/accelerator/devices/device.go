@@ -41,6 +41,8 @@ var (
 	deviceRegistry *Registry
 	once           sync.Once
 	cacheFilePath  = constants.DefaultCacheFilePath
+	Timeout        = 10                                   // Timeout in minutes for device detection (0 = disabled)
+	CacheTTL       = time.Duration(Timeout) * time.Minute // Cache Time-To-Live
 )
 
 type (
@@ -113,8 +115,16 @@ type GPUGroup struct {
 func GetRegistry() *Registry {
 	logging.Debugf("Retrieving the global device registry")
 	once.Do(func() {
+		Timeout = config.Timeout()
+		logging.Debugf("Timeout set to %v", Timeout)
+		CacheTTL = time.Duration(Timeout) * time.Minute
 		deviceRegistry = newRegistry()
 		registerDevices(deviceRegistry)
+		if Timeout == 0 {
+			logging.Debug("Device cache TTL disabled (timeout = 0)")
+			return
+		}
+		logging.Debugf("Device cache TTL set to %v", CacheTTL)
 	})
 	return deviceRegistry
 }
@@ -219,9 +229,11 @@ func loadCache() (*DeviceCache, error) {
 		return nil, err
 	}
 
-	// Check if the cache is still valid - if it's expired, update it
-	if time.Since(cache.Timestamp) > constants.CacheTTL {
-		return nil, errors.New("cache expired")
+	if Timeout > 0 {
+		// Check if the cache is still valid - if it's expired, update it
+		if time.Since(cache.Timestamp) > CacheTTL {
+			return nil, errors.New("cache expired")
+		}
 	}
 
 	logging.Debugf("Loaded %d devices from the device cache", len(cache.Devices))
