@@ -359,8 +359,10 @@ func getAMDGPUInfo(ctx context.Context) (map[int]*AMDCardInfo, error) {
 	}
 
 	if err := json.Unmarshal(output, &wrapper); err != nil {
-		logging.Debugf("failed to parse amd-smi output: %v", err)
-		return nil, fmt.Errorf("failed to parse amd-smi output: %v", err)
+		logging.Debugf("failed to parse amd-smi output going to try compat mode")
+		if err := json.Unmarshal(output, &wrapper.GPUData); err != nil {
+			return nil, fmt.Errorf("failed to parse amd-smi output: %v", err)
+		}
 	}
 
 	parsedGPUs := make(map[int]*AMDCardInfo)

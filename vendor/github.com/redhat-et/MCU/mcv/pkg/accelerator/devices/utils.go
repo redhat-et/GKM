@@ -1,7 +1,6 @@
 package devices
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/jaypipes/ghw"
@@ -11,27 +10,6 @@ import (
 	"github.com/redhat-et/MCU/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
-
-func GetSystemHW() (cpuInfo *ghw.CPUInfo, accInfo *ghw.AcceleratorInfo, err error) {
-	cpuInfo, errCPU := ghw.CPU()
-	if errCPU != nil {
-		logging.Error("failed to get CPU info:", errCPU)
-	} else {
-		logging.Debug(cpuInfo)
-	}
-
-	accInfo, errAcc := DetectAccelerators()
-	if errAcc != nil {
-		logging.Error("failed to get accelerator info:", errAcc)
-	} else {
-		for _, device := range accInfo.Devices {
-			logging.Debug(device)
-		}
-	}
-
-	err = errors.Join(errCPU, errAcc)
-	return
-}
 
 func GetProductName(id int) (name string, err error) {
 	xpus, errAcc := ghw.Accelerator()
@@ -48,7 +26,9 @@ func GetProductName(id int) (name string, err error) {
 }
 
 // DetectAccelerators detects hardware accelerators and enables GPU logic if supported hardware is found.
-func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
+// If stub mode is enabled, it simulates the presence of an AMD Aldebaran MI200 GPU.
+// If no hardware accelerators are found, it returns nil without an error.
+func DetectAccelerators() (accInfo *ghw.AcceleratorInfo) {
 	if config.IsStubEnabled() {
 		logging.Debug("Stub mode configured, simulating accelerator device")
 		accInfo = &ghw.AcceleratorInfo{
@@ -91,12 +71,13 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo, err error) {
 				},
 			},
 		}
-		return accInfo, nil
+		return accInfo
 	}
 
 	acc, err := ghw.Accelerator()
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect hardware accelerator: %w", err)
+		logging.Debugf("no Accelerator detected")
+		return nil
 	}
-	return acc, nil
+	return acc
 }
