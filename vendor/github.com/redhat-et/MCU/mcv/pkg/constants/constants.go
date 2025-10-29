@@ -3,7 +3,6 @@ package constants
 import (
 	"os"
 	"path/filepath"
-	"time"
 
 	logging "github.com/sirupsen/logrus"
 )
@@ -27,7 +26,6 @@ const (
 	EnvTritonCacheDir    = "TRITON_CACHE_DIR"
 	DefaultCacheFilePath = "/tmp/device_cache.json"
 	StubbedCacheFile     = "/tmp/device_cache_stub.json"
-	CacheTTL             = 10 * time.Minute // Cache Time-To-Live
 )
 
 // Configurable runtime paths
