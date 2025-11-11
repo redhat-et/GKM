@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/containers/buildah"
-	"github.com/containers/storage/pkg/unshare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/MCU/mcv/pkg/client"
 	"github.com/redhat-et/MCU/mcv/pkg/config"
@@ -14,6 +13,7 @@ import (
 	"github.com/redhat-et/MCU/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.podman.io/storage/pkg/unshare"
 )
 
 const (

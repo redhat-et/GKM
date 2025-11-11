@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/containers/buildah"
-	"github.com/containers/common/pkg/config"
-	is "github.com/containers/image/v5/storage"
-	"github.com/containers/storage"
 	logging "github.com/sirupsen/logrus"
+	"go.podman.io/common/pkg/config"
+	is "go.podman.io/image/v5/storage"
+	"go.podman.io/storage"
 )
 
 type buildahBuilder struct{}
