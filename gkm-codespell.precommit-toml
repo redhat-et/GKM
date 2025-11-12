@@ -1,3 +1,3 @@
 [tool.codespell]
-ignore-words-list = "AfterAll"
+ignore-words-list = "AfterAll,renderD"
 skip = './.*,vendor/*,go.sum'
