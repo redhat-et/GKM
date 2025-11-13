@@ -20,10 +20,10 @@ validation, and developer-friendly debugging workflows.
 ## Supported Image Formats
 <!-- markdownlint-disable  MD013 -->
 <!-- Teporarily disable MD013 - Line length to keep the table formatting  -->
-| Format Type         | Description                         | Media Type(s)                                       | Support |
-|---------------------|-------------------------------------|-----------------------------------------------------|---------|
-| **Docker V2 Schema**| Standard Docker images              | `application/vnd.docker.image.rootfs.diff.tar.gzip` | ✅      |
-| **OCI Standard**    | OCI images via tools like `buildah` | `application/vnd.oci.image.layer.v1.tar`            | ✅      |
+| Format Type          | Description                         | Media Type(s)                                       | Support |
+|----------------------|-------------------------------------|-----------------------------------------------------|---------|
+| **Docker V2 Schema** | Standard Docker images              | `application/vnd.docker.image.rootfs.diff.tar.gzip` | ✅       |
+| **OCI Standard**     | OCI images via tools like `buildah` | `application/vnd.oci.image.layer.v1.tar`            | ✅       |
 <!-- markdownlint-enable MD013 -->
 
 ## Key Features
