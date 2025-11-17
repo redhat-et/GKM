@@ -20,6 +20,20 @@ It will use the utilities developed in
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
+The following packages are also required to build:
+
+```sh
+sudo dnf install -y gpgme-devel libdrm-devel libbtrfs btrfs-progs \
+     btrfs-progs-devel hwloc hwloc-devel
+```
+
+OR
+
+```sh
+sudo apt-get install -y libgpgme-dev libbtrfs-dev btrfs-progs libgpgme11-dev \
+     libseccomp-dev
+```
+
 ### To Deploy a Cluster With a Simulated GPU
 
 To simulate a GPU in `kind`, GKM is leveraging scripts in
@@ -207,14 +221,17 @@ Operator when no KIND Cluster exists:
 
 - `make run-on-kind`: This command creates a KIND Cluster with GKM and
   cert-manager installed and simulated GPUs.
-  - `make undeploy-on-kind`: Optionally, this command can be used to unwind
-    the GKM deployment on a KIND Cluster.
+  - `make undeploy-on-kind` or `make undeploy-on-kind-force`: Optionally,
+    these commands can be used to unwind the GKM deployment on a KIND Cluster.
     It leaves cert-manager installed.
-    If there are workload pods running that have extracted GPU Kernel Cache
-    mounted, those pods will remain running.
     GKM is still a work in progress and stranded resources are currently not
-    cleaned up properly.
+    cleaned up properly by GKM, but the Makefile can be used to cleanup.
     It is recommended that these pods are stopped before GKM is removed.
+    If there are workload pods running that have extracted GPU Kernel Cache
+    mounted:
+    - `make undeploy-on-kind`: Workload pods will remain running.
+    - `make undeploy-on-kind-force`: Workload pods are removed by Makefile
+      (Recommended).
   - `make redeploy-on-kind`: Optionally, this command can be used to redeploy
     the GKM deployment on a KIND Cluster.
     It assumes that cert-manager is already installed.
@@ -230,14 +247,17 @@ See [kind-gpu-sim](https://github.com/maryamtahhan/kind-gpu-sim) for reference.
 
 - `make deploy-on-kind`: This command deploys GKM and cert-manager in the
   existing KIND Cluster.
-  - `make undeploy-on-kind`: Optionally, this command can be used to unwind
-    the GKM deployment on a KIND Cluster.
+  - `make undeploy-on-kind` or `make undeploy-on-kind-force`:: Optionally,
+    these commands can be used to unwind the GKM deployment on a KIND Cluster.
     It leaves cert-manager installed.
-    If there are workload pods running that have extracted GPU Kernel Cache
-    mounted, those pods will remain running.
     GKM is still a work in progress and stranded resources are currently not
-    cleaned up properly.
+    cleaned up properly by GKM, but the Makefile can be used to cleanup.
     It is recommended that these pods are stopped before GKM is removed.
+    If there are workload pods running that have extracted GPU Kernel Cache
+    mounted:
+    - `make undeploy-on-kind`: Workload pods will remain running.
+    - `make undeploy-on-kind-force`: Workload pods are removed by Makefile
+      (Recommended).
   - `make redeploy-on-kind`: Optionally, this command can be used to redeploy
     the GKM deployment on a KIND Cluster.
     It assumes that cert-manager is already installed.
@@ -256,14 +276,16 @@ Operator when a Cluster already exists.
   Cluster.
   If cert-manager is already installed on the cluster, use `make redeploy`
   instead.
-  - `make undeploy`: Optionally, this command can be used to unwind the GKM
-    deployment on a Cluster.
+  - `make undeploy` or `make undeploy-force`: Optionally, these commands can be
+    used to unwind the GKM deployment on a Cluster.
     It leaves cert-manager installed.
-    If there are workload pods running that have extracted GPU Kernel Cache
-    mounted, those pods will remain running.
     GKM is still a work in progress and stranded resources are currently not
-    cleaned up properly.
+    cleaned up properly by GKM, but the Makefile can be used to cleanup.
     It is recommended that these pods are stopped before GKM is removed.
+    If there are workload pods running that have extracted GPU Kernel Cache
+    mounted:
+    - `make undeploy`: Workload pods will remain running.
+    - `make undeploy-force`: Workload pods are removed by Makefile (Recommended).
   - `make redeploy`: Optionally, this command can be used to redeploy the GKM
     deployment on a Cluster.
     It assumes that cert-manager is already installed.

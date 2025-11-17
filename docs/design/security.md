@@ -20,6 +20,7 @@ admission and controller logic.
 
 <!-- markdownlint-disable  MD013 -->
 <!-- markdownlint-disable  MD033 -->
+<!-- markdownlint-disable  MD060 -->
 <!-- Temporarily disable MD013 - Line length to keep the table formatting  -->
 | Component                  | Responsibilities                                                                 |
 |----------------------------|-----------------------------------------------------------------------------------|
