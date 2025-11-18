@@ -1,0 +1,35 @@
+admissionController:
+  nodeSelector:
+    hardware-type: gpu
+  tolerations:
+    - key: gpu
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+
+backgroundController:
+  nodeSelector:
+    hardware-type: gpu
+  tolerations:
+    - key: gpu
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+
+cleanupController:
+  nodeSelector:
+    hardware-type: gpu
+  tolerations:
+    - key: gpu
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+
+reportsController:
+  nodeSelector:
+    hardware-type: gpu
+  tolerations:
+    - key: gpu
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
