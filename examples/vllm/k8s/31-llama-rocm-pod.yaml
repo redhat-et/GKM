@@ -31,8 +31,8 @@ spec:
             secretKeyRef:
               name: hf-token-secret
               key: token
-        # - name: EXTRA_ARGS
-        #   value: >-
+          # - name: EXTRA_ARGS
+          #   value: >-
         #     --tensor-parallel-size 1
         #     --gpu-memory-utilization 0.95
         #     --max-model-len 4096
