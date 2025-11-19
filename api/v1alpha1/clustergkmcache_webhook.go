@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,10 +37,6 @@ func (w *ClusterGKMCache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:webhook:path=/validate-gkm-io-v1alpha1-clustergkmcache,mutating=false,failurePolicy=fail,sideEffects=None,groups=gkm.io,resources=clustergkmcaches,verbs=create;update,versions=v1alpha1,name=vclustergkmcache.kb.io,admissionReviewVersions=v1
 
 // Default implements the mutating webhook logic for defaulting.
-// The mutating webhook writes both the resolved digest and a
-// gkm.io/mutationSig that’s bound to the current AdmissionRequest UID + image
-// + digest. The validating webhooks only accept the digest if that signature
-// is valid, which guarantees the digest came from the mutator (not the user).
 func (w *ClusterGKMCache) Default(ctx context.Context, obj runtime.Object) error {
 	clustergkmcacheLog.V(1).Info("Mutating Webhook called", "object", obj)
 
@@ -60,18 +55,11 @@ func (w *ClusterGKMCache) Default(ctx context.Context, obj runtime.Object) error
 		return nil
 	}
 
-	// Resolve & verify image -> digest
-	cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	clustergkmcacheLog.V(1).Info("Verifying image signature", "image", cache.Spec.Image)
-	digest, err := verifyImageSignature(cctx, cache.Spec.Image)
-	if err != nil {
-		clustergkmcacheLog.Error(err, "failed to verify image or resolve digest")
-		return apierrors.NewBadRequest(fmt.Sprintf(
-			"image signature verification failed for '%s': %s",
-			cache.Spec.Image, err.Error(),
-		))
+	// First check if the image already contains a digest (e.g., from Kyverno mutation)
+	var digest string
+	if extractedDigest := extractDigestFromImage(cache.Spec.Image); extractedDigest != "" {
+		clustergkmcacheLog.Info("Image already contains digest (likely from Kyverno)", "image", cache.Spec.Image, "digest", extractedDigest)
+		digest = extractedDigest
 	}
 	resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
 	if digestFound {
@@ -81,24 +69,6 @@ func (w *ClusterGKMCache) Default(ctx context.Context, obj runtime.Object) error
 		}
 	}
 	cache.Annotations[utils.GMKCacheAnnotationResolvedDigest] = digest
-
-	// Bind a mutation signature to THIS AdmissionRequest UID
-	req, err := admission.RequestFromContext(ctx)
-	if err != nil {
-		return apierrors.NewBadRequest("unable to read admission request from context")
-	}
-	secret, err := mutationKeyFromEnv()
-	if err != nil {
-		return apierrors.NewBadRequest(err.Error())
-	}
-	sig, err := signMutation(secret, "", cache.Spec.Image, digest)
-	if err != nil {
-		return apierrors.NewBadRequest(fmt.Sprintf("failed to sign mutation: %v", err))
-	}
-	cache.Annotations[utils.GMKCacheAnnotationMutationSig] = sig
-
-	// Audit for convenience (not part of trust)
-	cache.Annotations[utils.GMKCacheAnnotationLastMutatedBy] = req.UserInfo.Username
 
 	clustergkmcacheLog.Info("added/updated resolvedDigest", "image", cache.Spec.Image, "digest", digest)
 	return nil
@@ -115,36 +85,12 @@ func (w *ClusterGKMCache) ValidateCreate(ctx context.Context, obj runtime.Object
 		return nil, fmt.Errorf("spec.image must be set")
 	}
 
-	// The validator sees the mutated object.
-	// If resolvedDigest is present, it must carry a valid mutationSig for THIS request.
-	digest := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
-	sig := cache.Annotations[utils.GMKCacheAnnotationMutationSig]
-
-	if digest != "" {
-		secret, err := mutationKeyFromEnv()
-		if err != nil {
-			return nil, fmt.Errorf("%s", err.Error())
-		}
-		if !verifyMutation(secret, "", cache.Spec.Image, digest, sig) {
-			return nil, fmt.Errorf("%s present but missing/invalid %s; digest must be set only by the mutating webhook",
-				utils.GMKCacheAnnotationResolvedDigest, utils.GMKCacheAnnotationMutationSig)
-		}
+	if _, exists := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]; !exists {
+		return nil, fmt.Errorf("%s must be set by mutating webhook", utils.GMKCacheAnnotationResolvedDigest)
 	}
 
-	// Defense in depth
-	// Recompute digest from the image (same logic used by mutator).
-	// The mutator adds the gkm.io/resolvedDigest annotation
-	// If we just check it exists then the validator will fail.
-	// We just recompute the digest and compare it. If it's OK
-	// we accept the CR object.
-	digest, err := verifyImageSignature(ctx, cache.Spec.Image)
-	if err != nil {
-		return nil, fmt.Errorf("image signature verification failed: %w", err)
-	}
-
-	ann := cache.Annotations["gkm.io/resolvedDigest"]
-	if ann == "" || ann != digest {
-		return nil, fmt.Errorf("gkm.io/resolvedDigest mismatch - this is not the digest of the verified image")
+	if _, exists := cache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
+		return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
 	}
 
 	return nil, nil
@@ -164,7 +110,6 @@ func (w *ClusterGKMCache) ValidateUpdate(_ context.Context, oldObj, newObj runti
 
 	oldDigest := oldCache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
 	newDigest := newCache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
-	newSig := newCache.Annotations[utils.GMKCacheAnnotationMutationSig]
 
 	// If image didn't change, digest must not change.
 	if oldImg == newImg {
@@ -178,16 +123,8 @@ func (w *ClusterGKMCache) ValidateUpdate(_ context.Context, oldObj, newObj runti
 	if newImg == "" {
 		return nil, fmt.Errorf("spec.image must be set")
 	}
-	if newDigest == "" || newSig == "" {
+	if newDigest == "" {
 		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", utils.GMKCacheAnnotationResolvedDigest)
-	}
-
-	secret, err := mutationKeyFromEnv()
-	if err != nil {
-		return nil, fmt.Errorf("%s", err.Error())
-	}
-	if !verifyMutation(secret, "", newImg, newDigest, newSig) {
-		return nil, fmt.Errorf("invalid %s for updated image; digest must be set only by the mutating webhook", utils.GMKCacheAnnotationMutationSig)
 	}
 
 	return nil, nil
