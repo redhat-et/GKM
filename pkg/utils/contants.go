@@ -40,8 +40,9 @@ const (
 
 	// GKMCache and ClusterGKMCache Annotations
 	GMKCacheAnnotationResolvedDigest = "gkm.io/resolvedDigest"
-	GMKCacheAnnotationMutationSig    = "gkm.io/mutationSig"
-	GMKCacheAnnotationLastMutatedBy  = "gkm.io/lastMutatedBy"
+
+	// Kyverno Annotations
+	KyvernoVerifyImagesAnnotation = "kyverno.io/verify-images"
 
 	// GKMCache and ClusterGKMCache Labels
 	GKMCacheLabelHostname = "kubernetes.io/hostname"
