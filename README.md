@@ -6,10 +6,36 @@
 
 ## Description
 
-GPU Kernel Manager is a software stack that aims to deploy, manage and
-monitor GPU Kernels in a Kubernetes cluster.
-It will use the utilities developed in
-[MCU](https://github.com/redhat-et/MCU) to accomplish these goals.
+GPU Kernel Manager (GKM) is a Kubernetes Operator that propagates GPU Kernel
+Caches across Kubernetes Nodes, speeding up the startup time of pods in
+Kubernetes clusters using GPU Kernels.
+
+But what is a GPU Kernel Cache?
+
+A GPU Kernel is the binary that is ultimately loaded on a GPU for execution.
+Many frameworks like PyTorch run through multiple stages during the compilation
+of a GPU Kernel.
+One of the last steps is a Just-in-time (JIT) compilation where code is
+compiled into GPU-specific machine code at runtime, rather than ahead of time.
+This allows for runtime optimizations based on the specific detected hardware
+and workload, creating highly specialized kernels that can be faster than
+pre-compiled, general-purpose ones.
+This produces hardware specific kernels at the cost of runtime compilation
+time.
+However, once the JIT compile has completed, the generated binary along with the
+pre-stage artifacts are present in a local directory known as the GPU Kernel
+Cache.
+
+This is where GKM comes in.
+This directory containing GPU Kernel Cache can be packaged into an OCI Image
+using the utilities developed in [MCU](https://github.com/redhat-et/MCU),
+specifically [MCV](https://github.com/redhat-et/MCU/tree/main/mcv), and pushed
+to an image repository.
+GKM pulls down the generated OCI Image from the repository on each Kubernetes
+node and mounts the GPU Kernel Cache as a directory in a workload pod.
+As long as the node has the same GPU as the extracted GPU Kernel Cache was
+generated on, the the workload is none the wiser and skips the JIT compilation,
+decreasing the pod start-up time by up to half.
 
 ## Getting Started
 
