@@ -43,7 +43,7 @@ jobs:
             libbtrfs-dev \
 
       - name: Checkout GKM
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Check format
         if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.24' }}
