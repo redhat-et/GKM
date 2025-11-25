@@ -227,6 +227,33 @@ make push-images
 make run-on-kind
 ```
 
+#### Building Without GPU Support
+
+For environments without GPU hardware (e.g., KIND clusters with simulated GPUs),
+you can build the agent image without ROCm packages to reduce image size and
+build time. This is useful for development and testing scenarios.
+
+To build the agent image without GPU support:
+
+```sh
+make build-image-agent NO_GPU_BUILD=true
+```
+
+Or to build all images (only the agent will skip ROCm installation):
+
+```sh
+make build-images NO_GPU_BUILD=true
+```
+
+When built with `NO_GPU_BUILD=true`:
+
+- ROCm packages are not installed in the agent container
+- The `NO_GPU` environment variable is set to `true` in the container
+- The agent will run in no-GPU mode as indicated in the logs
+
+This is the recommended approach for KIND deployments since they use simulated
+GPUs and don't require actual ROCm libraries.
+
 ### Deployment Options
 
 Steps to deploy GKM have been automated in the
@@ -244,6 +271,11 @@ environments.
 
 Below are set of commands to manage the lifecycle of a KIND Cluster with the GKM
 Operator when no KIND Cluster exists:
+
+> **Note:** When building images for KIND deployments, it's recommended to use
+> `NO_GPU_BUILD=true` to skip ROCm installation since KIND uses simulated GPUs.
+> For example: `make build-images NO_GPU_BUILD=true` before running
+> `make run-on-kind`.
 
 - `make run-on-kind`: This command creates a KIND Cluster with GKM and
   cert-manager installed and simulated GPUs.
@@ -270,6 +302,11 @@ Operator when a KIND Cluster already exists.
 This assumes that the GPUs are properly being simulated in the existing KIND
 Cluster.
 See [kind-gpu-sim](https://github.com/maryamtahhan/kind-gpu-sim) for reference.
+
+> **Note:** When building images for KIND deployments, it's recommended to use
+> `NO_GPU_BUILD=true` to skip ROCm installation since KIND uses simulated GPUs.
+> For example: `make build-images NO_GPU_BUILD=true` before running
+> `make deploy-on-kind`.
 
 - `make deploy-on-kind`: This command deploys GKM and cert-manager in the
   existing KIND Cluster.

@@ -58,17 +58,25 @@ RUN apt-get update && \
         libseccomp2 && \
     apt-get clean
 
+ARG NO_GPU=false
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
 
-# Install ROCm apt repo
-RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb
-RUN apt install -y ./*.deb
-RUN apt update &&  DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi
-RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
+# Conditionally install ROCm packages based on NO_GPU flag
+RUN if [ "$NO_GPU" = "false" ]; then \
+        wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+        apt install -y ./*.deb && \
+        apt update && DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib && \
+        apt-get clean && rm -rf /var/lib/apt/lists/* && \
+        ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
+        ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi; \
+    else \
+        echo "NO_GPU=true, skipping ROCm installation"; \
+    fi
+
+# Set NO_GPU environment variable
+ENV NO_GPU=${NO_GPU}
 
 # Run as non-root user
 USER 65532:65532
