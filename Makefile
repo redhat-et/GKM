@@ -16,6 +16,9 @@ ARCH=$(shell go env GOARCH)
 # Define CONTAINER_FLAGS and include ARCH as an argument
 CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 
+# NO_GPU flag for building without GPU support
+NO_GPU_BUILD ?= false
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -200,7 +203,7 @@ build-image-operator:
 
 .PHONY: build-image-agent
 build-image-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --build-arg NO_GPU=$(NO_GPU_BUILD) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
 
 .PHONY: build-image-csi
 build-image-csi:
