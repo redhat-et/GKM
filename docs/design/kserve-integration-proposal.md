@@ -1,4 +1,4 @@
-# KServe Integration with GPU Kernel Manager (GKM)
+# Design: GPU Kernel Manager (GKM) Integration with KServe
 
 <!-- markdownlint-disable MD033 MD046 MD013 MD034 MD031 MD026 MD060 MD032 -->
 <!-- markdownlint-disable MD029 MD033 MD046 MD013 MD024 MD022-->
@@ -139,11 +139,11 @@ via the same PVC.
 │  └──────────────────────────────────────────────────────┘      │
 │                                                                │
 │  LocalModel Controller:                                        │
-│  - Calculate total storage (modelSize + cacheSize)             │
+│  - Calculate total storage (modelSize + cacheSize)       # MOD │
 │  - Create PV/PVC (existing, unchanged)                         │
-│  - Propagate kernel cache info to LocalModelNode specs    # NEW│
-│  - Aggregate kernel cache status                    # NEW      │
-│  - Verify kernel cache signatures                   # NEW      │
+│  - Propagate kernel cache info to LocalModelNode specs   # NEW │
+│  - Aggregate kernel cache status                         # NEW │
+│  - Verify kernel cache signatures                        # NEW │
 └────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -151,19 +151,19 @@ via the same PVC.
 │                    Worker Nodes (DaemonSet)                    │
 │                                                                │
 │  LocalModelNode Agent (Enhanced):                              │
-│  - Detect GPU hardware (nvidia-smi/rocm-smi)       # NEW       │
+│  - Detect GPU hardware (nvidia-smi/rocm-smi)             # NEW │
 │  - Download model weights (existing, unchanged)                │
-│  - Download kernel cache OCI images                # NEW       │
-│  - Validate GPU compatibility with MCV             # NEW       │
-���  - Extract caches to /mnt/models/kernel-caches/    # NEW       │
-│  - Update status with GPU info and cache status    # NEW       │
+│  - Download kernel cache OCI images                      # NEW │
+│  - Validate GPU compatibility with MCV                   # NEW │
+│  - Extract caches to /mnt/models/kernel-caches/          # NEW │
+│  - Update status with GPU info and cache status          # NEW │
 │                                                                │
 │  PersistentVolume (Node-Local):                                │
 │  /mnt/models/                                                  │
-│  ├── models/                    # Existing                     │
-│  │   └── llama-7b/              # Model weights                │
-│  └── kernel-caches/             # NEW                          │
-│      └── llama-7b/              # GPU kernels                  │
+│  ├── models/                                   # Existing      │
+│  │   └── llama-7b/                             # Model weights │
+│  └── kernel-caches/                            # NEW           │
+│      └── llama-7b/                             # GPU kernels   │
 └────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -171,16 +171,16 @@ via the same PVC.
 │                    InferenceService Pod                        │
 │                                                                │
 │  Predictor Container (vLLM/Triton/PyTorch):                    │
-│    - Model PVC mounted at /mnt/models                         │
-│    - Reads weights from /mnt/models/models/llama-7b           │
-│    - Reads kernels from /mnt/models/kernel-caches/llama-7b    │
-│    - Env: VLLM_KERNEL_CACHE=/mnt/models/kernel-caches/llama-7b│
+│    - Model PVC mounted at /mnt/models                          │
+│    - Reads weights from /mnt/models/models/llama-7b            │
+│    - Reads kernels from /mnt/models/kernel-caches/llama-7b     │
+│    - Env: VLLM_KERNEL_CACHE=/mnt/models/kernel-caches/llama-7b │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 #### How the Feature Works
 
-### 1. User Creates LocalModelCache with Kernel Cache
+**1. User Creates LocalModelCache with Kernel Cache:**
 
 Users extend their existing LocalModelCache resources with an optional
 `kernelCache` field:
@@ -344,7 +344,7 @@ User       LocalModel      LocalModelNode    kernel-cache     InferenceService
   │            │               │                   │               │               │
   │ Create     │               │                   │               │               │
   │ ISVC       │               │                   │               │               │
-  │────────────────────────────────────────────────────────────────▶│               │
+  │───────────────────────────────────────────────────────────────▶│               │
   │            │               │                   │               │               │
   │            │               │                   │               │ Match LMC     │
   │            │               │                   │               │               │
@@ -541,7 +541,7 @@ New functions:
 - `propagateKernelCacheInfo(ctx context.Context, lmc *LocalModelCache) error`
 - `aggregateKernelCacheStatus(ctx context.Context, lmc *LocalModelCache) error`
 
-#### 3. LocalModelNode Controller**
+#### 3. LocalModelNode Controller
 
 File: `pkg/controller/v1alpha1/localmodelnode/controller.go`
 
@@ -601,7 +601,7 @@ Build:
 - Multi-arch support: amd64, arm64
 - Published to: `kserve/kernel-cache-initializer:v0.14.0`
 
-#### 5. InferenceService Webhook**
+#### 5. InferenceService Webhook
 
 File: `pkg/webhook/admission/pod/storage_initializer_injector.go`
 
@@ -784,7 +784,7 @@ Known Limitations:
 
 ### Integration Checklist
 
-#### Phase 1: Core Integration (Alpha) - Q1 2025
+#### Phase 1: Core Integration (Alpha) - Q1 2026
 
 ##### CRD and API Changes:
 
@@ -847,7 +847,7 @@ Known Limitations:
 - [ ] E2E test: Full workflow with vLLM on GPU node
 - [ ] Performance benchmark: Measure startup time improvement
 
-#### Phase 2: Enhanced Integration (Beta) - Q2 2025
+#### Phase 2: Enhanced Integration (Beta) - Q2 2026
 
 ##### Multi-Framework Support:
 
@@ -889,7 +889,7 @@ Known Limitations:
 - [ ] Performance benchmarks for all frameworks (>30% improvement)
 - [ ] Load testing (50+ concurrent InferenceServices)
 
-#### Phase 3: Cache Warming (GA) - Q2 2025
+#### Phase 3: Cache Warming (GA) - Q2 2026
 
 ##### Automatic Cache Generation:
 
@@ -1636,7 +1636,7 @@ Measure time for kernel-cache-initializer to complete (pull + verify + extract):
 - NVIDIA GPUs only (no AMD ROCm support)
 - Keyless signature verification only (no support for custom keys)
 
-#### Target Release:** KServe v0.14.0 (Q2 2025)
+#### Target Release:** KServe v0.14.0 (Q2 2026)
 
 ---
 
@@ -1696,7 +1696,7 @@ Measure time for kernel-cache-initializer to complete (pull + verify + extract):
 - Cache versioning requires manual image tag management
 - No automatic cache invalidation (user must update image manually)
 
-#### Target Release: KServe v0.15.0 (Q3 2025)
+#### Target Release: KServe v0.15.0 (Q3 2026)
 
 ---
 
@@ -1781,7 +1781,7 @@ Measure time for kernel-cache-initializer to complete (pull + verify + extract):
 - [ ] <5% storage overhead validated
 - [ ] <10 minutes cache download time for 95th percentile (2GB caches)
 
-#### Target Release: KServe v1.0.0 or v0.16.0 (Q4 2025)
+#### Target Release: KServe v1.0.0 or v0.16.0 (Q4 2026)
 
 ---
 
