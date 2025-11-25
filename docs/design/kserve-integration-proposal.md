@@ -201,6 +201,10 @@ spec:
   kernelCache:
     image: quay.io/myorg/llama-7b-vllm-kernels:v1
     cacheSize: 500Mi
+    <!--
+    Billy Comment: Do we need the user to give us that GPU Type or should we
+    auto-detect GPU like current GPU design?
+    -->
     gpuRequirements:
       gpuType: A100
       computeCapability: "8.0"
@@ -210,11 +214,23 @@ spec:
       subject: "https://github.com/myorg/ml-kernels/.github/workflows/build.yml@refs/heads/main"
 ```
 
+<!--
+**2. Webhook Validates OCI Image:**
+
+Billy Comment: Add Webhook section below here or rerite with Kyverno
+-->
+
 **2. LocalModel Controller Processes the Request:**
 
 The LocalModel controller (existing component) is enhanced to:
 
 - Calculate total storage required: `modelSize + kernelCache.cacheSize`
+<!-->
+Billy Comment: Do we know if the PV/PVC are RO/RW? In case the cache doesn't
+exist or needs to be rebuilt, need it RW and in the calculation, need buffer
+of extra memory in case JIT is larger. This is probably not the place for it,
+but need it considered somewhere.
+-->
 - Validate against LocalModelNodeGroup storage limits
 - Create PersistentVolumes and PersistentVolumeClaims (existing logic,
   unchanged)
@@ -278,7 +294,12 @@ The KServe webhook (existing component) is enhanced to:
   environment variable (e.g., `VLLM_KERNEL_CACHE=/mnt/models/kernel-caches/llama-7b`)
 - Validate kernel cache image signature.
 - Translate the kernel cache image tag into a digest.
-
+<!--
+Billy Comment: Is the Webhook handshake expected to work as before in GKM (validates image
+is signed and stores Digest before image is used)? If so, the sequence diagram below needs
+the order changed and it would be easier to follow if this section was moved up and becomes
+bullet #2, after the CRD is created.
+-->
 The pod starts with the PVC mounted (existing behavior) containing both model
 weights and kernel cache. The inference framework (vLLM, Triton, PyTorch)
 detects the environment variable and uses the precompiled kernels instead of
@@ -380,11 +401,25 @@ Add an optional `kernelCache` field to the existing LocalModelCacheSpec:
     `pytorch`) for setting appropriate environment variables
   - `gpuRequirements` (object, optional): GPU compatibility requirements
     - `gpuType` (string, optional): GPU type (e.g., `A100`, `H100`, `V100`)
+       <!--
+       Billy Comment: How are we going to use this? Does the string have to
+       match what we detect exactly? Can the user provide the gpuType and not
+       minDriverVersion or vice-versa, or if one element of the struct is entered
+       they all must be entered?
+       -->
     - `minDriverVersion` (string, optional): Minimum driver version
     - `computeCapability` (string, optional): CUDA compute capability (e.g.,
       `8.0`)
   - `signaturePolicy` (object, optional): Signature verification configuration
+    <!--
+    Billy Comment: Still investigating, but we may need to follow a model more like this:
+    https://kserve.github.io/website/docs/model-serving/storage/certificate/self-signed
+    -->
     - `require` (bool, default true): Require valid cosign signature
+    <!--
+    Billy Comment: Whether signature is required or not should probably be a
+    KServe setting in ConfigMap, not a per deployment setting?
+    -->
     - `publicKey` (string, optional): Cosign public key (PEM format); if empty,
       uses Sigstore keyless verification
     - `issuer` (string, optional): OIDC issuer for keyless verification
