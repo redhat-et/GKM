@@ -93,29 +93,38 @@ same PV/PVCs, and tracked by the same controllers.
 
 ## Requirements
 
-**(2-5 paragraphs) What are the constraints for the problem you’re trying to
-solve? What are the use cases? Estimate important relevant details: bandwidth,
-request rates, access patterns, data sizes, number of nodes / pods, growth
-patterns, etc.Keep this succinct and focused.**
+For GKM to function properly in KServe, the following requirements must be met:
 
-TBD:
-
-* PVC needs to be RW and large enough to allow JIT compilation if parameters
-  change.
+* A GPU Kernel Cache must be packaged in an OCI Image and pushed to a repository
+  accessible by the Kubernetes Cluster.
+  * The OCI Image must be manually created and pushed using MCV today. In future
+    releases, the plan is to auto-detect when GPU Kernel Cache is built or
+    rebuilt and automatically create and push an OCI Image.
+* URL of the OCI Image must be placed in the KServe LocalModelCache CRD.
+  * If OCI Image is not provided in a KServe LocalModelCache CRD, code will
+    function as it does today and JIT compilation will occur at startup. Code
+    will still function, it will just take longer,
+* When the PVC that contains the GPU Kernel Cache is mounted in a pod, it needs
+  to be mounted in a directory in the pod such that if parameters change in the
+  pod and a new JIT compilation is required, which is plausible, then the new
+  JIT output should not be in the PVC memory space.
 
 ## Design Ideas
 
 This proposal extends KServe's existing Local Model Cache architecture with GPU
 kernel cache management capabilities by adding an optional `kernelCache` field
-to the LocalModelCache CRD. Model weights and GPU kernel caches are stored on
-the same PersistentVolume in separate subdirectories (`/mnt/models/models/`
-and `/mnt/models/kernel-caches/`), managed by the same controllers, and mounted
-via the same PVC.
+to the LocalModelCache CRD. The `kernelCache` field is small and contains a URL
+to an OCI Image, and a cache size, for sizing the PV and PVC properly. It also
+contains a `signaturePolicy` for validating that the OCI Image was properly
+signed.
 
-The workload pod (i.e. vLLM pod) starts with the PVC mounted (existing behavior)
-containing both model weights and kernel cache. The inference framework (vLLM,
-Triton, PyTorch) detects the environment variable and uses the precompiled
-kernels instead of JIT compiling, reducing startup time by 30-70%.
+Model weights and GPU kernel caches are stored on the same PersistentVolume in
+separate subdirectories (`/mnt/models/models/` and
+`/mnt/models/kernel-caches/`), managed by the same controllers, and mounted
+via the same PVC. The workload pod (i.e. vLLM pod) starts with the PVC mounted
+(existing behavior) containing both model weights and kernel cache. The
+inference framework (vLLM, Triton, PyTorch) detects the precompiled kernels and
+uses them instead of JIT compiling, reducing startup time by 30-70%.
 
 If the optional `kernelCache` field in the LocalModelCache CRD is not provided,
 or a change is detected which would normal require an additional JIT
