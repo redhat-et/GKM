@@ -5,8 +5,10 @@ metadata:
 webhooks:
   - name: mgkmcache.kb.io
     timeoutSeconds: 30
+    reinvocationPolicy: IfNeeded
   - name: mclustergkmcache.kb.io
     timeoutSeconds: 30
+    reinvocationPolicy: IfNeeded
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
