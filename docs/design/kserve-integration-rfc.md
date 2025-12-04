@@ -10,26 +10,25 @@
 ### Problem Statement
 
 When serving Large Language Models (LLMs), frameworks like vLLM, PyTorch and
-Triton translate high-level Python code into optimized GPU kernels. These
-kernels are compiled into CUDA PTX or ROCm HASCO assembly before being
-executed by the GPU driver (for example, via torch.compile). This just-in-time
-(JIT) compilation occurs each time a model is loaded and can significantly
-delay model startup by 30-120 seconds. KServe's existing Local Model Cache
-accelerates model weight downloads but does not cache the GPU kernel binaries
-generated after model load, leaving a significant startup performance gap for
-GPU workloads.
+Triton translate GPU kernels implemented through higher-level programming
+languages into CUDA PTX or ROCm HASCO assembly before being executed by the GPU
+driver (for example, via torch.compile). This just-in-time (JIT) compilation
+occurs each time a model is loaded and can significantly delay model startup
+by 30-120 seconds. KServe's existing Local Model Cache accelerates model
+weight downloads but does not cache the GPU kernel binaries generated after
+model load, leaving a significant startup performance gap for GPU workloads.
 
 ### Feature/Capability
 
 This proposal extends KServe's Local Model Cache to manage GPU kernel caches
-alongside model weights using a unified control plane architecture. By
+alongside model artifacts using a unified control plane architecture. By
 integrating GPU Kernel Manager (GKM) functionality directly into KServe's
-existing CRDs and controllers, we enable users to pre-distribute validated,
-architecture-specific kernel caches across nodes, reducing model warm-up
-times by 30-70% while ensuring cache integrity through OCI image signing
-(cosign) and GPU compatibility validation. In future iterations, this
-integration will provide automatic cache warming that precompiles and
-captures kernel caches when new models are cached, further accelerating
+existing CRDs and controllers, we enable users to pre-distribute trusted,
+architecture-specific kernel caches across nodes, reducing model startup
+times by 30-70% while ensuring cache integrity using OCI image signing
+(cosign and Kyverno) and GPU compatibility validation. In future iterations,
+this integration will provide automatic cache warming that precompiles and
+captures kernel caches when new models run, further accelerating
 model readiness and improving the overall KServe model startup experience
 across heterogeneous GPU clusters.
 
@@ -40,7 +39,7 @@ across heterogeneous GPU clusters.
 2. **Unify model and kernel cache management** under a single LocalModelCache
   CRD and control plane
 3. **Ensure cache integrity and security** through OCI image signing (cosign)
-  and signature verification
+  and signature verification (kyverno).
 4. **Support heterogeneous GPU configurations** via automatic GPU detection and
   compatibility validation
 5. **Reuse existing PV/PVC infrastructure** to store kernel caches alongside
@@ -54,15 +53,10 @@ across heterogeneous GPU clusters.
 
 1. **Managing or distributing model weights or artifacts** - Already handled by
   existing Local Model Cache (no changes needed to model weight handling)
-2. **Replacing runtime-level kernel compilation** - Frameworks will fall back
-  to JIT compilation if kernel cache is unavailable or incompatible (graceful
-  degradation, no breaking changes)
-3. **Directly handling GPU scheduling or resource allocation** - Handled by
+2. **Directly handling GPU scheduling or resource allocation** - Handled by
   Kubernetes device plugins and schedulers
-4. **Modifying inference framework code** - Integration is through standard
+3. **Modifying inference framework code** - Integration is through standard
   environment variables and mount paths that frameworks already support
-5. **Supporting non-GPU workloads** - Kernel caching only applies to
-  GPU-accelerated inference; CPU-only workloads are unaffected
 
 ## Background
 
@@ -85,25 +79,26 @@ GPU Kernel Manager (GKM) is a Kubernetes-native project that manages
 precompiled GPU kernel caches distributed as signed OCI images with GPU
 compatibility metadata. Rather than deploying GKM as a separate control plane
 with its own CRDs, agents, and CSI drivers, this proposal integrates GKM's
-core capabilities—signature verification (cosign), GPU compatibility validation
-(MCV library), and OCI image management—directly into KServe's existing Local
-Model Cache architecture. This provides a unified experience where model
-weights and GPU kernel caches are managed through the same CRDs, stored on the
-same PV/PVCs, and tracked by the same controllers.
+core capabilities: Kernel extraction, GPU compatibility validation
+(MCV library), and trusted image verification (cosign + kyverno) into KServe's
+existing Local Model Cache architecture. This provides a unified experience
+where model weights and GPU kernel caches are managed through the same CRDs,
+stored on the same PV/PVCs, and tracked by the same controllers.
 
 ## Requirements
 
 For GKM to function properly in KServe, the following requirements must be met:
 
-* A GPU Kernel Cache must be packaged in an OCI Image and pushed to a repository
+* A GPU Kernel Cache must be packaged in an OCI Image and pushed to a registry
   accessible by the Kubernetes Cluster.
-  * The OCI Image must be manually created and pushed using MCV today. In future
+  * The OCI Image must be manually created and pushed using
+    [MCV](https://github.com/redhat-et/MCU/tree/main/mcv) today. In future
     releases, the plan is to auto-detect when GPU Kernel Cache is built or
     rebuilt and automatically create and push an OCI Image.
 * URL of the OCI Image must be placed in the KServe LocalModelCache CRD.
   * If OCI Image is not provided in a KServe LocalModelCache CRD, code will
     function as it does today and JIT compilation will occur at startup. Code
-    will still function, it will just take longer,
+    will still function, it will just take longer to startup.
 * When the PVC that contains the GPU Kernel Cache is mounted in a pod, it needs
   to be mounted in a directory in the pod such that if parameters change in the
   pod and a new JIT compilation is required, which is plausible, then the new
@@ -114,9 +109,30 @@ For GKM to function properly in KServe, the following requirements must be met:
 This proposal extends KServe's existing Local Model Cache architecture with GPU
 kernel cache management capabilities by adding an optional `kernelCache` field
 to the LocalModelCache CRD. The `kernelCache` field is small and contains a URL
-to an OCI Image, and a cache size, for sizing the PV and PVC properly. It also
-contains a `signaturePolicy` for validating that the OCI Image was properly
-signed.
+to an OCI Image.
+
+### Image Signature Verification
+
+To ensure the integrity and authenticity of kernel cache images, we leverage
+[Kyverno](https://kyverno.io/), a Kubernetes-native policy engine that
+integrates with [Sigstore's Cosign](https://docs.sigstore.dev/cosign/overview/)
+to verify container image signatures. By defining `verifyImages` rules in
+Kyverno ClusterPolicies, we enforce that only kernel cache images signed with
+authorized keys or certificates are permitted to be pulled and cached on
+cluster nodes, automatically rejecting unsigned or invalidly-signed images at
+admission time.
+
+When Kyverno is enabled (recommended for production), it verifies the image
+signature and adds a verification annotation to the LocalModelCache CR. The
+KServe webhook then parses this annotation to extract the verified image digest
+and creates a standardized `serving.kserve.io/resolvedDigest` annotation. This
+ensures immutability and provides a cryptographic link to the signed image.
+
+When Kyverno is disabled (development/testing only), the webhook performs
+direct OCI registry resolution to convert image tags to digests. This ensures
+immutability but not authenticity.
+
+### Storage and Mounting
 
 Model weights and GPU kernel caches are stored on the same PersistentVolume in
 separate subdirectories (`/mnt/models/models/` and
