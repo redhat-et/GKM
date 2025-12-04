@@ -1,7 +1,7 @@
 # Design: GPU Kernel Manager (GKM) Integration with KServe
 
 <!-- markdownlint-disable MD033 MD046 MD013 MD034 MD031 MD026 MD060 MD032 -->
-<!-- markdownlint-disable MD029 MD033 MD046 MD013 MD024 MD022-->
+<!-- markdownlint-disable MD029 MD033 MD046 MD013 MD024 MD022 MD036 -->
 
 ## <span style="color:red; font-size:2em;">Status: Draft</span>
 
@@ -15,26 +15,25 @@ GPU-accelerated LLM inference workloads.
 ### Problem Statement
 
 When serving Large Language Models (LLMs), frameworks like vLLM, PyTorch and
-Triton translate high-level Python code into optimized GPU kernels. These
-kernels are compiled into CUDA PTX or ROCm HASCO assembly before being
-executed by the GPU driver (for example, via torch.compile). This just-in-time
-(JIT) compilation occurs each time a model is loaded and can significantly
-delay model startup by 30-120 seconds. KServe's existing Local Model Cache
-accelerates model weight downloads but does not cache the GPU kernel binaries
-generated after model load, leaving a significant startup performance gap for
-GPU workloads.
+Triton translate GPU kernels implemented through higher-level programming
+languages into CUDA PTX or ROCm HASCO assembly before being executed by the GPU
+driver (for example, via torch.compile). This just-in-time (JIT) compilation
+occurs each time a model is loaded and can significantly delay model startup
+by 30-120 seconds. KServe's existing Local Model Cache accelerates model
+weight downloads but does not cache the GPU kernel binaries generated after
+model load, leaving a significant startup performance gap for GPU workloads.
 
 ### Feature/Capability
 
 This proposal extends KServe's Local Model Cache to manage GPU kernel caches
-alongside model weights using a unified control plane architecture. By
+alongside model artifacts using a unified control plane architecture. By
 integrating GPU Kernel Manager (GKM) functionality directly into KServe's
-existing CRDs and controllers, we enable users to pre-distribute validated,
-architecture-specific kernel caches across nodes, reducing model warm-up
-times by 30-70% while ensuring cache integrity through OCI image signing
-(cosign) and GPU compatibility validation. In future iterations, this
-integration will provide automatic cache warming that precompiles and
-captures kernel caches when new models are cached, further accelerating
+existing CRDs and controllers, we enable users to pre-distribute trusted,
+architecture-specific kernel caches across nodes, reducing model startup
+times by 30-70% while ensuring cache integrity using OCI image signing
+(cosign and Kyverno) and GPU compatibility validation. In future iterations,
+this integration will provide automatic cache warming that precompiles and
+captures kernel caches when new models run, further accelerating
 model readiness and improving the overall KServe model startup experience
 across heterogeneous GPU clusters.
 
@@ -42,30 +41,30 @@ across heterogeneous GPU clusters.
 
 ## Background
 
-KServe's Local Model Cache feature accelerates startup by pre-downloading and
+KServe's `Local Model Cache` feature accelerates startup by pre-downloading and
 caching model artifacts (weights, tokenizers, configuration files) onto
 node-local storage using PersistentVolumes. When an InferenceService references
 a cached model, KServe mounts the PVC directly, eliminating download time and
 network bandwidth usage. This significantly improves startup performance for
 model loading.
 
-However, the Local Model Cache does not address the GPU kernel compilation
+However, the `Local Model Cache` does not address the GPU kernel compilation
 overhead that occurs after model weights are loaded. For LLM inference
 workloads using vLLM, Triton, or PyTorch with torch.compile, the first model
-load triggers extensive JIT compilation of GPU kernels optimized for the
-specific GPU architecture. This compilation can add 30-120 seconds to startup
+load triggers JIT compilation of GPU kernels optimized for the
+specific GPU architecture. This compilation can add significant delay to startup
 time, during which the pod is not ready to serve requests. This overhead
-occurs on every pod restart, even when model weights are already cached.
+occurs on every pod (re)start, even when model weights are already cached.
 
 GPU Kernel Manager (GKM) is a Kubernetes-native project that manages
 precompiled GPU kernel caches distributed as signed OCI images with GPU
 compatibility metadata. Rather than deploying GKM as a separate control plane
 with its own CRDs, agents, and CSI drivers, this proposal integrates GKM's
-core capabilities—signature verification (cosign), GPU compatibility validation
-(MCV library), and OCI image management—directly into KServe's existing Local
-Model Cache architecture. This provides a unified experience where model
-weights and GPU kernel caches are managed through the same CRDs, stored on the
-same PV/PVCs, and tracked by the same controllers.
+core capabilities: Kernel extraction, GPU compatibility validation
+(MCV library), and trusted image verification (cosign + kyverno) into KServe's
+existing Local Model Cache architecture. This provides a unified experience
+where model weights and GPU kernel caches are managed through the same CRDs,
+stored on the same PV/PVCs, and tracked by the same controllers.
 
 ### Goals
 
@@ -74,7 +73,7 @@ same PV/PVCs, and tracked by the same controllers.
 2. **Unify model and kernel cache management** under a single LocalModelCache
   CRD and control plane
 3. **Ensure cache integrity and security** through OCI image signing (cosign)
-  and signature verification
+  and signature verification (kyverno).
 4. **Support heterogeneous GPU configurations** via automatic GPU detection and
   compatibility validation
 5. **Reuse existing PV/PVC infrastructure** to store kernel caches alongside
@@ -88,15 +87,10 @@ same PV/PVCs, and tracked by the same controllers.
 
 1. **Managing or distributing model weights or artifacts** - Already handled by
   existing Local Model Cache (no changes needed to model weight handling)
-2. **Replacing runtime-level kernel compilation** - Frameworks will fall back
-  to JIT compilation if kernel cache is unavailable or incompatible (graceful
-  degradation, no breaking changes)
-3. **Directly handling GPU scheduling or resource allocation** - Handled by
+2. **Directly handling GPU scheduling or resource allocation** - Handled by
   Kubernetes device plugins and schedulers
-4. **Modifying inference framework code** - Integration is through standard
+3. **Modifying inference framework code** - Integration is through standard
   environment variables and mount paths that frameworks already support
-5. **Supporting non-GPU workloads** - Kernel caching only applies to
-  GPU-accelerated inference; CPU-only workloads are unaffected
 
 ---
 
@@ -133,9 +127,6 @@ via the same PVC.
 │  │                                                      │      │
 │  │    kernelCache:                    # NEW FIELD       │      │
 │  │      image: quay.io/.../kernels:v1                   │      │
-│  │      cacheSize: 500Mi                                │      │
-│  │      framework: vllm                                 │      │
-│  │      signaturePolicy: {...}                          │      │
 │  └──────────────────────────────────────────────────────┘      │
 │                                                                │
 │  LocalModel Controller:                                        │
@@ -200,25 +191,113 @@ spec:
   # NEW: Optional kernel cache configuration
   kernelCache:
     image: quay.io/myorg/llama-7b-vllm-kernels:v1
-    cacheSize: 500Mi
-    <!--
-    Billy Comment: Do we need the user to give us that GPU Type or should we
-    auto-detect GPU like current GPU design?
-    -->
-    gpuRequirements:
-      gpuType: A100
-      computeCapability: "8.0"
-    signaturePolicy:
-      require: true
-      issuer: "https://github.com/login/oauth"
-      subject: "https://github.com/myorg/ml-kernels/.github/workflows/build.yml@refs/heads/main"
 ```
 
-<!--
-**2. Webhook Validates OCI Image:**
+**1.a Kyverno verifies image signature (when enabled)**
 
-Billy Comment: Add Webhook section below here or rerite with Kyverno
--->
+To ensure the integrity and authenticity of kernel cache images, we leverage
+[Kyverno](https://kyverno.io/), a Kubernetes-native policy engine designed
+for declarative security and governance. Kyverno integrates with
+[Sigstore's Cosign](https://docs.sigstore.dev/cosign/overview/) to verify
+container image signatures and attestations stored in OCI registries,
+providing cryptographic assurance that kernel cache images have not been
+tampered with and originate from trusted sources. By defining `verifyImages`
+rules in Kyverno ClusterPolicies, we enforce that only kernel cache images
+signed with authorized keys or certificates are permitted to be pulled and
+cached on cluster nodes, automatically rejecting unsigned or invalidly-signed
+images at admission time. This approach eliminates the need for manual
+signature verification, prevents the deployment of potentially compromised
+kernel caches, and provides a transparent, auditable record of image provenance
+through integration with transparency logs and in-toto attestation frameworks.
+
+**1.b Webhook translates image tag to digest**
+
+The KServe webhook is responsible for resolving the kernel cache image tag to
+an immutable digest. The resolution process depends on whether Kyverno-based
+signature verification is enabled in the system configuration.
+
+**Scenario 1: Kyverno Enabled (Recommended for Production)**
+
+When Kyverno is enabled via the system-wide ConfigMap (see Configuration
+section), the webhook leverages Kyverno's signature verification results:
+
+After Kyverno successfully verifies the kernel cache image signature, it
+adds a verification annotation to the LocalModelCache CR containing the
+resolved image digest:
+
+```yaml
+metadata:
+  annotations:
+    kyverno.io/verify-images: '{"quay.io/gkm/cache-examples@sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c":"pass"}'
+```
+
+The KServe webhook parses this `kyverno.io/verify-images` annotation to check
+the `pass` status and extract the verified image digest and creates a
+standardized annotation:
+
+```yaml
+metadata:
+  annotations:
+    serving.kserve.io/resolvedDigest: sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c
+```
+
+**Scenario 2: Kyverno Disabled (Development/Testing)**
+
+When Kyverno is disabled, the webhook must still resolve the image tag to a
+digest to ensure immutability. The webhook performs direct OCI registry
+resolution:
+
+1. The webhook detects a LocalModelCache with `kernelCache.image` specified
+2. The webhook queries the OCI registry's manifest API to resolve the tag to
+   its current digest
+3. The webhook adds the `serving.kserve.io/resolvedDigest` annotation with
+   the resolved digest
+
+Example registry resolution:
+
+```yaml
+metadata:
+  annotations:
+    serving.kserve.io/resolvedDigest: sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c
+```
+
+**Note:** Without Kyverno, there is no cryptographic verification of the image
+signature. The resolved digest ensures immutability but not authenticity. This
+mode is suitable for development environments with trusted registries but
+**not recommended for production**.
+
+**Benefits of the `serving.kserve.io/resolvedDigest` annotation:**
+- **Immutability**: The exact verified image version is locked and cannot
+  change
+- **Consistency**: All controllers (LocalModel, LocalModelNode) reference
+  the same verified digest
+- **Auditability**: The digest provides a cryptographic link to the signed
+  image (when Kyverno is used)
+- **Safety**: Prevents tag mutation attacks where a tag (e.g., `v1`) could
+  be repointed to a different image
+
+**Webhook Processing Steps:**
+
+With Kyverno enabled:
+1. Watch for LocalModelCache resources with `kernelCache.image` specified
+2. Wait for Kyverno to add the `kyverno.io/verify-images` annotation
+   (indicating successful signature verification)
+3. Parse the JSON annotation to extract the image digest
+4. Add the `serving.kserve.io/resolvedDigest` annotation with the extracted
+   digest
+5. Propagate this digest to LocalModelNode specs for cache download operations
+6. If Kyverno's verification fails, the resource is rejected and no digest
+   annotation is added
+
+Without Kyverno:
+1. Watch for LocalModelCache resources with `kernelCache.image` specified
+2. Query the OCI registry to resolve the image tag to its current manifest
+   digest
+3. Add the `serving.kserve.io/resolvedDigest` annotation with the resolved
+   digest
+4. Propagate this digest to LocalModelNode specs for cache download operations
+5. If registry resolution fails (e.g., network error, image not found), update
+   status with error
 
 **2. LocalModel Controller Processes the Request:**
 
@@ -253,8 +332,6 @@ c. **Download kernel cache** by creating a Kubernetes Job with a new
   `kernel-cache-initializer` container that:
 
     - Pulls the kernel cache OCI image using go-containerregistry
-    - Verifies the image signature with cosign (keyless OIDC via Sigstore or
-      key-based)
     - Validates GPU compatibility using MCV (Model Cache Vault) library
     - Extracts the cache to `/mnt/models/kernel-caches/<modelName>/` on the PVC
     - Reports results (status, compatibility, signature verification) back to
@@ -290,16 +367,8 @@ The KServe webhook (existing component) is enhanced to:
   LocalModelCache matching logic)
 - Transform storageUri to `pvc://<pvc-name>/models/llama-7b` (existing
   behavior, unchanged)
-- **NEW:** Detect kernel cache is available and set framework-specific
-  environment variable (e.g., `VLLM_KERNEL_CACHE=/mnt/models/kernel-caches/llama-7b`)
-- Validate kernel cache image signature.
-- Translate the kernel cache image tag into a digest.
-<!--
-Billy Comment: Is the Webhook handshake expected to work as before in GKM (validates image
-is signed and stores Digest before image is used)? If so, the sequence diagram below needs
-the order changed and it would be easier to follow if this section was moved up and becomes
-bullet #2, after the CRD is created.
--->
+- **NEW:** Translate the kernel cache image tag into a digest.
+
 The pod starts with the PVC mounted (existing behavior) containing both model
 weights and kernel cache. The inference framework (vLLM, Triton, PyTorch)
 detects the environment variable and uses the precompiled kernels instead of
@@ -329,6 +398,11 @@ User       LocalModel      LocalModelNode    kernel-cache     InferenceService
   │            │ Update LMN    │                   │               │               │
   │            │ spec with     │                   │               │               │
   │            │ kernel cache  │                   │               │               │
+  │            │               │                   │               │               │
+  │            │ Resolve Kernel│                   │               │               │
+  │            │ cache image   │                   │               │               │
+  │            │ tag to digest │                   │               │               │
+  │            │               │                   │               │               │
   │            │──────────────▶│                   │               │               │
   │            │               │                   │               │               │
   │            │               │ Detect GPU        │               │               │
@@ -341,10 +415,6 @@ User       LocalModel      LocalModelNode    kernel-cache     InferenceService
   │            │               │                   │               │               │
   │            │               │                   │ Pull OCI      │               │
   │            │               │                   │ image         │               │
-  │            │               │                   │               │               │
-  │            │               │                   │ Verify        │               │
-  │            │               │                   │ signature     │               │
-  │            │               │                   │ (cosign)      │               │
   │            │               │                   │               │               │
   │            │               │                   │ Validate GPU  │               │
   │            │               │                   │ compatibility │               │
@@ -395,35 +465,6 @@ Add an optional `kernelCache` field to the existing LocalModelCacheSpec:
 - `kernelCache` (object, optional): GPU kernel cache configuration
   - `image` (string, required): OCI image reference containing precompiled
     kernels (e.g., `quay.io/myorg/llama-7b-vllm-kernels:v1@sha256:abc123...`)
-  - `cacheSize` (resource.Quantity, required): Size of kernel cache to reserve
-    in storage quota
-  - `framework` (string, optional): Target framework (`vllm`, `triton`,
-    `pytorch`) for setting appropriate environment variables
-  - `gpuRequirements` (object, optional): GPU compatibility requirements
-    - `gpuType` (string, optional): GPU type (e.g., `A100`, `H100`, `V100`)
-       <!--
-       Billy Comment: How are we going to use this? Does the string have to
-       match what we detect exactly? Can the user provide the gpuType and not
-       minDriverVersion or vice-versa, or if one element of the struct is entered
-       they all must be entered?
-       -->
-    - `minDriverVersion` (string, optional): Minimum driver version
-    - `computeCapability` (string, optional): CUDA compute capability (e.g.,
-      `8.0`)
-  - `signaturePolicy` (object, optional): Signature verification configuration
-    <!--
-    Billy Comment: Still investigating, but we may need to follow a model more like this:
-    https://kserve.github.io/website/docs/model-serving/storage/certificate/self-signed
-    -->
-    - `require` (bool, default true): Require valid cosign signature
-    <!--
-    Billy Comment: Whether signature is required or not should probably be a
-    KServe setting in ConfigMap, not a per deployment setting?
-    -->
-    - `publicKey` (string, optional): Cosign public key (PEM format); if empty,
-      uses Sigstore keyless verification
-    - `issuer` (string, optional): OIDC issuer for keyless verification
-    - `subject` (string, optional): Subject for keyless verification
 
 **2. LocalModelNodeSpec Extension:**
 
@@ -455,7 +496,6 @@ Add new status fields to track kernel cache state:
   - `gpuType` (string): GPU type (e.g., `NVIDIA A100-SXM4-40GB`)
   - `driverVersion` (string): Driver version
   - `runtimeVersion` (string): CUDA/ROCm version
-  - `computeCapability` (string): Compute capability
   - `count` (int): Number of GPUs
   - `deviceIDs` ([]string): GPU device IDs
 
@@ -482,14 +522,14 @@ Add aggregated kernel cache status fields:
 
 | Failure Scenario | Detection | Recovery | User Impact |
 | ---------------- | --------- | -------- | ----------- |
-| **Image signature verification fails** | kernel-cache-initializer exits with error during cosign verification | Job fails; LocalModelNode status shows `ModelDownloadError` with signature verification failure message | Cache unavailable; inference framework falls back to JIT compilation; pod starts but slower |
+| **Image signature verification fails (Kyverno enabled)** | Kyverno webhook rejects LocalModelCache creation; no `kyverno.io/verify-images` annotation added | LocalModelCache resource rejected at admission time | User must sign image with correct key/certificate or fix Kyverno ClusterPolicy configuration |
 | **GPU incompatible with cache** | MCV validation detects GPU mismatch (e.g., expected A100, found V100) | Status shows `Compatible: false` with explanation; cache not used | Pods not scheduled on incompatible nodes (via node affinity); or pods start but skip cache |
 | **Cache image not found (404)** | OCI pull fails with NotFound error | Job fails; status shows error; retry with backoff | Temporary delay until registry issue resolved or image reference corrected |
 | **Insufficient storage** | LocalModel controller validation before PV/PVC creation | LocalModelCache admission blocked with error message | User must increase storage limit in LocalModelNodeGroup or reduce cache size |
 | **GPU driver not installed** | nvidia-smi/rocm-smi command not found or fails | GPUInfo not populated; kernel cache download skipped with warning | Kernel cache features unavailable on non-GPU nodes (expected behavior) |
 | **Network partition during download** | Job timeout (default 10 minutes) | Kubernetes Job retry mechanism; agent detects timeout and recreates Job | Temporary delay; eventual consistency when network restored |
 | **Corrupted cache extraction** | MCV validation post-extraction detects invalid metadata or missing files | Status shows error; cache directory cleaned up; retry on next reconciliation | Cache unavailable; fallback to JIT compilation |
-| **Signature verification with wrong issuer** | Cosign verification fails due to OIDC issuer mismatch | Status shows signature verification failed with details | User corrects `signaturePolicy.issuer` in LocalModelCache spec |
+| **Registry resolution fails (Kyverno disabled)** | Webhook cannot resolve image tag to digest (network error, registry down) | LocalModelCache status shows error; retry with backoff | Temporary delay until registry is accessible; user can manually specify image with digest |
 
 #### Storage Layout
 
@@ -538,7 +578,7 @@ Files to modify:
 
 - `pkg/apis/serving/v1alpha1/local_model_cache_types.go`
   - Add `KernelCache *KernelCacheSpec` field to `LocalModelCacheSpec`
-  - Add new types: `KernelCacheSpec`, `GPURequirements`, `SignaturePolicy`
+  - Add new types: `KernelCacheSpec`, `SignaturePolicy`
 
 - `pkg/apis/serving/v1alpha1/local_model_node_types.go`
   - Add `KernelCacheImage string` and `KernelCacheFramework string` fields to
@@ -569,6 +609,7 @@ Changes:
   specs
 - Aggregate kernel cache status from LocalModelNodes and update
   LocalModelCacheStatus
+- Resolve Kernel Cache image tag to digest.
 
 New functions:
 
@@ -609,9 +650,8 @@ New functions:
 
 New repository/directory: `python/kserve/kernelcache/`
 
-Purpose: Init container that pulls kernel cache OCI images, verifies
-signatures with cosign, validates GPU compatibility with MCV, and extracts
-caches to the PVC.
+Purpose: Init container that pulls kernel cache OCI images, validates GPU
+compatibility with MCV, and extracts caches to the PVC.
 
 Main components:
 
@@ -672,8 +712,16 @@ data:
       enabled: true
       initializerImage: kserve/kernel-cache-initializer:v0.14.0
       defaultFramework: vllm
-      signaturePolicy:
-        requireByDefault: true
+
+    # Signature verification policy (system-wide)
+    signatureVerification:
+      enabled: true  # Enable Kyverno-based signature verification (recommended for production)
+      # When enabled=true, Kyverno ClusterPolicy must be deployed to verify image signatures
+      # When enabled=false, webhook performs direct registry digest resolution without verification
+
+      # Note: The Kyverno ClusterPolicy configuration defines the actual signature requirements
+      # (public keys, issuers, subjects). This setting only controls whether KServe expects
+      # Kyverno to be present and should wait for kyverno.io/verify-images annotations.
 ```
 
 #### 7. CRD Manifests
@@ -988,9 +1036,51 @@ data:
     kernelCache:
       enabled: true
       initializerImage: kserve/kernel-cache-initializer:v0.14.0
-      signaturePolicy:
-        requireByDefault: true  # Require cosign signatures (recommended)
+
+    # Signature verification (system-wide)
+    signatureVerification:
+      enabled: true  # Require Kyverno-based signature verification (recommended for production)
 ```
+
+#### Step 2a: Deploy Kyverno ClusterPolicy (if signature verification enabled)
+
+If `signatureVerification.enabled: true`, deploy a Kyverno ClusterPolicy to verify kernel cache image signatures:
+
+```yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-kernel-cache-images
+spec:
+  validationFailureAction: enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: verify-kernel-cache-signature
+      match:
+        any:
+        - resources:
+            kinds:
+              - serving.kserve.io/v1alpha1/LocalModelCache
+      verifyImages:
+      - imageReferences:
+        - "*"  # Match all kernel cache images
+        attestors:
+        - count: 1
+          entries:
+          - keyless:
+              subject: "*@yourdomain.com"  # Adjust to your OIDC subject pattern
+              issuer: "https://github.com/login/oauth"  # Or your OIDC provider
+              # Alternatively, use public keys:
+              # - keys:
+              #     publicKeys: |-
+              #       -----BEGIN PUBLIC KEY-----
+              #       ...
+              #       -----END PUBLIC KEY-----
+```
+
+**Note:** If `signatureVerification.enabled: false`, skip this step. The webhook will perform direct registry digest resolution without signature verification.
 
 #### Step 3: Create LocalModelNodeGroup for GPU Nodes
 
@@ -1080,15 +1170,6 @@ spec:
   # Kernel cache configuration (new)
   kernelCache:
     image: quay.io/myorg/llama-7b-vllm-kernels:v1
-    cacheSize: 500Mi
-    framework: vllm
-    gpuRequirements:
-      gpuType: A100
-      computeCapability: "8.0"
-    signaturePolicy:
-      require: true
-      issuer: "https://github.com/login/oauth"
-      subject: "https://github.com/myorg/ml-kernels/.github/workflows/build.yml@refs/heads/main"
 ```
 
 #### Step 2: Verify Cache Status
@@ -1186,11 +1267,10 @@ kubectl exec $POD -- ls -la /mnt/models/kernel-caches/llama-7b/
      # No kernelCache field = no kernel caching for this model
    ```
 
-3. **Skip signature verification** (NOT recommended for production):
+3. **Disable signature verification** (NOT recommended for production):
    ```yaml
-   kernelCache:
-     signaturePolicy:
-       require: false
+   signatureVerification:
+     enabled: false  # Disable Kyverno-based signature verification (development only)
    ```
 
 ---
@@ -1353,8 +1433,6 @@ Coverage Target: >80% for all new code
 1. **CRD Validation:**
    - LocalModelCacheSpec with valid `kernelCache` field validates successfully
    - Invalid `kernelCache.image` format is rejected
-   - Invalid `cacheSize` (negative, zero, or malformed) is rejected
-   - SignaturePolicy with `require=true` but missing `issuer` and `subject` (when using keyless) is handled correctly
 
 2. **Storage Calculation:**
    - `calculateTotalStorage()` correctly sums `modelSize + kernelCache.cacheSize`
@@ -1398,16 +1476,17 @@ Test Environment: KIND cluster with GPU simulation or real GPU nodes
    - Verify pod has environment variable set correctly
 
 2. **GPU Compatibility Validation:**
-   - Create LocalModelCache with `gpuRequirements.gpuType="A100"`
+   - Create LocalModelCache
    - Mock node with V100 GPU
    - Verify `KernelCacheStatus.Compatible=false`
    - Verify status message explains incompatibility ("expected A100, found V100")
 
-3. **Signature Verification:**
-   - Create LocalModelCache with `signaturePolicy.require=true`
-   - Use unsigned image (or invalid signature)
-   - Verify Job fails
-   - Verify `KernelCacheStatus` shows `SignatureVerified=false` with error message
+3. **Signature Verification (with Kyverno enabled):**
+   - Configure `signatureVerification.enabled=true` in ConfigMap
+   - Deploy Kyverno ClusterPolicy with signature requirements
+   - Create LocalModelCache with unsigned image (or invalid signature)
+   - Verify LocalModelCache resource is rejected at admission time by Kyverno
+   - Verify no `kyverno.io/verify-images` annotation is added
 
 4. **Storage Limit Enforcement:**
    - Create LocalModelNodeGroup with `storageLimit=10Gi`
@@ -1540,15 +1619,15 @@ Measure time for kernel-cache-initializer to complete (pull + verify + extract):
 
 - **Persona:** Platform Operator managing cluster with A100, H100, and V100 nodes
 - **Problem:** Different GPU types require different kernel compilations, causing failures
-- **Solution:** Create multiple kernel cache images (one per GPU type), use `gpuRequirements` to ensure compatibility
+- **Solution:** Create multiple kernel cache images (one per GPU type)
 - **Impact:** Predictable startup times across heterogeneous hardware
 
 #### Use-Case 3: Secure Kernel Cache Distribution
 
 - **Persona:** Security-conscious Platform Operator in regulated industry
 - **Problem:** Need to ensure kernel caches are not tampered with or from untrusted sources
-- **Solution:** Use cosign signature verification with `signaturePolicy`, reject unsigned images
-- **Impact:** Secure supply chain for GPU artifacts
+- **Solution:** Enable Kyverno-based signature verification system-wide (`signatureVerification.enabled=true`), deploy ClusterPolicy to reject unsigned images
+- **Impact:** Secure supply chain for GPU artifacts with cryptographic verification
 
 ### Documentation Deliverables
 
@@ -1593,7 +1672,8 @@ Measure time for kernel-cache-initializer to complete (pull + verify + extract):
 1. **Update `docs/reference/api.md`:**
    - Document new `LocalModelCacheSpec.kernelCache` field
    - Document new status fields (`kernelCacheNodeStatus`, `kernelCacheCopies`)
-   - Document new types (`KernelCacheSpec`, `GPURequirements`, `SignaturePolicy`, `KernelCacheStatus`, `GPUInfo`)
+   - Document new types (`KernelCacheSpec`, `SignaturePolicy`,
+     `KernelCacheStatus`, `GPUInfo`)
 
 #### Sample Manifests:
 
@@ -2303,4 +2383,4 @@ deployment complexity, making it accessible to the widest range of KServe users
 while meeting all functional and performance requirements.
 
 <!-- markdownlint-enable MD033 MD046 MD013 MD034 MD031 MD026 MD060 MD032-->
-<!-- markdownlint-enable MD029 MD033 MD046 MD013 MD024 MD022-->
+<!-- markdownlint-enable MD029 MD033 MD046 MD013 MD024 MD022 MD036-->
