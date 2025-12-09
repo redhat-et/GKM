@@ -147,6 +147,11 @@ func (w *ClusterGKMCache) ValidateCreate(ctx context.Context, obj runtime.Object
 		return nil, fmt.Errorf("gkm.io/resolvedDigest mismatch - this is not the digest of the verified image")
 	}
 
+	// Check Kyverno verification status if present
+	if err := verifyKyvernoAnnotation(cache.Annotations, digest); err != nil {
+		return nil, fmt.Errorf("kyverno verification failed: %w", err)
+	}
+
 	return nil, nil
 }
 

@@ -5,9 +5,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -162,6 +164,11 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 	ann := cache.Annotations["gkm.io/resolvedDigest"]
 	if ann == "" || ann != digest {
 		return nil, fmt.Errorf("gkm.io/resolvedDigest mismatch - this is not the digest of the verified image")
+	}
+
+	// Check Kyverno verification status if present
+	if err := verifyKyvernoAnnotation(cache.Annotations, digest); err != nil {
+		return nil, fmt.Errorf("kyverno verification failed: %w", err)
 	}
 
 	return nil, nil
@@ -348,4 +355,35 @@ func verifyMutation(secret, requestUID, image, digest, sigB64 string) bool {
 		return false
 	}
 	return hmac.Equal(want, got)
+}
+
+// verifyKyvernoAnnotation checks the kyverno.io/verify-images annotation to ensure
+// the image signature was verified by Kyverno and the status is "pass".
+// The annotation format is: {"<image>@<digest>":"pass"}
+func verifyKyvernoAnnotation(annotations map[string]string, expectedDigest string) error {
+	kyvernoAnnotation, exists := annotations["kyverno.io/verify-images"]
+	if !exists {
+		// Kyverno annotation not present - this is acceptable if Kyverno is not enabled
+		return nil
+	}
+
+	// Parse the JSON annotation
+	var verifications map[string]string
+	if err := json.Unmarshal([]byte(kyvernoAnnotation), &verifications); err != nil {
+		return fmt.Errorf("failed to parse kyverno.io/verify-images annotation: %w", err)
+	}
+
+	// Check if any entry has status "pass" and matches our digest
+	for imageRef, status := range verifications {
+		if status != "pass" {
+			return fmt.Errorf("kyverno verification status is not 'pass': %s", status)
+		}
+		// Extract the digest from the image reference (format: image@sha256:...)
+		// The imageRef should contain our expected digest
+		if !strings.Contains(imageRef, expectedDigest) {
+			return fmt.Errorf("kyverno verified digest does not match expected digest")
+		}
+	}
+
+	return nil
 }
