@@ -305,7 +305,7 @@ else
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+deploy: manifests kustomize prepare-deploy deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
 
 .PHONY: redeploy
 redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and undeploy have been called. Skips some onetime steps in deploy.
@@ -313,7 +313,7 @@ redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and u
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy
-undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
+undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
 	@echo "Calling undeploy script"
 	$(UNDEPLOY_SCRIPT) $(FORCE)
 	@if [ $$? -ne 0 ]; then \
@@ -367,22 +367,6 @@ get-example-images:
 deploy-webhook-certs:
 	$(KUBECTL) apply -k config/webhook
 
-.PHONY: webhook-secret-file
-webhook-secret-file:
-	@mkdir -p config/secret
-	@[ -s config/secret/mutation.env ] || \
-	  (echo 'Generating config/secret/mutation.env'; \
-	   printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env)
-
-.PHONY: delete-webhook-secret-file
-delete-webhook-secret-file:
-	@rm -f 0config/secret/mutation.env
-
-.PHONY: rotate-webhook-secret
-rotate-webhook-secret:
-	@printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env
-	$(KUSTOMIZE) build config/secret | $(KUBECTL) apply -f -
-
 .PHONY: get-cert-manager-images
 get-cert-manager-images:
 	@echo "Getting Images ..."
@@ -415,9 +399,44 @@ deploy-cert-manager: get-cert-manager-images
 	$(KUBECTL) wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
 
 .PHONY: undeploy-cert-manager
-undeploy-cert-manager: delete-webhook-secret-file
+undeploy-cert-manager:
 	@echo "Undeploy cert-manager"
 	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
+
+##@ Kyverno
+
+KYVERNO_VERSION ?= latest
+HELM_VERSION ?= v3.16.3
+HELM ?= $(LOCALBIN)/helm
+
+.PHONY: helm
+helm: $(HELM) ## Download helm locally if necessary.
+$(HELM): $(LOCALBIN)
+	@test -s $(LOCALBIN)/helm || { \
+		echo "Downloading helm $(HELM_VERSION)..." ; \
+		curl -sSL https://get.helm.sh/helm-$(HELM_VERSION)-$(GOOS)-$(GOARCH).tar.gz | tar xz -C $(LOCALBIN) --strip-components=1 $(GOOS)-$(GOARCH)/helm ; \
+	}
+
+.PHONY: deploy-kyverno
+deploy-kyverno: helm ## Deploy Kyverno with GPU tolerations for Kind cluster
+	@echo "Installing Kyverno to cluster $(KIND_CLUSTER_NAME)..."
+	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
+		--kube-context kind-$(KIND_CLUSTER_NAME) \
+		--repo https://kyverno.github.io/kyverno/ kyverno \
+		--values config/kyverno/values.yaml \
+		--wait
+	@echo "Kyverno deployed successfully to $(KIND_CLUSTER_NAME)."
+
+.PHONY: undeploy-kyverno
+undeploy-kyverno: ## Undeploy Kyverno
+	@echo "Uninstalling Kyverno from cluster $(KIND_CLUSTER_NAME)..."
+	$(HELM) uninstall kyverno --namespace kyverno \
+		--kube-context kind-$(KIND_CLUSTER_NAME) \
+		--ignore-not-found || true
+	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
+	@echo "Kyverno undeployed from $(KIND_CLUSTER_NAME)."
+
+##@ Kind Cluster Management
 
 .PHONY: setup-kind
 setup-kind:
