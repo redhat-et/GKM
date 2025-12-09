@@ -84,6 +84,11 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.nogpu
+          - name: KYVERNO_VERIFICATION_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.kyverno.enabled
           - name: GO_LOG
             valueFrom:
               configMapKeyRef:
