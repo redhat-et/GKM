@@ -71,6 +71,10 @@ const (
 	ConfigMapIndexCsiImage         = "gkm.csi.image"
 	ConfigMapIndexCsiLogLevel      = "gkm.csi.log.level"
 	ConfigMapIndexNoGpu            = "gkm.nogpu"
+	ConfigMapIndexKyvernoEnabled   = "gkm.kyverno.enabled"
+
+	// Environment Variables
+	EnvKyvernoEnabled = "KYVERNO_VERIFICATION_ENABLED"
 
 	// Duration for Kubernetes to Retry a failed request
 	RetryOperatorConfigMapFailure = 5 * time.Second
