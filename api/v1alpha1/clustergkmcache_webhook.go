@@ -93,6 +93,11 @@ func (w *ClusterGKMCache) ValidateCreate(ctx context.Context, obj runtime.Object
 		return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
 	}
 
+	// Check Kyverno verification status if present
+	if err := verifyKyvernoAnnotation(cache.Annotations); err != nil {
+		return nil, fmt.Errorf("kyverno verification failed: %w", err)
+	}
+
 	return nil, nil
 }
 
