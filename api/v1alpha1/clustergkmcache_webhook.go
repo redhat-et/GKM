@@ -64,14 +64,30 @@ func (w *ClusterGKMCache) Default(ctx context.Context, obj runtime.Object) error
 	cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	clustergkmcacheLog.V(1).Info("Verifying image signature", "image", cache.Spec.Image)
-	digest, err := verifyImageSignature(cctx, cache.Spec.Image)
-	if err != nil {
-		clustergkmcacheLog.Error(err, "failed to verify image or resolve digest")
-		return apierrors.NewBadRequest(fmt.Sprintf(
-			"image signature verification failed for '%s': %s",
-			cache.Spec.Image, err.Error(),
-		))
+	kyvernoEnabled := isKyvernoVerificationEnabled()
+	var digest string
+	var err error
+
+	if kyvernoEnabled {
+		clustergkmcacheLog.V(1).Info("Verifying image signature", "image", cache.Spec.Image)
+		digest, err = verifyImageSignature(cctx, cache.Spec.Image)
+		if err != nil {
+			clustergkmcacheLog.Error(err, "failed to verify image or resolve digest")
+			return apierrors.NewBadRequest(fmt.Sprintf(
+				"image signature verification failed for '%s': %s",
+				cache.Spec.Image, err.Error(),
+			))
+		}
+	} else {
+		clustergkmcacheLog.V(1).Info("Resolving image digest (Kyverno verification disabled)", "image", cache.Spec.Image)
+		digest, err = resolveImageDigest(cctx, cache.Spec.Image)
+		if err != nil {
+			clustergkmcacheLog.Error(err, "failed to resolve image digest")
+			return apierrors.NewBadRequest(fmt.Sprintf(
+				"image digest resolution failed for '%s': %s",
+				cache.Spec.Image, err.Error(),
+			))
+		}
 	}
 	resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
 	if digestFound {
@@ -132,24 +148,38 @@ func (w *ClusterGKMCache) ValidateCreate(ctx context.Context, obj runtime.Object
 	}
 
 	// Defense in depth
-	// Recompute digest from the image (same logic used by mutator).
-	// The mutator adds the gkm.io/resolvedDigest annotation
-	// If we just check it exists then the validator will fail.
-	// We just recompute the digest and compare it. If it's OK
-	// we accept the CR object.
-	digest, err := verifyImageSignature(ctx, cache.Spec.Image)
-	if err != nil {
-		return nil, fmt.Errorf("image signature verification failed: %w", err)
+	// Check if Kyverno verification is enabled
+	kyvernoEnabled := isKyvernoVerificationEnabled()
+
+	var verifiedDigest string
+	var err error
+
+	if kyvernoEnabled {
+		// Full verification mode: verify image signature with cosign
+		// The mutator adds the gkm.io/resolvedDigest annotation
+		// We recompute the digest and compare it. If it's OK we accept the CR object.
+		verifiedDigest, err = verifyImageSignature(ctx, cache.Spec.Image)
+		if err != nil {
+			return nil, fmt.Errorf("image signature verification failed: %w", err)
+		}
+	} else {
+		// Development mode: skip signature verification, just resolve digest
+		verifiedDigest, err = resolveImageDigest(ctx, cache.Spec.Image)
+		if err != nil {
+			return nil, fmt.Errorf("image digest resolution failed: %w", err)
+		}
 	}
 
 	ann := cache.Annotations["gkm.io/resolvedDigest"]
-	if ann == "" || ann != digest {
+	if ann == "" || ann != verifiedDigest {
 		return nil, fmt.Errorf("gkm.io/resolvedDigest mismatch - this is not the digest of the verified image")
 	}
 
-	// Check Kyverno verification status if present
-	if err := verifyKyvernoAnnotation(cache.Annotations, digest); err != nil {
-		return nil, fmt.Errorf("kyverno verification failed: %w", err)
+	// Check Kyverno verification status if present and enabled
+	if kyvernoEnabled {
+		if err := verifyKyvernoAnnotation(cache.Annotations, verifiedDigest); err != nil {
+			return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		}
 	}
 
 	return nil, nil
