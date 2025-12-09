@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -99,6 +100,11 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 		return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
 	}
 
+	// Check Kyverno verification status if present
+	if err := verifyKyvernoAnnotation(cache.Annotations); err != nil {
+		return nil, fmt.Errorf("kyverno verification failed: %w", err)
+	}
+
 	return nil, nil
 }
 
@@ -166,4 +172,29 @@ func extractDigestFromImage(imageRef string) string {
 	}
 
 	return ""
+}
+
+// verifyKyvernoAnnotation checks the kyverno.io/verify-images annotation to ensure
+// the image signature was verified by Kyverno and the status is "pass".
+// The annotation format is: {"<image>@<digest>":"pass"}
+func verifyKyvernoAnnotation(annotations map[string]string) error {
+	kyvernoAnnotation, exists := annotations["kyverno.io/verify-images"]
+	if !exists {
+		return fmt.Errorf("failed to find kyverno.io/verify-images annotation")
+	}
+
+	// Parse the JSON annotation
+	var verifications map[string]string
+	if err := json.Unmarshal([]byte(kyvernoAnnotation), &verifications); err != nil {
+		return fmt.Errorf("failed to parse kyverno.io/verify-images annotation: %w", err)
+	}
+
+	// Check if any entry has status "pass" and matches our digest
+	for _, status := range verifications {
+		if status != "pass" {
+			return fmt.Errorf("kyverno verification status is not 'pass': %s", status)
+		}
+	}
+
+	return nil
 }
