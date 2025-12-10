@@ -19,9 +19,6 @@ CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 # NO_GPU flag for building without GPU support
 NO_GPU_BUILD ?= false
 
-# KYVERNO_ENABLED flag for enabling/disabling Kyverno verification (runtime only)
-KYVERNO_ENABLED ?= true
-
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -306,12 +303,6 @@ else
 	    -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 endif
-ifneq ($(KYVERNO_ENABLED),true)
-	cd config/configMap && \
-	  $(SED) -i \
-	    -e '/literals:/a\  - gkm.kyverno.enabled=false' \
-	    kustomization.yaml
-endif
 
 .PHONY: deploy
 deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
@@ -563,12 +554,6 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
-ifneq ($(KYVERNO_ENABLED),true)
-	cd config/configMap && \
-	  $(SED) -i \
-	    -e '/literals:/a\  - gkm.kyverno.enabled=false' \
-	    kustomization.yaml
-endif
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle
 
