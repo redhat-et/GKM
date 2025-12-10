@@ -12,5 +12,3 @@ data:
   gkm.agent.image: quay.io/gkm/agent:latest
   gkm.csi.image: quay.io/gkm/gkm-csi-plugin:latest
   gkm.nogpu: false
-  ## Enable/disable Kyverno image signature verification (defaults to true/enabled)
-  gkm.kyverno.enabled: "true"
