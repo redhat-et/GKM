@@ -111,6 +111,23 @@ kernel cache management capabilities by adding an optional `kernelCache` field
 to the LocalModelCache CRD. The `kernelCache` field is small and contains a URL
 to an OCI Image.
 
+```yaml
+apiVersion: serving.kserve.io/v1alpha1
+kind: LocalModelCache
+metadata:
+  name: llama-7b
+spec:
+  # Existing fields (no changes)
+  sourceModelUri: s3://models/llama-7b
+  modelSize: 13Gi
+  nodeGroups:
+    - gpu-node-group
+
+  # NEW: Optional kernel cache configuration
+  kernelCache:
+    image: quay.io/myorg/llama-7b-vllm-kernels:v1
+```
+
 ### Image Signature Verification
 
 To ensure the integrity and authenticity of kernel cache images, we leverage
@@ -151,16 +168,125 @@ compilation.
 
 ### Alternative 1: Separate GKM Control Plane with CSI Driver
 
-Deploy GKM as a standalone system alongside KServe with its own CRDs
-(`GKMCache`, `GKMCacheNode`), controllers (Operator), DaemonSet agent, and CSI
-driver for volume mounting. User creates both `LocalModelCache` (for model
-weights) and `GKMCache` (for kernel caches).
+Deploy GKM logic as a standalone Feature within KServe with its own CRDs
+(`GKMCache`, `GKMCacheNode`), controllers, DaemonSet agent, and CSI driver for
+volume mounting, but run under the existing KServe Operator. User creates both `LocalModelCache` (for model weights) and `GKMCache` (for kernel caches).
+
+*The GKM CRDs and components would be renamed when incorporated into KServe,*
+*but left as is in this description to help track back to the GKM code base for*
+*reference.*
+
+#### Background - Existing GKM Behavior
+
+To enable the GKM feature, the user creates a `GKMCache` or `ClusterGKMCache`
+CR. These two CRD are exactly the same except one is Namespace scoped and the
+other is Cluster scoped. The CR contains the URL to the OCI Image. The `.status`
+field of the CRD will contain a summary of the load state of the OCI Image
+across all the nodes in the Kubernetes cluster. The GKM Agent creates a
+`GKMCacheNode` for each namespace and each node to track and debug `GKMCache`
+state, and creates a `ClusterGKMCacheNode` for each node to track and debug
+`ClusterGKMCache` state.
+
+Example `GKMCache` CR:
+
+```yaml
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: vector-add-cache-rocm-1
+  namespace: gkm-test-ns-scoped-1
+  annotations:
+spec:
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+```
+
+The user then creates a pod that leverages the GPU Kernel Cache. A volume is
+added to the podspec of type `csi`, and the attributes of the volume are the
+`GKMCache` or `ClusterGKMCache` created in the first step. This triggers the GKM
+CSI Agent to mount the extracted GPU Kernel Cache in the pod.
+
+Example Pod with GKM CSI Driver referenced as a Volume:
+
+```yaml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: gkm-test-pod-1
+  namespace: gkm-test-ns-scoped-1
+spec:
+  containers:
+      :
+      volumeMounts:
+        - name: kernel-volume
+          mountPath: /cache
+  volumes:
+    - name: kernel-volume
+      csi:
+        driver: csi.gkm.io
+        volumeAttributes:
+          csi.gkm.io/GKMCache: vector-add-cache-rocm-1
+          csi.gkm.io/namespace: gkm-test-ns-scoped-1
+```
+
+#### Changes to GKM to Port to KServe
+
+To drop the existing GKM into the KServe infrastructure, the following changes
+would need to be made to the GKM code. Most of these changes are minor and
+follow or can reuse code from the Local Model Cache feature in KServe.
+
+* Rename CRDs, Controllers, agents, and internal variables as needed,
+  potentially dropping GKM in favor of something more inline with KServe naming
+  convention (TBD).
+* GKM currently extracts the GPU Kernel Cache from the OCI Image directly to the
+  host (Kubernetes Node). This should be changed to extract to a PVC more like
+  the Local Model Cache feature. This would make it more compatible in cloud
+  deployments. This would also reduce the permissions GKM requires, since it no
+  longer needs host access.
+* Because there is a two step process, user creates a CR (`GKMCache` or
+  `ClusterGKMCache`), then in a second step adds a VolumeMount to the vLLM pod,
+  GKM tracks whether the GPU Kernel Cache is currently in use by a pod or not
+  via small JSON structs in local files. This was a simple database shared by
+  the CSI Driver and the GKM Agent since GKM already had host access for
+  extracting the GPU Kernel Cache. Since host access is being removed, this
+  simple database will need to be replaced with a light weight true database of
+  some sort.
+* The directory of the GPU Kernel Cache within the pod was being provided by the
+  podspec and `VolumeMounts` field. Tying in with how the `InferenceService` and
+  `LLMInferenceService` CRDs behave, the podspec is generated from the
+  attributes of the these CRDs. So the directory of the GPU Kernel Cache within
+  the pod will either need to be hardcoded or provided as an additional
+  attribute in the `GKMCache` and `ClusterGKMCache` CRDs.
+
+#### Pros
+
+* Clear separation of concerns (GKM is independent)
+* GKM can evolve independently of the Model Cache feature
+* Kernel Cache can be deployed in scenarios where Model Cache feature was not
+  design or doesn't make sense to deploy
+* Existing GKM codebase reused as-is with minimal changes
+* No modifications to KServe CRDs
+
+#### Cons
+
+* **Two separate control planes** to deploy, manage, and monitor (increased
+  operational complexity)
+* **User creates two resources** instead of one (LocalModelCache + GKMCache)
+* **Additional infrastructure required**: CSI driver DaemonSet, separate
+  webhooks for admission control
+* **Storage quota management split**: separate limits for models (in
+  LocalModelNodeGroup) and kernel caches (in GKM)
+* **Higher resource overhead**: additional DaemonSet, CSI driver pods, and
+  operator pods
+* **More complex troubleshooting**: two systems to monitor, two sets of logs,
+  two failure domains
+
+#### Rationale for Rejection:
 
 While this approach offers clean separation, it adds significant operational
-complexity for minimal benefit. Since kernel caches have a 1:1 relationship
-with models in most use cases (each model has one set of kernels per GPU type),
-managing them as separate resources provides little value. The unified approach
-provides identical end-user benefits (30-70% faster startup) while requiring
-half the infrastructure. The operational overhead of deploying and maintaining
-two separate control planes, especially in enterprise environments with strict
+complexity. Since kernel caches have a 1:1 relationship with models in most use
+cases (each model has one set of kernels per GPU type), managing them as
+separate resources provides little value. The unified approach provides
+identical end-user benefits (30-70% faster startup) while requiring half the
+infrastructure. The operational overhead of deploying and maintaining two
+separate control planes, especially in enterprise environments with strict
 change control, outweighs the architectural purity of separation.
