@@ -96,14 +96,7 @@ stored on the same PV/PVCs, and tracked by the same controllers.
 
 ## Proposal Design / Approach
 
-["How" the feature is going to work, is designed, implemented, etc. This should
-be written for an average contributor in the WG area.]
-
 ### Design
-
-[Design details for the feature at the resource model level. Details such as;
-How the feature should work, sequence diagrams, schema-level changes, failure
-modes. For user facing features, this section shouldn't contain code.]
 
 #### Architecture Overview
 
@@ -174,8 +167,9 @@ via the same PVC.
 **1. User Creates LocalModelCache with Kernel Cache:**
 
 Users extend their existing LocalModelCache resources with an optional
-`kernelCache` field:
-
+`kernelCache` field. This optional field provides new input parameters that
+allow the user to specify a URL of the OCI Image that packages the GPU Kernel
+Cache.
 ```yaml
 apiVersion: serving.kserve.io/v1alpha1
 kind: LocalModelCache
@@ -193,7 +187,20 @@ spec:
     image: quay.io/myorg/llama-7b-vllm-kernels:v1
 ```
 
-**1.a Kyverno verifies image signature (when enabled)**
+**2. Webhook verifies that OCI Image and Saves Image Digest**
+
+A webhook is used to verify the new OCI Image field. The recommended production
+path is to use [Kyverno](https://kyverno.io/) to verify the OCI Image has been
+signed and is a valid image. Kyverno is optional, but the signing of the OCI
+Image is not verified without it.
+
+To avoid the image from having to be verified on every node every time it is
+downloaded, the image verification is done once in the webhook when the OCI
+Image is first provided in the CR. Then the image digest is then saved and used
+whenever the OCI Image is downloaded. The existing KServe webhook will be
+updated to save off the image digest, whether Kyverno is used or not.
+
+**2.a Kyverno verifies image signature (when enabled)**
 
 To ensure the integrity and authenticity of kernel cache images, we leverage
 [Kyverno](https://kyverno.io/), a Kubernetes-native policy engine designed
@@ -210,13 +217,13 @@ signature verification, prevents the deployment of potentially compromised
 kernel caches, and provides a transparent, auditable record of image provenance
 through integration with transparency logs and in-toto attestation frameworks.
 
-**1.b Webhook translates image tag to digest**
+**2.b Webhook translates image tag to digest**
 
 The KServe webhook is responsible for resolving the kernel cache image tag to
 an immutable digest. The resolution process depends on whether Kyverno-based
 signature verification is enabled in the system configuration.
 
-**Scenario 1: Kyverno Enabled (Recommended for Production)**
+*Scenario 1: Kyverno Enabled (Recommended for Production)*
 
 When Kyverno is enabled via the system-wide ConfigMap (see Configuration
 section), the webhook leverages Kyverno's signature verification results:
@@ -241,7 +248,7 @@ metadata:
     serving.kserve.io/resolvedDigest: sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c
 ```
 
-**Scenario 2: Kyverno Disabled (Development/Testing)**
+*Scenario 2: Kyverno Disabled (Development/Testing)*
 
 When Kyverno is disabled, the webhook must still resolve the image tag to a
 digest to ensure immutability. The webhook performs direct OCI registry
@@ -299,17 +306,11 @@ Without Kyverno:
 5. If registry resolution fails (e.g., network error, image not found), update
    status with error
 
-**2. LocalModel Controller Processes the Request:**
+**3. LocalModel Controller Processes the Request:**
 
 The LocalModel controller (existing component) is enhanced to:
 
 - Calculate total storage required: `modelSize + kernelCache.cacheSize`
-<!-->
-Billy Comment: Do we know if the PV/PVC are RO/RW? In case the cache doesn't
-exist or needs to be rebuilt, need it RW and in the calculation, need buffer
-of extra memory in case JIT is larger. This is probably not the place for it,
-but need it considered somewhere.
--->
 - Validate against LocalModelNodeGroup storage limits
 - Create PersistentVolumes and PersistentVolumeClaims (existing logic,
   unchanged)
@@ -318,7 +319,7 @@ but need it considered somewhere.
 - Aggregate kernel cache status from LocalModelNodes
 - Validate Cache image signatures.
 
-**3. LocalModelNode Agent Downloads and Validates:**
+**4. LocalModelNode Agent Downloads and Validates:**
 
 The LocalModelNode agent (existing DaemonSet) is enhanced to:
 
