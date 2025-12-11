@@ -228,6 +228,15 @@ spec:
           csi.gkm.io/namespace: gkm-test-ns-scoped-1
 ```
 
+GKM was developed using Operator-SDK, has a controller that runs in the control
+plane that manages the `.status` field of the `GKMCache` and `ClusterGKMCache`
+CRs. GKM leverages Kyverno for OCI Image verification and a GKM specific webhook
+to manage the image digest (as described above). GKM also has a agent that runs
+every node which is responsible for extracting the GPU Kernel Cache on each node
+and creating and populating the `GKMCacheNode` and `ClusterGKMCacheNode` CRs.
+Last, there us a GKM CSI Driver that is responsible for mounting the GPU Kernel
+Cache in the workload pod.
+
 #### Changes to GKM to Port to KServe
 
 To drop the existing GKM into the KServe infrastructure, the following changes
