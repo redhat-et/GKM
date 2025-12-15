@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,13 +15,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	gcrremote "github.com/google/go-containerregistry/pkg/v1/remote"
 
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
 var (
-	gkmcachelog                         = logf.Log.WithName("webhook-ns")
+	gkmcacheLog                         = logf.Log.WithName("webhook-ns")
 	_           webhook.CustomDefaulter = &GKMCache{}
 	_           webhook.CustomValidator = &GKMCache{}
 )
@@ -41,39 +46,58 @@ func (w *GKMCache) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 // Default implements the defaulting logic (mutating webhook)
 func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
-	gkmcachelog.V(1).Info("Mutating Webhook called", "object", obj)
+	gkmcacheLog.V(1).Info("Mutating Webhook called", "object", obj)
 
 	cache, ok := obj.(*GKMCache)
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected GKMCache, got %T", obj))
 	}
-	gkmcachelog.V(1).Info("Decoded GKMCache object", "name", cache.Name, "namespace", cache.Namespace)
+	gkmcacheLog.V(1).Info("Decoded GKMCache object", "name", cache.Name, "namespace", cache.Namespace)
 
 	if cache.Annotations == nil {
 		cache.Annotations = map[string]string{}
 	}
 
 	if cache.Spec.Image == "" {
-		gkmcachelog.Info("spec.image is empty, skipping")
+		gkmcacheLog.Info("spec.image is empty, skipping")
 		return nil
 	}
 
-	// First check if the image already contains a digest (e.g., from Kyverno mutation)
+	// Resolve & verify image -> digest
+	cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kyvernoEnabled := isKyvernoVerificationEnabled()
 	var digest string
-	if extractedDigest := extractDigestFromImage(cache.Spec.Image); extractedDigest != "" {
-		gkmcachelog.Info("Image already contains digest (likely from Kyverno)", "image", cache.Spec.Image, "digest", extractedDigest)
-		digest = extractedDigest
-	}
-	resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
-	if digestFound {
-		// Digest hasn't changed so just return
-		if digest == resolvedDigest {
-			return nil
+	var err error
+	if kyvernoEnabled {
+		// First check if the image already contains a digest (e.g., from Kyverno mutation)
+		if extractedDigest := extractDigestFromImage(cache.Spec.Image); extractedDigest != "" {
+			gkmcacheLog.Info("Image already contains digest (likely from Kyverno)", "image", cache.Spec.Image, "digest", extractedDigest)
+			digest = extractedDigest
+		}
+		resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+		if digestFound && digest != "" {
+			// Digest hasn't changed so just return
+			if digest == resolvedDigest {
+				return nil
+			}
+		}
+	} else {
+		gkmcacheLog.V(1).Info("Resolving image digest (Kyverno verification disabled)", "image", cache.Spec.Image)
+		digest, err = resolveImageDigest(cctx, cache.Spec.Image)
+		if err != nil {
+			gkmcacheLog.Error(err, "failed to resolve image digest")
+			return apierrors.NewBadRequest(fmt.Sprintf(
+				"image digest resolution failed for '%s': %s",
+				cache.Spec.Image, err.Error(),
+			))
 		}
 	}
+
 	cache.Annotations[utils.GMKCacheAnnotationResolvedDigest] = digest
 
-	gkmcachelog.Info("added/updated resolvedDigest", "image", cache.Spec.Image, "digest", digest)
+	gkmcacheLog.Info("added/updated resolvedDigest", "image", cache.Spec.Image, "digest", digest)
 	return nil
 }
 
@@ -96,13 +120,15 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 		return nil, fmt.Errorf("%s must be set by mutating webhook", utils.GMKCacheAnnotationResolvedDigest)
 	}
 
-	if _, exists := cache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
-		return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
-	}
+	if isKyvernoVerificationEnabled() {
+		if _, exists := cache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
+			return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
+		}
 
-	// Check Kyverno verification status if present
-	if err := verifyKyvernoAnnotation(cache.Annotations); err != nil {
-		return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		// Check Kyverno verification status if present
+		if err := verifyKyvernoAnnotation(cache.Annotations); err != nil {
+			return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		}
 	}
 
 	return nil, nil
@@ -110,7 +136,7 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	gkmcachelog.V(1).Info("Validating Webhook called", "oldObj", oldObj, "newObj", newObj)
+	gkmcacheLog.V(1).Info("Validating Webhook called", "oldObj", oldObj, "newObj", newObj)
 	oldCache, ok1 := oldObj.(*GKMCache)
 	newCache, ok2 := newObj.(*GKMCache)
 	if !ok1 || !ok2 {
@@ -139,6 +165,17 @@ func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Ob
 		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", utils.GMKCacheAnnotationResolvedDigest)
 	}
 
+	// Validate Kyverno verification if enabled
+	if isKyvernoVerificationEnabled() {
+		if _, exists := newCache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
+			return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
+		}
+
+		if err := verifyKyvernoAnnotation(newCache.Annotations); err != nil {
+			return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		}
+	}
+
 	return nil, nil
 }
 
@@ -149,7 +186,7 @@ func (w *GKMCache) ValidateDelete(_ context.Context, obj runtime.Object) (admiss
 		return nil, apierrors.NewBadRequest(fmt.Sprintf("expected GKMCache, got %T", obj))
 	}
 
-	clustergkmcacheLog.Info("validating GKMCache delete", "name", cache.Name)
+	gkmcacheLog.Info("validating GKMCache delete", "name", cache.Name)
 
 	// Add delete validation logic here if needed.
 	return nil, nil
@@ -197,4 +234,52 @@ func verifyKyvernoAnnotation(annotations map[string]string) error {
 	}
 
 	return nil
+}
+
+// isKyvernoVerificationEnabled checks if Kyverno verification is enabled.
+// It reads from the KYVERNO_VERIFICATION_ENABLED environment variable.
+// Defaults to true (enabled) if not set or invalid.
+func isKyvernoVerificationEnabled() bool {
+	envValue := os.Getenv(utils.EnvKyvernoEnabled)
+	if envValue == "" {
+		// Default to enabled
+		return true
+	}
+	// Parse the value - accept "true", "1", "yes" as enabled
+	// Everything else (including "false", "0", "no") is disabled
+	switch strings.ToLower(envValue) {
+	case "true", "1", "yes":
+		return true
+	case "false", "0", "no":
+		return false
+	default:
+		// Invalid value, default to enabled and log a warning
+		gkmcacheLog.Info("Invalid value for KYVERNO_VERIFICATION_ENABLED, defaulting to enabled", "value", envValue)
+		return true
+	}
+}
+
+// resolveImageDigest resolves an image reference to its digest without verifying signatures.
+// This is used when Kyverno verification is disabled (development/testing mode).
+// It returns the image digest string (sha256:...) if successful.
+func resolveImageDigest(ctx context.Context, imageRef string) (string, error) {
+	// Parse the image reference (tag or digest).
+	ref, err := name.ParseReference(imageRef)
+	if err != nil {
+		return "", fmt.Errorf("parse image reference: %w", err)
+	}
+
+	// Registry access options (authn.DefaultKeychain covers most cases).
+	remoteOpts := []gcrremote.Option{
+		gcrremote.WithAuthFromKeychain(authn.DefaultKeychain),
+		gcrremote.WithContext(ctx),
+	}
+
+	// Get the image descriptor to retrieve the digest
+	descriptor, err := gcrremote.Get(ref, remoteOpts...)
+	if err != nil {
+		return "", fmt.Errorf("fetch image descriptor: %w", err)
+	}
+
+	return descriptor.Digest.String(), nil
 }

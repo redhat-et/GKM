@@ -72,6 +72,7 @@ const (
 	ConfigMapIndexCsiImage         = "gkm.csi.image"
 	ConfigMapIndexCsiLogLevel      = "gkm.csi.log.level"
 	ConfigMapIndexNoGpu            = "gkm.nogpu"
+	ConfigMapIndexKyvernoEnabled   = "gkm.kyverno.enabled"
 
 	// Duration for Kubernetes to Retry a failed request
 	RetryOperatorConfigMapFailure = 5 * time.Second
@@ -82,4 +83,7 @@ const (
 	RetryAgentNextStep         = 1 * time.Second  // KubeAPI call updated object so restart Reconcile
 	RetryAgentUsagePoll        = 5 * time.Second  // Polling Cache to refresh GKMCacheNode Status usage data
 	RetryAgentNodeStatusUpdate = 1 * time.Second  // Status Updates not kicking Reconcile
+
+	// Environment Variables
+	EnvKyvernoEnabled = "KYVERNO_VERIFICATION_ENABLED"
 )
