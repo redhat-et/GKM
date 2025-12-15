@@ -307,6 +307,20 @@ func replaceUrlTag(imageURL, digest string) string {
 		return ""
 	}
 
+	// Check if the image already has a digest (e.g., from Kyverno mutation)
+	// Format: registry/image:tag@sha256:digest
+	if strings.Contains(imageURL, "@") {
+		// Image already has a digest, check if it matches
+		atIndex := strings.Index(imageURL, "@")
+		existingDigest := imageURL[atIndex+1:]
+		if existingDigest == digest {
+			// Same digest, return as-is
+			return imageURL
+		}
+		// Different digest, replace it
+		return imageURL[:atIndex] + "@" + digest
+	}
+
 	// Tokenize the Image URL
 	lastColonIndex := strings.LastIndex(imageURL, ":")
 	if lastColonIndex == -1 {

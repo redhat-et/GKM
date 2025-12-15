@@ -52,6 +52,14 @@ func TestReplaceUrlTag(t *testing.T) {
 		t.Logf("TEST: replaceUrlTag() with no digest - Should fail (empty string)")
 		updateUrl = replaceUrlTag("quay.io/test-33/image", "")
 		require.Equal(t, updateUrl, "")
+
+		t.Logf("TEST: replaceUrlTag() with existing digest (Kyverno case) - same digest - Should return unchanged")
+		updateUrl = replaceUrlTag("quay.io/gkm/cache-examples:vector-add-cache-rocm@sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c", "sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c")
+		require.Equal(t, updateUrl, "quay.io/gkm/cache-examples:vector-add-cache-rocm@sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c")
+
+		t.Logf("TEST: replaceUrlTag() with existing digest (Kyverno case) - different digest - Should replace digest")
+		updateUrl = replaceUrlTag("quay.io/gkm/cache-examples:vector-add-cache-rocm@sha256:olddigest", "sha256:newdigest")
+		require.Equal(t, updateUrl, "quay.io/gkm/cache-examples:vector-add-cache-rocm@sha256:newdigest")
 	})
 }
 

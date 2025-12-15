@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,17 +56,35 @@ func (w *ClusterGKMCache) Default(ctx context.Context, obj runtime.Object) error
 		return nil
 	}
 
-	// First check if the image already contains a digest (e.g., from Kyverno mutation)
+	// Resolve & verify image -> digest
+	cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kyvernoEnabled := isKyvernoVerificationEnabled()
 	var digest string
-	if extractedDigest := extractDigestFromImage(cache.Spec.Image); extractedDigest != "" {
-		clustergkmcacheLog.Info("Image already contains digest (likely from Kyverno)", "image", cache.Spec.Image, "digest", extractedDigest)
-		digest = extractedDigest
-	}
-	resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
-	if digestFound {
-		// Digest hasn't changed so just return
-		if digest == resolvedDigest {
-			return nil
+	var err error
+	if kyvernoEnabled {
+		// First check if the image already contains a digest (e.g., from Kyverno mutation)
+		if extractedDigest := extractDigestFromImage(cache.Spec.Image); extractedDigest != "" {
+			clustergkmcacheLog.Info("Image already contains digest (likely from Kyverno)", "image", cache.Spec.Image, "digest", extractedDigest)
+			digest = extractedDigest
+		}
+		resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+		if digestFound && digest != "" {
+			// Digest hasn't changed so just return
+			if digest == resolvedDigest {
+				return nil
+			}
+		}
+	} else {
+		clustergkmcacheLog.V(1).Info("Resolving image digest (Kyverno verification disabled)", "image", cache.Spec.Image)
+		digest, err = resolveImageDigest(cctx, cache.Spec.Image)
+		if err != nil {
+			clustergkmcacheLog.Error(err, "failed to resolve image digest")
+			return apierrors.NewBadRequest(fmt.Sprintf(
+				"image digest resolution failed for '%s': %s",
+				cache.Spec.Image, err.Error(),
+			))
 		}
 	}
 	cache.Annotations[utils.GMKCacheAnnotationResolvedDigest] = digest
@@ -89,13 +108,15 @@ func (w *ClusterGKMCache) ValidateCreate(ctx context.Context, obj runtime.Object
 		return nil, fmt.Errorf("%s must be set by mutating webhook", utils.GMKCacheAnnotationResolvedDigest)
 	}
 
-	if _, exists := cache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
-		return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
-	}
+	if isKyvernoVerificationEnabled() {
+		if _, exists := cache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
+			return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
+		}
 
-	// Check Kyverno verification status if present
-	if err := verifyKyvernoAnnotation(cache.Annotations); err != nil {
-		return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		// Check Kyverno verification status if present
+		if err := verifyKyvernoAnnotation(cache.Annotations); err != nil {
+			return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		}
 	}
 
 	return nil, nil
@@ -103,7 +124,7 @@ func (w *ClusterGKMCache) ValidateCreate(ctx context.Context, obj runtime.Object
 
 // ValidateUpdate implements validation for update events.
 func (w *ClusterGKMCache) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	gkmcachelog.Info("Validating Webhook called", "oldObj", oldObj, "newObj", newObj)
+	clustergkmcacheLog.Info("Validating Webhook called", "oldObj", oldObj, "newObj", newObj)
 	oldCache, ok1 := oldObj.(*ClusterGKMCache)
 	newCache, ok2 := newObj.(*ClusterGKMCache)
 	if !ok1 || !ok2 {
@@ -130,6 +151,17 @@ func (w *ClusterGKMCache) ValidateUpdate(_ context.Context, oldObj, newObj runti
 	}
 	if newDigest == "" {
 		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", utils.GMKCacheAnnotationResolvedDigest)
+	}
+
+	// Validate Kyverno verification if enabled
+	if isKyvernoVerificationEnabled() {
+		if _, exists := newCache.Annotations[utils.KyvernoVerifyImagesAnnotation]; !exists {
+			return nil, fmt.Errorf("%s must be set by kyverno", utils.KyvernoVerifyImagesAnnotation)
+		}
+
+		if err := verifyKyvernoAnnotation(newCache.Annotations); err != nil {
+			return nil, fmt.Errorf("kyverno verification failed: %w", err)
+		}
 	}
 
 	return nil, nil
