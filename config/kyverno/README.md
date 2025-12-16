@@ -1,142 +1,62 @@
-# Kyverno Integration for GKM
+# Kyverno Configuration for GKM
 
-This directory contains Kyverno configuration for the GKM (GPU Kernel Manager) project.
+This directory contains Kyverno-related configuration for GPU Kernel Manager (GKM).
 
-## Overview
+## Directory Structure
 
-Kyverno is deployed with GPU tolerations to run on the Kind GPU simulation cluster. It provides image verification and digest mutation for ClusterGKMCache custom resources.
+- **`values.yaml`**: Helm values for deploying Kyverno with GPU tolerations (for Kind clusters with simulated GPUs)
+- **`policies/`**: Kyverno ClusterPolicy definitions for GKMCache image verification
 
-## Files
-
-- `values.yaml` - Helm values for Kyverno deployment with GPU tolerations
-- `verify-clustergkmcache-images.yaml` - Sample policy for ClusterGKMCache image verification
-
-## Usage
+## Deployment
 
 ### Deploy Kyverno
 
 ```bash
-make deploy-kyverno
+# With GPU tolerations (for Kind/simulated GPU clusters)
+make deploy-kyverno NO_GPU=true
+
+# With default configuration (for real GPU clusters)
+make deploy-kyverno NO_GPU=false
 ```
 
-This will:
-1. Install Kyverno using Helm
-2. Configure all controllers with GPU tolerations and node selectors
-3. Wait for Kyverno to be ready
-
-### Apply the ClusterGKMCache Image Verification Policy
+### Deploy Kyverno Policies
 
 ```bash
-kubectl apply -f config/kyverno/verify-clustergkmcache-images.yaml
+# Deploy image verification policies
+make deploy-kyverno-policies
 ```
 
-### Undeploy Kyverno
+### Automatic Deployment
+
+When using `make run-on-kind` with `KYVERNO_ENABLED=true` (default), both Kyverno and its policies are automatically deployed:
 
 ```bash
-make undeploy-kyverno
+# Full deployment with Kyverno
+make run-on-kind
+
+# Deployment without Kyverno
+make run-on-kind KYVERNO_ENABLED=false
 ```
 
-## Image Verification Policy
+## Policies
 
-The sample policy (`verify-clustergkmcache-images.yaml`) does the following:
+The policies in `policies/` directory enforce image signature verification for:
 
-1. **Matches** all `ClusterGKMCache` resources
-2. **Verifies** images from `quay.io/gkm/cache-examples:*`
-3. **Validates** signatures using GitHub OIDC (keyless signing)
-4. **Mutates** image references to use digest instead of tags (e.g., `@sha256:...`)
+- **ClusterGKMCache**: Cluster-scoped GPU kernel caches
+- **GKMCache**: Namespace-scoped GPU kernel caches
 
-### Customizing the Policy
+Both policies verify images from `quay.io/*` using keyless signatures with:
+- **Issuer**: `https://token.actions.githubusercontent.com`
+- **Subject**: `https://github.com/*/*`
+- **Rekor**: `https://rekor.sigstore.dev`
 
-To customize for your specific use case:
+The policies also automatically mutate image references to include digests for security.
 
-1. **Change the image pattern**:
-   ```yaml
-   imageReferences:
-   - "your-registry/your-repo:*"
-   ```
+## Environment Variable
 
-2. **Update the GitHub subject** (for specific org/repo):
-   ```yaml
-   subject: "https://github.com/your-org/your-repo/.github/workflows/*"
-   ```
+The GKM operator reads `KYVERNO_VERIFICATION_ENABLED` environment variable to determine whether to enforce Kyverno verification in webhooks:
 
-3. **Use static keys instead of keyless**:
-   ```yaml
-   attestors:
-   - count: 1
-     entries:
-     - keys:
-         publicKeys: |-
-           -----BEGIN PUBLIC KEY-----
-           <your-public-key>
-           -----END PUBLIC KEY-----
-   ```
+- **`true`** (default): Validates that Kyverno has verified and mutated images
+- **`false`**: Skips Kyverno annotation checks (for development/testing only)
 
-4. **Change validation action** (Audit mode for testing):
-   ```yaml
-   spec:
-     validationFailureAction: Audit  # or Enforce
-   ```
-
-## Testing
-
-1. Deploy Kyverno:
-   ```bash
-   make deploy-kyverno
-   ```
-
-2. Apply the verification policy:
-   ```bash
-   kubectl apply -f config/kyverno/verify-clustergkmcache-images.yaml
-   ```
-
-3. Create a ClusterGKMCache with an unsigned image (should fail):
-   ```bash
-   kubectl apply -f - <<EOF
-   apiVersion: gkm.io/v1alpha1
-   kind: ClusterGKMCache
-   metadata:
-     name: test-unsigned
-   spec:
-     image: quay.io/gkm/cache-examples:unsigned-image
-   EOF
-   ```
-
-4. Create a ClusterGKMCache with a signed image (should succeed and mutate to digest):
-   ```bash
-   kubectl apply -f - <<EOF
-   apiVersion: gkm.io/v1alpha1
-   kind: ClusterGKMCache
-   metadata:
-     name: test-signed
-   spec:
-     image: quay.io/gkm/cache-examples:vector-add-cache-rocm
-   EOF
-   ```
-
-5. Check that the image was mutated to use digest:
-   ```bash
-   kubectl get clustergkmcache test-signed -o yaml | grep image:
-   ```
-
-## Troubleshooting
-
-### Check Kyverno pod status
-```bash
-kubectl get pods -n kyverno
-```
-
-### View Kyverno logs
-```bash
-kubectl logs -n kyverno -l app.kubernetes.io/component=admission-controller
-```
-
-### Check policy status
-```bash
-kubectl get clusterpolicy verify-clustergkmcache-images -o yaml
-```
-
-### View policy reports
-```bash
-kubectl get policyreport -A
-```
+This is configured via `gkm.kyverno.enabled` in the ConfigMap.

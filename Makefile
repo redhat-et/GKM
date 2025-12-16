@@ -427,14 +427,35 @@ $(HELM): $(LOCALBIN)
 	}
 
 .PHONY: deploy-kyverno
-deploy-kyverno: helm ## Deploy Kyverno with GPU tolerations for Kind cluster
+deploy-kyverno: helm ## Deploy Kyverno with optional GPU tolerations for Kind cluster
 	@echo "Installing Kyverno to cluster $(KIND_CLUSTER_NAME)..."
+ifeq ($(NO_GPU),true)
+	@echo "Using custom Kyverno configuration with GPU tolerations..."
 	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
 		--kube-context kind-$(KIND_CLUSTER_NAME) \
 		--repo https://kyverno.github.io/kyverno/ kyverno \
 		--values config/kyverno/values.yaml \
 		--wait
+else
+	@echo "Using default Kyverno configuration..."
+	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
+		--kube-context kind-$(KIND_CLUSTER_NAME) \
+		--repo https://kyverno.github.io/kyverno/ kyverno \
+		--wait
+endif
 	@echo "Kyverno deployed successfully to $(KIND_CLUSTER_NAME)."
+
+.PHONY: deploy-kyverno-policies
+deploy-kyverno-policies: kustomize ## Deploy Kyverno ClusterPolicies for GKMCache image verification
+	@echo "Deploying Kyverno policies for GKMCache image verification..."
+	$(KUSTOMIZE) build config/kyverno/policies | $(KUBECTL) apply -f -
+	@echo "Kyverno policies deployed successfully."
+
+.PHONY: undeploy-kyverno-policies
+undeploy-kyverno-policies: kustomize ## Undeploy Kyverno ClusterPolicies
+	@echo "Undeploying Kyverno policies..."
+	$(KUSTOMIZE) build config/kyverno/policies | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "Kyverno policies undeployed."
 
 .PHONY: undeploy-kyverno
 undeploy-kyverno: ## Undeploy Kyverno
@@ -470,6 +491,17 @@ tmp-cleanup:
 
 .PHONY: run-on-kind
 run-on-kind: destroy-kind setup-kind deploy-on-kind ## Setup Kind cluster, load images, and deploy
+ifeq ($(KYVERNO_ENABLED),true)
+	@echo "Deploying Kyverno after GKM CRDs (KYVERNO_ENABLED=true)..."
+	$(MAKE) deploy-kyverno NO_GPU=true
+	@echo "Waiting for Kyverno to be ready..."
+	$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
+	@echo "Deploying Kyverno policies..."
+	$(MAKE) deploy-kyverno-policies
+	@echo "Restarting Kyverno to discover GKM CRDs..."
+	$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n kyverno
+	$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller
+endif
 	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
 
 .PHONY: deploy-on-kind
