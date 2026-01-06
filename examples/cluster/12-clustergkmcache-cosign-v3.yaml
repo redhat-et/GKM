@@ -3,7 +3,5 @@ apiVersion: gkm.io/v1alpha1
 kind: ClusterGKMCache
 metadata:
   name: vllm-flash-attention
-  labels:
-    gkm.io/signature-format: cosign-v3
 spec:
   image: quay.io/mtahhan/vllm-flash-attention:rocm

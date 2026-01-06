@@ -1,8 +1,13 @@
 # Kyverno Image Verification for GKM
 
 This document explains how to use Kyverno's image verification feature with
-GKM resources to verify container image signatures using Cosign v2 (legacy
-format) and Cosign v3 (bundle format).
+**GKMCache (namespaced)** resources to verify container image signatures using
+Cosign v2 (legacy format) and Cosign v3 (bundle format).
+
+> **Note**: This applies to **GKMCache** resources only. **ClusterGKMCache**
+> resources perform their own built-in signature verification and do not
+> require Kyverno policies. See the [ClusterGKMCache
+> Verification](#clustergkmcache-verification) section below.
 
 ## Overview
 
@@ -120,11 +125,13 @@ Policies are located in:
 
 ```text
 config/kyverno/policies/
-├── clustergkmcache-policy.yaml  # Policy for ClusterGKMCache resources
 ├── gkmcache-policy-v2.yaml      # Policy for GKMCache (cosign v2)
 ├── gkmcache-policy-v3.yaml      # Policy for GKMCache (cosign v3)
 └── kustomization.yaml           # Kustomize configuration
 ```
+
+> **Note**: ClusterGKMCache does not use Kyverno policies - it performs
+> built-in verification supporting both Cosign v2 and v3 automatically.
 
 ### Cosign v2 Policy (verify-gkmcache-images-v2)
 
@@ -275,10 +282,14 @@ spec:
 
 **After verification:**
 
+<!-- markdownlint-disable MD013-->
+
 ```yaml
 spec:
   image: quay.io/gkm/cache-examples:vector-add-cache-rocm@sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c
 ```
+
+<!-- markdownlint-enable MD013-->
 
 ### 4. Verification Annotation
 
@@ -375,6 +386,7 @@ policy.
 
 ### Complete Example Files
 
+<!-- markdownlint-disable MD013-->
 See the following files in the repository:
 
 - [examples/namespace/11-gkmcache.yaml](../../examples/namespace/11-gkmcache.yaml)
@@ -385,6 +397,7 @@ See the following files in the repository:
   \- v2 policy
 - [config/kyverno/policies/gkmcache-policy-v3.yaml](../../config/kyverno/policies/gkmcache-policy-v3.yaml)
   \- v3 policy
+<!-- markdownlint-enable MD013-->
 
 ### Testing Verification
 
@@ -409,6 +422,8 @@ See the following files in the repository:
 
 4. Verify the image was mutated:
 
+  <!-- markdownlint-disable MD013-->
+
    ```bash
    kubectl get gkmcache vector-add-cache-rocm-1 -n gkm-test-ns-scoped-1 -o yaml | grep image:
    ```
@@ -419,12 +434,13 @@ See the following files in the repository:
    image: quay.io/gkm/cache-examples:vector-add-cache-rocm@sha256:bf6f7ea60274882031ad81434aa9c9ac0e4ff280cd1513db239dbbd705b6511c
    ```
 
-5. Check the Kyverno annotation:
+1. Check the Kyverno annotation:
 
    ```bash
    kubectl get gkmcache vector-add-cache-rocm-1 -n gkm-test-ns-scoped-1 -o jsonpath='{.metadata.annotations.kyverno\.io/verify-images}'
    ```
 
+   <!-- markdownlint-enable MD013-->
    Expected output:
 
    ```text
@@ -442,22 +458,58 @@ variable:
 This is configured via `gkm.kyverno.enabled` in the ConfigMap during
 deployment.
 
+## ClusterGKMCache Verification
+
+**ClusterGKMCache** resources use a different verification approach than
+GKMCache:
+
+### Built-in Signature Verification
+
+- **No Kyverno Required**: ClusterGKMCache performs signature verification
+  directly in its admission webhook
+- **Automatic Format Detection**: Supports both Cosign v2 (legacy `.sig` tags)
+  and Cosign v3 (OCI 1.1 bundles) automatically
+- **No Labels Needed**: Unlike GKMCache, you don't need to specify
+  `gkm.io/signature-format` labels
+- **Sigstore Trust Roots**: Uses the same Sigstore trust infrastructure
+  (Fulcio, Rekor, CT logs) as Kyverno
+
+### ClusterGKMCache Verification Process
+
+1. When a ClusterGKMCache resource is created/updated, the mutating webhook:
+   - Verifies the image signature using Cosign v2 SDK
+   - Automatically detects whether the image uses v2 or v3 format
+   - Computes and stores the verified digest in
+     `gkm.io/resolvedDigest` annotation
+   - Creates an HMAC signature to prevent digest tampering
+
+2. The validating webhook:
+   - Verifies the HMAC signature on the digest
+   - Re-verifies the image signature (defense in depth)
+   - Ensures the digest matches the verified image
+
+### Example
+
+```yaml
+apiVersion: gkm.io/v1alpha1
+kind: ClusterGKMCache
+metadata:
+  name: my-cluster-cache
+spec:
+  # Works with both Cosign v2 and v3 signed images
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+```
+
+No additional configuration or labels required!
+
 ## Limitations
 
-### Cluster-Scoped Resources
+### Kyverno and Cluster-Scoped Resources
 
-**Current Status**: Kyverno's `verifyImages` feature does **NOT** currently
-support cluster-scoped custom resources (e.g., `ClusterGKMCache`).
-
-**Root Cause**: Kyverno's webhook configuration uses `namespaceSelector`, which
-only applies to namespaced resources. Cluster-scoped resources are not
-processed by the webhook.
-
-**Workaround**: Only use `GKMCache` (namespaced) resources with Kyverno
-verification. For `ClusterGKMCache` resources, signature verification is not
-currently supported.
-
-**Future**: This limitation is being tracked in the upstream Kyverno project.
+Kyverno's `verifyImages` feature does **NOT** support cluster-scoped custom
+resources due to its use of `namespaceSelector` in webhook configuration. This
+is why ClusterGKMCache implements its own verification instead of relying on
+Kyverno.
 
 ## Additional Resources
 
