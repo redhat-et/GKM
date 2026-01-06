@@ -1,33 +1,34 @@
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: verify-gkmcache-images
+  name: verify-gkmcache-images-v3
 spec:
   validationFailureAction: Enforce
   background: true
   webhookTimeoutSeconds: 30
   rules:
-    - name: verify-and-mutate-image
+    - name: verify-v3-bundle-images
       match:
         any:
           - resources:
               kinds:
                 - GKMCache
+              selector:
+                matchLabels:
+                  gkm.io/signature-format: cosign-v3
       imageExtractors:
         GKMCache:
-          - name: gkmcache-image
-            path: /spec
-            value: image
-            key: image
+          - path: /spec/image
       verifyImages:
         - imageReferences:
-            - quay.io/*:*
+            - "*"
+          type: SigstoreBundle
           mutateDigest: true
           attestors:
             - count: 1
               entries:
                 - keyless:
-                    issuer: https://token.actions.githubusercontent.com
-                    subject: https://github.com/*/*
+                    issuer: https://github.com/login/oauth
+                    subject: mtahhan@redhat.com
                     rekor:
                       url: https://rekor.sigstore.dev

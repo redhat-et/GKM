@@ -15,7 +15,7 @@ spec:
                 - ClusterGKMCache
       verifyImages:
         - imageReferences:
-            - quay.io/*:*
+            - "*"
           mutateDigest: true
           attestors:
             - count: 1
