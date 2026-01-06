@@ -41,7 +41,7 @@ decreasing the pod start-up time by up to half.
 
 ### Prerequisites
 
-- go version v1.24.0+
+- go version v1.25.0+
 - podman version 5.3.1+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.

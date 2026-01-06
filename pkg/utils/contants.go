@@ -39,7 +39,9 @@ const (
 	CsiDriverYamlFile      = "./csi-driver.yaml"
 
 	// GKMCache and ClusterGKMCache Annotations
-	GMKCacheAnnotationResolvedDigest = "gkm.io/resolvedDigest"
+	GMKCacheAnnotationResolvedDigest  = "gkm.io/resolvedDigest"
+	GMKClusterAnnotationMutationSig   = "gkm.io/mutationSig"
+	GMKClusterAnnotationLastMutatedBy = "gkm.io/lastMutatedBy"
 
 	// Kyverno Annotations
 	KyvernoVerifyImagesAnnotation = "kyverno.io/verify-images"

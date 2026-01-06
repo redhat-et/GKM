@@ -314,7 +314,7 @@ ifneq ($(KYVERNO_ENABLED),true)
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
 
 .PHONY: redeploy
 redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and undeploy have been called. Skips some onetime steps in deploy.
@@ -322,7 +322,7 @@ redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and u
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
+undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent from the K8s cluster specified in ~/.kube/config.
 	@echo "Calling undeploy script"
 	$(UNDEPLOY_SCRIPT) $(FORCE)
 	@if [ $$? -ne 0 ]; then \
@@ -376,6 +376,22 @@ get-example-images:
 deploy-webhook-certs:
 	$(KUBECTL) apply -k config/webhook
 
+.PHONY: webhook-secret-file
+webhook-secret-file:
+	@mkdir -p config/secret
+	@[ -s config/secret/mutation.env ] || \
+	  (echo 'Generating config/secret/mutation.env'; \
+	   printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env)
+
+.PHONY: delete-webhook-secret-file
+delete-webhook-secret-file:
+	@rm -f config/secret/mutation.env
+
+.PHONY: rotate-webhook-secret
+rotate-webhook-secret:
+	@printf 'MUTATION_SIGNING_KEY=%s\n' "$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" > config/secret/mutation.env
+	$(KUSTOMIZE) build config/secret | $(KUBECTL) apply -f -
+
 .PHONY: get-cert-manager-images
 get-cert-manager-images:
 	@echo "Getting Images ..."
@@ -408,7 +424,7 @@ deploy-cert-manager: get-cert-manager-images
 	$(KUBECTL) wait --for=condition=Ready --timeout=120s -n cert-manager pod -l app=webhook
 
 .PHONY: undeploy-cert-manager
-undeploy-cert-manager:
+undeploy-cert-manager: delete-webhook-secret-file
 	@echo "Undeploy cert-manager"
 	$(KUBECTL) delete -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
 
@@ -548,7 +564,7 @@ UNDEPLOY_SCRIPT ?= $(shell pwd)/hack/undeploy.sh
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
-CONTROLLER_TOOLS_VERSION ?= v0.16.1
+CONTROLLER_TOOLS_VERSION ?= v0.20.0
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.59.1
 
