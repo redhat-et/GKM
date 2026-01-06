@@ -61,32 +61,3 @@ linters:
 
     misspell:
       locale: US
-
-exclusions:
-  generated: lax
-  presets:
-    - comments
-    - common-false-positives
-    - legacy
-    - std-error-handling
-  paths:
-    - ^third_party/
-    - ^builtin/
-    - ^examples/
-    - ^vendor/
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
-  settings:
-    goimports:
-      local-prefixes:
-        - github.com/golangci/golangci-lint
-  exclusions:
-    generated: lax
-    paths:
-      - ^third_party/
-      - ^builtin/
-      - ^examples/
-      - ^vendor/

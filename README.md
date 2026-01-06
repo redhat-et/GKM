@@ -20,7 +20,11 @@ A Model/GPU kernel cache container packaging utility inspired by
 
 ## Build Instructions
 
-Install dependencies:
+### Requirements
+
+- Go 1.25.0 or later
+
+### Install dependencies
 
 ```bash
 sudo dnf install gpgme-devel
