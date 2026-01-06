@@ -40,17 +40,44 @@ make run-on-kind KYVERNO_ENABLED=false
 
 ## Policies
 
-The policies in `policies/` directory enforce image signature verification for:
+The policies in `policies/` directory enforce image signature verification using a **label-based approach** that supports both Cosign v2 and v3 formats:
 
-- **ClusterGKMCache**: Cluster-scoped GPU kernel caches
-- **GKMCache**: Namespace-scoped GPU kernel caches
+### Available Policies
 
-Both policies verify images from `quay.io/*` using keyless signatures with:
-- **Issuer**: `https://token.actions.githubusercontent.com`
-- **Subject**: `https://github.com/*/*`
-- **Rekor**: `https://rekor.sigstore.dev`
+1. **gkmcache-policy-v2.yaml**: Verifies images signed with Cosign v2 (legacy format)
+   - Matches: Resources with label `gkm.io/signature-format: cosign-v2`
+   - Type: `Cosign`
+   - Uses legacy `.sig` tag format
 
-The policies also automatically mutate image references to include digests for security.
+2. **gkmcache-policy-v3.yaml**: Verifies images signed with Cosign v3 (bundle format)
+   - Matches: Resources with label `gkm.io/signature-format: cosign-v3`
+   - Type: `SigstoreBundle`
+   - Uses OCI 1.1 Referrers API with bundle artifacts
+
+3. **clustergkmcache-policy.yaml**: For ClusterGKMCache resources
+   - **Note**: Currently NOT functional due to Kyverno limitation with cluster-scoped resources
+
+### How to Use
+
+Add the `gkm.io/signature-format` label to your GKMCache resources:
+
+```yaml
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: my-cache
+  namespace: default
+  labels:
+    gkm.io/signature-format: cosign-v2  # or cosign-v3
+spec:
+  image: quay.io/example/my-image:tag
+```
+
+The policies automatically mutate image references to include digests for enhanced security.
+
+For comprehensive documentation, see:
+- [Image Verification Guide](../../docs/examples/kyverno-image-verification.md) - Complete guide with examples and troubleshooting
+- [Kyverno Policies Overview](../../docs/examples/kyverno-policies.md) - Policy deployment and management
 
 ## Environment Variable
 

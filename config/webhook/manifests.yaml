@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /mutate-gkm-io-v1alpha1-clustergkmcache
   failurePolicy: Fail
-  name: mclustergkmcache.kb.io
+  name: z-mclustergkmcache.kb.io
   rules:
   - apiGroups:
     - gkm.io
@@ -32,7 +32,8 @@ webhooks:
       namespace: system
       path: /mutate-gkm-io-v1alpha1-gkmcache
   failurePolicy: Fail
-  name: mgkmcache.kb.io
+  name: z-mgkmcache.kb.io
+  reinvocationPolicy: Never
   rules:
   - apiGroups:
     - gkm.io
@@ -58,7 +59,7 @@ webhooks:
       namespace: system
       path: /validate-gkm-io-v1alpha1-clustergkmcache
   failurePolicy: Fail
-  name: vclustergkmcache.kb.io
+  name: z-vclustergkmcache.kb.io
   rules:
   - apiGroups:
     - gkm.io
@@ -78,7 +79,7 @@ webhooks:
       namespace: system
       path: /validate-gkm-io-v1alpha1-gkmcache
   failurePolicy: Fail
-  name: vgkmcache.kb.io
+  name: z-vgkmcache.kb.io
   rules:
   - apiGroups:
     - gkm.io

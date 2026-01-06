@@ -4,6 +4,7 @@ kind: GKMCache
 metadata:
   name: vector-add-cache-rocm-1
   namespace: gkm-test-ns-scoped-1
-  annotations:
+  labels:
+    gkm.io/signature-format: cosign-v2
 spec:
   image: quay.io/gkm/cache-examples:vector-add-cache-rocm
