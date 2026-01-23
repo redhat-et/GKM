@@ -1,35 +1,3 @@
-admissionController:
-  nodeSelector:
-    hardware-type: gpu
-  tolerations:
-    - key: gpu
-      operator: Equal
-      value: "true"
-      effect: NoSchedule
-
-backgroundController:
-  nodeSelector:
-    hardware-type: gpu
-  tolerations:
-    - key: gpu
-      operator: Equal
-      value: "true"
-      effect: NoSchedule
-
-cleanupController:
-  nodeSelector:
-    hardware-type: gpu
-  tolerations:
-    - key: gpu
-      operator: Equal
-      value: "true"
-      effect: NoSchedule
-
-reportsController:
-  nodeSelector:
-    hardware-type: gpu
-  tolerations:
-    - key: gpu
-      operator: Equal
-      value: "true"
-      effect: NoSchedule
+# Default Kyverno values for GKM
+# This file contains minimal configuration for production GPU environments
+# For KIND/simulated GPU environments, use values-no-gpu.yaml
