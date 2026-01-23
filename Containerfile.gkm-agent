@@ -31,7 +31,7 @@ COPY Makefile Makefile
 RUN make build-gkm-agent
 
 # Use a minimal Ubuntu base image that supports CGO binaries
-FROM public.ecr.aws/docker/library/ubuntu:22.04
+FROM public.ecr.aws/docker/library/ubuntu:24.04
 
 # Copy the binary from the builder
 COPY --from=builder /workspace/bin/gkm-agent /agent
@@ -65,7 +65,7 @@ ARG OPT_ROCM_VERSION=7.0.1
 
 # Conditionally install ROCm packages based on NO_GPU flag
 RUN if [ "$NO_GPU" = "false" ]; then \
-        wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+        wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/noble/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
         apt install -y ./*.deb && \
         apt update && DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib && \
         apt-get clean && rm -rf /var/lib/apt/lists/* && \

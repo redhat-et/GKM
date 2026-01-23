@@ -2,9 +2,9 @@
 apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
-  name: vector-add-cache-rocm-1
+  name: vector-add-cache-rocm-v2
   namespace: gkm-test-ns-scoped-1
   labels:
     gkm.io/signature-format: cosign-v2
 spec:
-  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm-v2

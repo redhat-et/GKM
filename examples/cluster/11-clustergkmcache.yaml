@@ -2,6 +2,6 @@
 apiVersion: gkm.io/v1alpha1
 kind: ClusterGKMCache
 metadata:
-  name: vector-add-cache-rocm
+  name: vector-add-cache-rocm-v2
 spec:
-  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm-v2

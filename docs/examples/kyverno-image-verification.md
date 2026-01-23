@@ -219,8 +219,8 @@ spec:
             - count: 1
               entries:
                 - keyless:
-                    issuer: https://github.com/login/oauth
-                    subject: mtahhan@redhat.com
+                    issuer: https://token.actions.githubusercontent.com
+                    subjectRegExp: "https://github.com/.*"
                     rekor:
                       url: https://rekor.sigstore.dev
 ```
@@ -230,8 +230,8 @@ spec:
 - **selector**: Matches resources with label
   `gkm.io/signature-format: cosign-v3`
 - **type**: `SigstoreBundle` for bundle format
-- **issuer**: GitHub OAuth token issuer (different from Actions)
-- **subject**: Specific user email for keyless signing
+- **issuer**: GitHub Actions OIDC token issuer (same as v2)
+- **subjectRegExp**: Matches any GitHub repository workflow
 
 ## How It Works
 
