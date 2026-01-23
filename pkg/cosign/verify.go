@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -15,6 +16,12 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/root"
 	"github.com/sigstore/sigstore-go/pkg/verify"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+const (
+	// DefaultVerificationTimeout is the default timeout for image verification operations.
+	// Set to 30 seconds to accommodate v3 bundle verification which can take 15-20 seconds.
+	DefaultVerificationTimeout = 30 * time.Second
 )
 
 var log logr.Logger
