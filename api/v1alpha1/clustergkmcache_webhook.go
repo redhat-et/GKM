@@ -20,6 +20,12 @@ import (
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
+const (
+	// ImageVerificationTimeout is the timeout for image signature verification operations.
+	// Set to 30 seconds to accommodate v3 bundle verification which can take 15-20 seconds.
+	ImageVerificationTimeout = 30 * time.Second
+)
+
 var (
 	clustergkmcacheLog                         = logf.Log.WithName("webhook-cl")
 	_                  webhook.CustomValidator = &ClusterGKMCache{}
@@ -67,7 +73,7 @@ func (w *ClusterGKMCache) Default(ctx context.Context, obj runtime.Object) error
 
 	// Resolve & verify image -> digest
 	// Note: v3 bundle verification can take 15-20 seconds
-	cctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	cctx, cancel := context.WithTimeout(context.Background(), ImageVerificationTimeout)
 	defer cancel()
 
 	clustergkmcacheLog.V(1).Info("Verifying image signature", "image", cache.Spec.Image)

@@ -3,7 +3,6 @@ package cosign
 import (
 	"context"
 	"testing"
-	"time"
 )
 
 func TestVerifyImageSignature(t *testing.T) {
@@ -33,7 +32,7 @@ func TestVerifyImageSignature(t *testing.T) {
 				t.Skip("Skipping test in short mode (use -short=false to run)")
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), DefaultVerificationTimeout)
 			defer cancel()
 
 			digest, err := VerifyImageSignature(ctx, tt.imageRef)
