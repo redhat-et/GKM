@@ -387,6 +387,40 @@ users.
     <!-- markdownlint-enable  MD013 -->
     <!-- markdownlint-enable  MD033 -->
 
+## Documentation
+
+### Configuration
+
+- [Kyverno Integration](config/kyverno/README.md) - Image signature verification with Kyverno
+- [Webhook Configuration](config/webhook/README.md) - GKM webhook configuration details
+
+### Image Signature Verification
+
+GKM supports image signature verification using Kyverno for namespace-scoped `GKMCache` resources. Use the `gkm.io/signature-format` label to specify the signature format:
+
+- **`gkm.io/signature-format: cosign-v2`** - For images signed with Cosign v2 (legacy `.sig` tag format)
+- **`gkm.io/signature-format: cosign-v3`** - For images signed with Cosign v3 (OCI 1.1 bundle format)
+
+Example:
+
+```yaml
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: my-cache
+  namespace: my-namespace
+  labels:
+    gkm.io/signature-format: cosign-v3  # Use cosign-v3 for bundle format
+spec:
+  image: quay.io/example/my-image:tag
+```
+
+For detailed information about image verification, see:
+- [Kyverno Image Verification Guide](docs/examples/kyverno-image-verification.md)
+- [Kyverno Policies Documentation](docs/examples/kyverno-policies.md)
+
+**Note:** `ClusterGKMCache` resources have built-in signature verification and automatically detect both Cosign v2 and v3 formats without requiring labels.
+
 ## Contributing
 
 // TODO(user): Add detailed information on how you would like others to

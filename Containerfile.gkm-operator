@@ -32,7 +32,7 @@ COPY Makefile Makefile
 RUN make build-gkm-operator
 
 # Use a minimal Ubuntu base image that supports CGO binaries
-FROM public.ecr.aws/docker/library/ubuntu:22.04
+FROM public.ecr.aws/docker/library/ubuntu:24.04
 
 # Copy the binary from the builder
 COPY --from=builder /workspace/bin/gkm-operator /operator
