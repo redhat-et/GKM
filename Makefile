@@ -446,17 +446,18 @@ $(HELM): $(LOCALBIN)
 deploy-kyverno: helm ## Deploy Kyverno with optional GPU tolerations for Kind cluster
 	@echo "Installing Kyverno to cluster $(KIND_CLUSTER_NAME)..."
 ifeq ($(NO_GPU),true)
-	@echo "Using custom Kyverno configuration with GPU tolerations..."
+	@echo "Using Kyverno configuration with GPU nodeSelector and tolerations (NO_GPU=true)..."
+	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
+		--kube-context kind-$(KIND_CLUSTER_NAME) \
+		--repo https://kyverno.github.io/kyverno/ kyverno \
+		--values config/kyverno/values-no-gpu.yaml \
+		--wait
+else
+	@echo "Using default Kyverno configuration for production GPU environments..."
 	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
 		--kube-context kind-$(KIND_CLUSTER_NAME) \
 		--repo https://kyverno.github.io/kyverno/ kyverno \
 		--values config/kyverno/values.yaml \
-		--wait
-else
-	@echo "Using default Kyverno configuration..."
-	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
-		--kube-context kind-$(KIND_CLUSTER_NAME) \
-		--repo https://kyverno.github.io/kyverno/ kyverno \
 		--wait
 endif
 	@echo "Kyverno deployed successfully to $(KIND_CLUSTER_NAME)."

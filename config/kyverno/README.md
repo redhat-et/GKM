@@ -4,20 +4,29 @@ This directory contains Kyverno-related configuration for GPU Kernel Manager (GK
 
 ## Directory Structure
 
-- **`values.yaml`**: Helm values for deploying Kyverno with GPU tolerations (for Kind clusters with simulated GPUs)
+- **`values.yaml`**: Default Helm values for deploying Kyverno in production GPU environments
+- **`values-no-gpu.yaml`**: Helm values with GPU nodeSelector and tolerations (for Kind clusters with simulated GPUs)
 - **`policies/`**: Kyverno ClusterPolicy definitions for GKMCache image verification
 
 ## Deployment
 
 ### Deploy Kyverno
 
+The deployment automatically selects the appropriate Helm values file based on the `NO_GPU` environment variable:
+
 ```bash
-# With GPU tolerations (for Kind/simulated GPU clusters)
+# For Kind/simulated GPU clusters (uses values-no-gpu.yaml)
+# Adds nodeSelector: hardware-type=gpu and GPU tolerations
 make deploy-kyverno NO_GPU=true
 
-# With default configuration (for real GPU clusters)
+# For production GPU environments (uses values.yaml)
+# Uses default Kyverno configuration without nodeSelector/tolerations
 make deploy-kyverno NO_GPU=false
 ```
+
+**Configuration Files:**
+- `values-no-gpu.yaml`: Adds `hardware-type: gpu` nodeSelector and GPU tolerations to all Kyverno controllers (admission, background, cleanup, reports). Use this for Kind clusters with simulated GPUs.
+- `values.yaml`: Minimal configuration for production environments. Kyverno controllers will use default scheduling.
 
 ### Deploy Kyverno Policies
 
