@@ -85,6 +85,11 @@ spec:
 
 #### Deploy Kyverno GKM Policies Only
 
+> **Note**: Kyverno must be deployed before applying GKM policies. If you haven't
+> deployed Kyverno yet, see the "Deploy Everything" section below or refer to
+> the [Kyverno installation
+> documentation](https://kyverno.io/docs/installation/).
+
 GKM provides separate ClusterPolicy definitions for each verification format:
 
 ```bash
