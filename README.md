@@ -82,7 +82,7 @@ Flags:
 The Cache Image specification defines how to bundle caches
 as container images. A compatible Cache image consists of cache
 directory for a Triton Kernel/vLLM model. The details can be found in
-[spec-compat.md](./spec-compat.md)
+[spec-compat.md](./docs/spec-compat.md)
 
 ### Triton Cache Example
 
