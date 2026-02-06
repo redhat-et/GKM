@@ -83,6 +83,12 @@ func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
 				return nil
 			}
 		}
+		// If digest is empty when Kyverno is enabled, skip setting annotation
+		// The webhook will be reinvoked after Kyverno adds the digest (reinvocationPolicy: IfNeeded)
+		if digest == "" {
+			gkmcacheLog.V(1).Info("Digest is empty, skipping annotation update (waiting for Kyverno)")
+			return nil
+		}
 	} else {
 		gkmcacheLog.V(1).Info("Resolving image digest (Kyverno verification disabled)", "image", cache.Spec.Image)
 		digest, err = resolveImageDigest(cctx, cache.Spec.Image)

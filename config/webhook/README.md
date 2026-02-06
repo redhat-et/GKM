@@ -4,31 +4,22 @@
 
 ### Reinvocation Policy
 
-The `reinvocationPolicy: IfNeeded` setting in `manifests.yaml` is
-**manually added** and critical for proper operation with Kyverno.
+The `reinvocationPolicy: IfNeeded` setting is **critical** for proper operation with Kyverno.
 
 **Background:**
 
-- Kyverno mutates the image field to add the digest (e.g.
-  , `image:tag@sha256:...`)
+- Kyverno mutates the image field to add the digest (e.g., `image:tag@sha256:...`)
 - The GKM mutating webhook needs to run **after** Kyverno to extract
   the digest from the mutated image
 - With `IfNeeded`, the GKM webhook runs again after Kyverno's mutation
 
-**DO NOT remove this setting** when regenerating manifests with `make manifests`.
+**Implementation:**
 
-If you regenerate the webhook manifests using controller-gen, you **must** re-add:
+Since Kubebuilder's controller-gen doesn't support setting `reinvocationPolicy` via
+markers, it is applied using a Kustomize patch:
 
-```yaml
-reinvocationPolicy: IfNeeded
-```
+- `webhook_reinvocation_patch.yaml` - Adds `reinvocationPolicy: IfNeeded` to both mutating webhooks
+- `kustomization.yaml` - Applies this patch during deployment
 
-to both mutating webhooks:
-
-- `mclustergkmcache.kb.io`
-- `mgkmcache.kb.io`
-
-### Why controller-gen doesn't include it
-
-Kubebuilder's controller-gen doesn't support setting `reinvocationPolicy` via
-markers, so it must be added manually after generation.
+**DO NOT** manually add `reinvocationPolicy` to `manifests.yaml` as it will be
+overwritten by controller-gen. The patch ensures it's always applied correctly.
