@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/redhat-et/MCU/mcv/pkg/constants"
-	"github.com/redhat-et/MCU/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 

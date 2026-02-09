@@ -63,13 +63,15 @@ Flags:
   -e, --extract            Extract a cache from an OCI image
   -h, --help               help for mcv
   -i, --image string       OCI image name
-  -l, --log-level string   Set the logging verbosity level: debug, info, warning or error
-      --no-gpu             Allow kernel extraction without GPU present (for testing purposes)
+  -l, --log-level string   Set the logging verbosity level:
+                           debug, info, warning or error
+      --no-gpu             Allow kernel extraction without GPU
+                           present (for testing purposes)
 ```
 
 > NOTE: The create option is a work in progress.
-> For now to create an OCI image containing a GPU Kernel cache directory please
-> follow the instructions in [spec-compat.md](./docs/spec-compat.md).
+> For now to create an OCI image containing a GPU Kernel cache directory
+> please follow the instructions in [spec-compat.md](./docs/spec-compat.md).
 
 ## Dependencies
 
@@ -79,16 +81,19 @@ Flags:
 
 ### Cache Image Container Specification
 
-The Cache Image specification defines how to bundle caches
-as container images. A compatible Cache image consists of cache
-directory for a Triton Kernel/vLLM model. The details can be found in
+The Cache Image specification defines how to bundle caches as container
+images. A compatible Cache image consists of cache directory for a Triton
+Kernel/vLLM model. The details can be found in
 [spec-compat.md](./docs/spec-compat.md)
 
 ### vLLM Binary Cache Support
 
 MCV supports both legacy (triton cache) and new (binary cache) vLLM formats:
-1. **vLLM Triton Cache Format** (legacy) - Stores `triton_cache/` and `inductor_cache/` inside rank directories
-2. **vLLM Binary Cache Format** (new) - Stores prefix directories (e.g., `backbone/`) inside rank directories
+
+1. **vLLM Triton Cache Format** (legacy) - Stores `triton_cache/` and
+   `inductor_cache/` inside rank directories
+2. **vLLM Binary Cache Format** (new) - Stores prefix directories
+   (e.g., `backbone/`) inside rank directories
 
 For detailed information about vLLM binary cache support, see:
 [vllm-binary-cache.md](./docs/vllm-binary-cache.md)
@@ -97,7 +102,8 @@ For detailed information about vLLM binary cache support, see:
 
 To extract the Triton Cache for the
 [01-vector-add.py](https://github.com/triton-lang/triton/blob/main/python/tutorials/01-vector-add.py)
-tutorial from [Triton](https://github.com/triton-lang/triton), run the following:
+tutorial from [Triton](https://github.com/triton-lang/triton), run the
+following:
 
 ```bash
 mcv -e -i quay.io/gkm/vector-add-cache:rocm
@@ -107,10 +113,12 @@ Img Size: 525
 bash-4.4#
 ```
 
-This will extract the cache directory from the `quay.io/gkm/vector-add-cache:rocm`
-container image and copy it to  `~/.triton/cache/`.
+This will extract the cache directory from the
+`quay.io/gkm/vector-add-cache:rocm` container image and copy it to
+`~/.triton/cache/`.
 
-To Create an OCI image for a Triton Cache using docker run the following:
+To Create an OCI image for a Triton Cache using docker run the
+following:
 
 ```bash
 mcv -c -i quay.io/gkm/vector-add-cache:rocm -d example/vector-add-cache-rocm
@@ -334,12 +342,22 @@ cosign sign -y quay.io/tkm/vector-add-cache@sha256:<digest>
 Generating ephemeral keys...
 Retrieving signed certificate...
 
-    The sigstore service, hosted by sigstore a Series of LF Projects, LLC, is provided pursuant to the Hosted Project Tools Terms of Use, available at https://lfprojects.org/policies/hosted-project-tools-terms-of-use/.
-    Note that if your submission includes personal data associated with this signed artifact, it will be part of an immutable record.
-    This may include the email address associated with the account with which you authenticate your contractual Agreement.
-    This information will be used for signing this artifact and will be stored in public transparency logs and cannot be removed later, and is subject to the Immutable Record notice at https://lfprojects.org/policies/hosted-project-tools-immutable-records/.
+    The sigstore service, hosted by sigstore a Series of LF Projects,
+    LLC, is provided pursuant to the Hosted Project Tools Terms of
+    Use, available at
+    https://lfprojects.org/policies/hosted-project-tools-terms-of-use/.
+    Note that if your submission includes personal data associated with
+    this signed artifact, it will be part of an immutable record.
+    This may include the email address associated with the account with
+    which you authenticate your contractual Agreement.
+    This information will be used for signing this artifact and will be
+    stored in public transparency logs and cannot be removed later, and
+    is subject to the Immutable Record notice at
+    https://lfprojects.org/policies/hosted-project-tools-immutable-records/.
 
-By typing 'y', you attest that (1) you are not submitting the personal data of any other person; and (2) you understand and agree to the statement and the Agreement terms at the URLs listed above.
+By typing 'y', you attest that (1) you are not submitting the personal
+data of any other person; and (2) you understand and agree to the
+statement and the Agreement terms at the URLs listed above.
 Your browser will now be opened to:
 ...
 ```
@@ -364,8 +382,8 @@ Pushing signature to: quay.io/mtahhan/01-vector-add-cache
 
 ### Extracting a Cache from a Container Image
 
-An example snippet of how to use the client API to extract a Cache
-from a container image is shown below.
+An example snippet of how to use the client API to extract a Cache from a
+container image is shown below.
 
 ```go
 import (
@@ -437,21 +455,24 @@ import (
 )
 
 func main() {
-    matched, unmatched, err := client.PreflightCheck("quay.io/mtahhan/01-vector-add-cache:latest")
+    matched, unmatched, err := client.PreflightCheck(
+        "quay.io/mtahhan/01-vector-add-cache:latest")
     if err != nil {
         log.Fatalf("Preflight check failed: %v", err)
     }
 
     fmt.Printf("Compatible GPUs: %d\n", len(matched))
     for i, gpu := range matched {
-        fmt.Printf("  MATCH %d: Backend=%s, Arch=%s, WarpSize=%d, PTX=%s\n",
-            i, gpu.Backend, gpu.Arch, gpu.WarpSize, gpu.PTXVersion)
+        fmt.Printf("  MATCH %d: Backend=%s, Arch=%s, WarpSize=%d, "+
+            "PTX=%s\n", i, gpu.Backend, gpu.Arch, gpu.WarpSize,
+            gpu.PTXVersion)
     }
 
     fmt.Printf("Incompatible GPUs: %d\n", len(unmatched))
     for i, gpu := range unmatched {
-        fmt.Printf("  NO-MATCH %d: Backend=%s, Arch=%s, WarpSize=%d, PTX=%s\n",
-            i, gpu.Backend, gpu.Arch, gpu.WarpSize, gpu.PTXVersion)
+        fmt.Printf("  NO-MATCH %d: Backend=%s, Arch=%s, WarpSize=%d, "+
+            "PTX=%s\n", i, gpu.Backend, gpu.Arch, gpu.WarpSize,
+            gpu.PTXVersion)
     }
 }
 ```
@@ -463,29 +484,30 @@ configuration. This is useful for testing or CI environments.
 
 #### Stub Mode Usage
 
-Run MCV with the `--stub` flag. It will use the static config and behave as if those
-devices are present.
+Run MCV with the `--stub` flag. It will use the static config and behave as
+if those devices are present.
 
 ## Using MCV image to build cache images
 
-MCV provides a container image called `quay.io/gkm/mcv`. This image
-can be used to wrap a vLLM/Triton cache in an OCI container image
-that can then be pushed to a container registry (without having
-to install mcv locally). This image can also be used as part
-of a [github workflow](./.github/workflows/mcv-build-example-images.yml).
+MCV provides a container image called `quay.io/gkm/mcv`. This image can be
+used to wrap a vLLM/Triton cache in an OCI container image that can then be
+pushed to a container registry (without having to install mcv locally). This
+image can also be used as part of a
+[github workflow](./.github/workflows/mcv-build-example-images.yml).
 
 ### MCV container image with docker
 
-To use docker on the host with an MCV image, you need to
-mount the cache directory to the container and run the following command:
+To use docker on the host with an MCV image, you need to mount the cache
+directory to the container and run the following command:
 
 ```bash
 docker run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
-    /mcv -c -i quay.io/gkm/vector-add-cache:rocm -d /example/vector-add-cache-rocm &&
+    /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
+        -d /example/vector-add-cache-rocm &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
-                  docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
+        docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
   '
 INFO[2025-09-11 16:46:54] Setting log level: info
 INFO[2025-09-11 16:46:54] Using buildah to build the image
@@ -503,8 +525,9 @@ Then on host:
 
 ```bash
 docker load -i <path-to-cache>/example/vector-add-cache-rocm.tar
-24b82d6fef87: Loading layer [==================================================>]  93.18kB/93.18kB
-The image quay.io/gkm/vector-add-cache:rocm already exists, renaming the old one with ID sha256:5dc90b88f536e44e186c5a076afbb7a54389aed6f0ddfa21365ae2c7f79cb21d to empty string
+24b82d6fef87: Loading layer  93.18kB/93.18kB
+The image quay.io/gkm/vector-add-cache:rocm already exists, renaming
+the old one with ID sha256:5dc90b88f536e44e186c5a076afbb7a54389aed6f0ddfa21365ae2c7f79cb21d to empty string
 Loaded image: quay.io/gkm/vector-add-cache:rocm
 ```
 
@@ -518,16 +541,17 @@ quay.io/gkm/vector-add-cache             rocm      8ce4bc2e98ab   15 seconds ago
 
 ### MCV container image with podman
 
-To use podman on the host with an MCV image, you need to
-mount the cache directory to the container and run the following command:
+To use podman on the host with an MCV image, you need to mount the cache
+directory to the container and run the following command:
 
 ```bash
 podman run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
-    /mcv -c -i quay.io/gkm/vector-add-cache:rocm -d /example/vector-add-cache-rocm &&
+    /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
+        -d /example/vector-add-cache-rocm &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
-    oci-archive:/example/vector-add-cache-rocm.oci:quay.io/gkm/vector-add-cache:rocm
+        oci-archive:/example/vector-add-cache-rocm.oci:quay.io/gkm/vector-add-cache:rocm
   '
 ```
 

@@ -4,16 +4,24 @@
 
 MCV supports two vLLM cache formats:
 
-1. **vLLM Triton Cache Format** (legacy) - Stores `triton_cache/` and `inductor_cache/` inside rank directories
-2. **vLLM Binary Cache Format** (new) - Stores prefix directories (e.g., `backbone/`) inside rank directories
+1. **vLLM Triton Cache Format** (legacy) - Stores `triton_cache/` and
+   `inductor_cache/` inside rank directories
+2. **vLLM Binary Cache Format** (new) - Stores prefix directories
+   (e.g., `backbone/`) inside rank directories
 
-Both formats share the same top-level structure: `torch_compile_cache/{hash}/rank_{rank}_{dp_rank}/`
+Both formats share the same top-level structure:
+`torch_compile_cache/{hash}/rank_{rank}_{dp_rank}/`
 
 The key differences are **inside the rank directory**:
-- **Triton format**: Contains `triton_cache/` and `inductor_cache/` subdirectories with unpacked artifacts
-- **Binary format**: Contains prefix directories (e.g., `backbone/`, `eagle_head/`) with `cache_key_factors.json` and artifacts that can be either binary files or unpacked directories
 
-This document describes the **vLLM Binary Cache Format** introduced in recent versions of vLLM.
+- **Triton format**: Contains `triton_cache/` and `inductor_cache/`
+  subdirectories with unpacked artifacts
+- **Binary format**: Contains prefix directories
+  (e.g., `backbone/`, `eagle_head/`) with `cache_key_factors.json`
+  and artifacts that can be either binary files or unpacked directories
+
+This document describes the **vLLM Binary Cache Format** introduced in recent
+versions of vLLM.
 
 ## Binary Cache Format
 
@@ -21,7 +29,7 @@ This document describes the **vLLM Binary Cache Format** introduced in recent ve
 
 The binary cache uses a structured directory layout:
 
-```
+```text
 torch_compile_cache/
 └── {hash}/                           # 10-character cache hash
     └── rank_{rank}_{dp_rank}/        # Per-rank cache
@@ -29,7 +37,7 @@ torch_compile_cache/
             ├── cache_key_factors.json
             ├── vllm_compile_cache.py
             ├── computation_graph.py
-            └── artifact_compile_range_{start}_{end}_subgraph_{i}  # Binary artifacts
+            └── artifact_compile_range_{start}_{end}_subgraph_{i}
 ```
 
 ### Key Components
@@ -37,6 +45,7 @@ torch_compile_cache/
 #### 1. Cache Hash Directory
 
 The hash directory is a 10-character truncated SHA256 hash derived from:
+
 - Code hash (SHA256 of forward code files)
 - Configuration hash (hash of vLLM config)
 - Compiler hash (Inductor compiler state)
@@ -45,6 +54,7 @@ The hash directory is a 10-character truncated SHA256 hash derived from:
 #### 2. Rank Directory
 
 Format: `rank_{rank}_{dp_rank}`
+
 - `{rank}`: Distributed training rank
 - `{dp_rank}`: Data parallel rank
 - Allows multiple ranks to maintain separate caches
@@ -52,12 +62,14 @@ Format: `rank_{rank}_{dp_rank}`
 #### 3. Prefix Directory
 
 Common prefixes:
+
 - `backbone`: Main model component (default)
 - `eagle_head`: Speculative decoding draft model
 
 #### 4. Cache Files
 
 **cache_key_factors.json**: Metadata tracking cache key components
+
 ```json
 {
   "code_hash": "<sha256-hash>",
@@ -72,17 +84,20 @@ Common prefixes:
 }
 ```
 
-**vllm_compile_cache.py**: Python dict mapping compile ranges to artifact handles
+**vllm_compile_cache.py**: Python dict mapping compile ranges to artifact
+handles
 
 **computation_graph.py**: Readable FX graph source code (for debugging)
 
 **artifact_compile_range_* files**: Compiled artifacts
+
 - **Binary format** (default): Single binary file per artifact
 - **Unpacked format**: Directory containing Inductor output files
 
 ## Storage Formats
 
-vLLM supports two storage formats for artifacts, controlled by `VLLM_COMPILE_CACHE_SAVE_FORMAT`:
+vLLM supports two storage formats for artifacts, controlled by
+`VLLM_COMPILE_CACHE_SAVE_FORMAT`:
 
 ### Binary Format (default)
 
@@ -92,7 +107,7 @@ vLLM supports two storage formats for artifacts, controlled by `VLLM_COMPILE_CAC
 - **Inspection**: Cannot easily inspect contents
 - **Use Case**: Production deployments
 
-```
+```text
 {prefix}/
 ├── artifact_compile_range_{start}_{end}_subgraph_0  (file, ~2.7 MB)
 └── artifact_compile_range_{start}_{end}_subgraph_1  (file, ~2.1 MB)
@@ -106,7 +121,7 @@ vLLM supports two storage formats for artifacts, controlled by `VLLM_COMPILE_CAC
 - **Inspection**: Can view and debug generated code
 - **Use Case**: Development and debugging
 
-```
+```text
 {prefix}/
 ├── artifact_compile_range_{start}_{end}_subgraph_0/  (directory)
 │   ├── kernel_0.py
@@ -118,18 +133,20 @@ vLLM supports two storage formats for artifacts, controlled by `VLLM_COMPILE_CAC
 
 ### Container Image Labels
 
-When a binary cache is packaged in a container image, MCV adds the following labels:
+When a binary cache is packaged in a container image, MCV adds the
+following labels:
 
 ```json
 {
   "cache.vllm.image/entry-count": "1",
   "cache.vllm.image/cache-size-bytes": "35702329",
   "cache.vllm.image/format": "binary",
-  "cache.vllm.image/summary": "{\"targets\":[{\"backend\":\"cuda\",\"arch\":\"sm_12.9\",\"warp_size\":32}]}"
+  "cache.vllm.image/summary": "{\"targets\":[...]}"
 }
 ```
 
 **Label Descriptions:**
+
 - `entry-count`: Number of cache hash directories detected
 - `cache-size-bytes`: Total size of the cache in bytes
 - `format`: Storage format (`"binary"` or `"unpacked"`)
@@ -174,9 +191,12 @@ The `manifest.json` file contains comprehensive metadata:
 ```
 
 **Manifest Fields:**
-- `cacheFormat`: vLLM cache structure type (`"binary"` for new binary cache format, `"triton"` for legacy triton cache format)
+
+- `cacheFormat`: vLLM cache structure type (`"binary"` for new binary cache
+  format, `"triton"` for legacy triton cache format)
 - `binary[]`: Array of binary cache entries (one per rank/prefix combination)
-- `cache_save_format`: Actual artifact storage format (`"binary"` or `"unpacked"`)
+- `cache_save_format`: Actual artifact storage format (`"binary"` or
+  `"unpacked"`)
 - `target_device`: Target hardware (`"cuda"`, `"rocm"`, `"tpu"`, `"cpu"`)
 - `env`: Full environment variables from `cache_key_factors.json`
 
@@ -185,6 +205,7 @@ The `manifest.json` file contains comprehensive metadata:
 MCV automatically extracts hardware information from the cache metadata:
 
 ### CUDA
+
 ```json
 {
   "backend": "cuda",
@@ -192,11 +213,13 @@ MCV automatically extracts hardware information from the cache metadata:
   "warp_size": 32
 }
 ```
+
 - **Backend**: Extracted from `VLLM_TARGET_DEVICE`
 - **Arch**: Derived from `VLLM_MAIN_CUDA_VERSION`
 - **Warp Size**: 32 (CUDA default)
 
 ### ROCm/HIP
+
 ```json
 {
   "backend": "rocm",
@@ -204,13 +227,15 @@ MCV automatically extracts hardware information from the cache metadata:
   "warp_size": 64
 }
 ```
+
 - **Backend**: Extracted from `VLLM_TARGET_DEVICE`
 - **Arch**: Detected from ROCm environment variables
 - **Warp Size**: 64 (AMD wavefront size)
 
 ## Format Detection
 
-MCV automatically detects the vLLM cache format by inspecting the filesystem:
+MCV automatically detects the vLLM cache format by inspecting the
+filesystem:
 
 1. **vLLM Binary Cache Detection**:
    - Looks for `rank_X_Y/` directories
@@ -223,22 +248,30 @@ MCV automatically detects the vLLM cache format by inspecting the filesystem:
    - Looks for `triton_cache/` directory
    - Uses legacy vLLM triton cache extraction logic
 
-This filesystem-based detection is more reliable than environment variables, especially when caches are copied between systems.
+This filesystem-based detection is more reliable than environment variables,
+especially when caches are copied between systems.
 
 ### Format Indicators
 
-MCV uses **three distinct format indicators** to describe vLLM caches. Each serves a different purpose:
+MCV uses **three distinct format indicators** to describe vLLM caches. Each
+serves a different purpose:
 
 #### 1. Manifest `cacheFormat` (Cache Structure Type)
 
 **Location**: `manifest.json` → `vllm[].cacheFormat`
-**Values**: `"binary"` or `"triton"`
-**Purpose**: Tells MCV extraction logic which vLLM cache structure to expect inside rank directories
 
-- `"binary"`: vLLM binary cache format - rank directories contain prefix subdirectories (e.g., `backbone/`)
-- `"triton"`: vLLM triton cache format - rank directories contain `triton_cache/` subdirectory
+**Values**: `"binary"` or `"triton"`
+
+**Purpose**: Tells MCV extraction logic which vLLM cache structure to expect
+inside rank directories
+
+- `"binary"`: vLLM binary cache format - rank directories contain prefix
+  subdirectories (e.g., `backbone/`)
+- `"triton"`: vLLM triton cache format - rank directories contain
+  `triton_cache/` subdirectory
 
 **Example**:
+
 ```json
 {
   "vllm": [{
@@ -248,18 +281,25 @@ MCV uses **three distinct format indicators** to describe vLLM caches. Each serv
 }
 ```
 
-This field determines which extraction code path MCV uses and is essential for correctly unpacking the cache from the container image.
+This field determines which extraction code path MCV uses and is essential
+for correctly unpacking the cache from the container image.
 
 #### 2. Manifest `cache_save_format` (Artifact Storage Format)
 
 **Location**: `manifest.json` → `vllm[].binary[].cache_save_format`
-**Values**: `"binary"` or `"unpacked"`
-**Purpose**: Records the actual artifact storage format detected from the filesystem
 
-- `"binary"`: Artifacts are individual files (multiprocess-safe, production use)
-- `"unpacked"`: Artifacts are directories containing Python/Triton source files (debugging use)
+**Values**: `"binary"` or `"unpacked"`
+
+**Purpose**: Records the actual artifact storage format detected from the
+filesystem
+
+- `"binary"`: Artifacts are individual files (multiprocess-safe, production
+  use)
+- `"unpacked"`: Artifacts are directories containing Python/Triton source
+  files (debugging use)
 
 **Example**:
+
 ```json
 {
   "vllm": [{
@@ -275,18 +315,23 @@ This field determines which extraction code path MCV uses and is essential for c
 }
 ```
 
-This field is informational and helps users understand the internal artifact format.
+This field is informational and helps users understand the internal artifact
+format.
 
 #### 3. Image Label `format` (User-Visible Format)
 
 **Location**: OCI image labels → `cache.vllm.image/format`
+
 **Values**: `"binary"` or `"unpacked"`
+
 **Purpose**: Quick user-visible indicator of artifact storage format
 
 - `"binary"`: For vLLM binary cache format with binary artifacts
-- `"unpacked"`: For vLLM triton cache format OR vLLM binary cache format with unpacked artifacts
+- `"unpacked"`: For vLLM triton cache format OR vLLM binary cache format with
+  unpacked artifacts
 
 **Example**:
+
 ```json
 {
   "cache.vllm.image/format": "binary",  // ← Quick indicator for users
@@ -295,34 +340,37 @@ This field is informational and helps users understand the internal artifact for
 }
 ```
 
-This label allows users to quickly inspect cache format using `docker inspect` or `skopeo inspect` without reading the full manifest.
+This label allows users to quickly inspect cache format using `docker
+inspect` or `skopeo inspect` without reading the full manifest.
 
 ### Format Mapping Table
 
-| vLLM Cache Format | Artifact Type | Manifest `cacheFormat` | Manifest `cache_save_format` | Image Label `format` |
-|------------|---------------|------------------------|------------------------------|----------------------|
-| vLLM binary cache with binary artifacts | Files | `"binary"` | `"binary"` | `"binary"` |
-| vLLM binary cache with unpacked artifacts | Directories | `"binary"` | `"unpacked"` | `"unpacked"` |
-| vLLM triton cache (legacy) | Directories | `"triton"` | N/A (not present) | `"unpacked"` |
+| vLLM Format | Artifacts | `cacheFormat` | `cache_save_format` | Label |
+| ----------- | --------- | ------------- | ------------------- | ----- |
+| Binary | Binary files | `"binary"` | `"binary"` | `"binary"` |
+| Triton | Unpacked dirs | `"triton"` | N/A | `"unpacked"` |
 
 **Why Three Indicators?**
 
-- **Manifest `cacheFormat`**: Extraction logic must know what's inside rank directories (`triton_cache/` subdirs vs `{prefix}/` subdirs)
-- **Manifest `cache_save_format`**: Detailed metadata for debugging and compatibility checking
-- **Image Label `format`**: Fast user-facing indicator without parsing full manifest
+- **Manifest `cacheFormat`**: Extraction logic must know what's inside rank
+  directories (`triton_cache/` subdirs vs `{prefix}/` subdirs)
+- **Manifest `cache_save_format`**: Detailed metadata for debugging and
+  compatibility checking
+- **Image Label `format`**: Fast user-facing indicator without parsing full
+  manifest
 
 ## Comparison: vLLM Binary Cache vs vLLM Triton Cache
 
-| Aspect | vLLM Triton Cache (Legacy) | vLLM Binary Cache (New) |
-|--------|----------------------|-------------------|
-| **Top-level Structure** | `torch_compile_cache/{hash}/rank_X_Y/` | `torch_compile_cache/{hash}/rank_X_Y/` |
-| **Inside Rank Directory** | `triton_cache/` + `inductor_cache/` | `{prefix}/` (e.g., `backbone/`) |
-| **Metadata** | Triton kernel JSON files | `cache_key_factors.json` |
-| **Storage** | Always unpacked | Binary or unpacked |
-| **Multiprocess** | Not guaranteed | Safe in binary mode |
-| **Distributed** | Full rank/DP support | Full rank/DP support |
-| **Manifest Key** | `"triton"` | `"binary"` |
-| **Image Label** | `"unpacked"` | `"binary"` or `"unpacked"` |
+| Aspect | Triton (Legacy) | Binary (New) |
+| ------ | --------------- | ------------ |
+| **Structure** | `{hash}/rank_X_Y/` | `{hash}/rank_X_Y/` |
+| **Inside Rank** | `triton_cache/` + `inductor_cache/` | `{prefix}/` |
+| **Metadata** | Triton JSON | `cache_key_factors.json` |
+| **Storage** | Unpacked | Binary/unpacked |
+| **Multiprocess** | No | Yes (binary) |
+| **Distributed** | Full rank/DP | Full rank/DP |
+| **Manifest** | `"triton"` | `"binary"` |
+| **Label** | `"unpacked"` | `"binary"`/`"unpacked"` |
 
 ## Usage Examples
 
@@ -351,12 +399,13 @@ mcv -e -i quay.io/myorg/model-cache:v1
 
 ```bash
 # View image labels
-skopeo inspect docker://quay.io/myorg/model-cache:v1 | jq '.Labels'
+skopeo inspect docker://quay.io/myorg/model-cache:v1 \
+  | jq '.Labels'
 
 # Expected output:
 # {
 #   "cache.vllm.image/format": "binary",
-#   "cache.vllm.image/summary": "{\"targets\":[{\"backend\":\"cuda\",\"arch\":\"sm_12.9\",\"warp_size\":32}]}",
+#   "cache.vllm.image/summary": "{\"targets\":[...]}",
 #   ...
 # }
 ```
@@ -366,7 +415,8 @@ skopeo inspect docker://quay.io/myorg/model-cache:v1 | jq '.Labels'
 Key files in vLLM that implement binary cache:
 
 - `vllm/envs.py:1512-1520` - `VLLM_COMPILE_CACHE_SAVE_FORMAT` definition
-- `vllm/compilation/compiler_interface.py:186-327` - `InductorStandaloneAdaptor`
+- `vllm/compilation/compiler_interface.py:186-327` -
+  `InductorStandaloneAdaptor`
 - `vllm/compilation/backends.py:245-346` - Compilation manager
 - `vllm/compilation/backends.py:904-935` - `cache_key_factors.json` creation
 - `vllm/compilation/backends.py:867-874` - Directory structure creation

@@ -19,7 +19,7 @@ func TestGenerateDockerfile(t *testing.T) {
 	content, err := os.ReadFile(outputPath)
 	assert.NoError(t, err)
 	assert.Contains(t, string(content), "FROM scratch")
-	assert.Contains(t, string(content), "COPY \"./cacheLayer.")
+	assert.Contains(t, string(content), "COPY \"./cacheLayer\" \"./cacheLayer\"")
 	assert.Contains(t, string(content), "COPY \"./manifestLayer/manifest.json")
 }
 

@@ -48,7 +48,7 @@ func initializeLogging() {
 }
 
 func logFatal(message string, err error, exitCode int) {
-	logging.Fatalf("%s: %v", message, err)
+	logging.Errorf("%s: %v", message, err)
 	os.Exit(exitCode)
 }
 
