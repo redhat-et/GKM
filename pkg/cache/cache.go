@@ -245,22 +245,6 @@ func extractCacheAndManifestDirectory(
 		}
 	}
 
-	// Fix up cache JSONs
-	err = filepath.Walk(extractCacheDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasPrefix(info.Name(), "__grp__") && strings.HasSuffix(info.Name(), ".json") {
-			if err := utils.RestoreFullPathsInGroupJSON(path, extractCacheDir); err != nil {
-				logging.Warnf("failed to restore full paths in %s: %v", path, err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error restoring full paths in cache JSON files: %w", err)
-	}
-
 	return extractedDirs, nil
 }
 

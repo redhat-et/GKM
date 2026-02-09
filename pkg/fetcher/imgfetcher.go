@@ -478,20 +478,8 @@ func validateExtractedCacheSize(labels map[string]string, cacheType, extractedDi
 		return fmt.Errorf("failed to calculate extracted cache size: %w", err)
 	}
 
-	// For vanilla Triton cache, allow a small difference due to group JSON path restoration
-	// The RestoreFullPathsInGroupJSON function adds paths during extraction
-	tolerance := int64(0)
-	if cacheType == constants.Triton {
-		// Allow up to 1KB per file for JSON formatting differences
-		tolerance = 1024
-	}
-
-	diff := actualSize - expectedSize
-	if diff < 0 {
-		diff = -diff
-	}
-
-	if diff > tolerance {
+	// Validate exact match - no tolerance needed since we no longer modify files during extraction
+	if actualSize != expectedSize {
 		return fmt.Errorf("cache size mismatch: expected %d bytes, extracted %d bytes (diff: %d)", expectedSize, actualSize, actualSize-expectedSize)
 	}
 
