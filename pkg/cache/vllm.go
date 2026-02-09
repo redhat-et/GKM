@@ -22,6 +22,7 @@ const (
 	cacheVLLMImageEntryCount = cacheVLLMImagePrefix + "/entry-count"
 	cacheVLLMImageCacheSize  = cacheVLLMImagePrefix + "/cache-size-bytes"
 	cacheVLLMImageSummary    = cacheVLLMImagePrefix + "/summary"
+	cacheVLLMImageFormat     = cacheVLLMImagePrefix + "/format"
 )
 
 // VLLMCache represents a VLLM-style compile cache (e.g., torch_inductor or fxgraph)
@@ -34,8 +35,10 @@ type VLLMCache struct {
 }
 
 type VLLMCacheMetadata struct {
-	VllmHash           string       `json:"vllmHash"`
-	TritonCacheEntries []CacheEntry `json:"triton"`
+	VllmHash           string                `json:"vllmHash"`
+	CacheFormat        string                `json:"cacheFormat"` // "triton" or "binary"
+	TritonCacheEntries []CacheEntry          `json:"triton,omitempty"`
+	BinaryCacheEntries []BinaryCacheMetadata `json:"binary,omitempty"`
 }
 
 // DetectVLLMCache walks the given root directory to detect whether VLLM-style cache artifacts exist
@@ -82,8 +85,25 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					continue
 				}
 				count++
+				hashDir := filepath.Join(torchCompileCachePath, entry.Name())
+
+				// Try to detect binary cache format first (newer format)
+				binaryCacheData, binaryErr := detectBinaryCache(hashDir)
+				if binaryErr == nil && len(binaryCacheData) > 0 {
+					logging.Debugf("Detected binary cache format for hash: %s", entry.Name())
+					vllmMetadata := VLLMCacheMetadata{
+						VllmHash:           entry.Name(),
+						CacheFormat:        "binary",
+						BinaryCacheEntries: binaryCacheData,
+					}
+					logging.Debugf("Adding VLLM binary cache metadata: %+v", vllmMetadata)
+					metadata = append(metadata, vllmMetadata)
+					continue
+				}
+
+				// Fall back to triton cache format (older format)
 				var tritonCachePath string
-				err := filepath.WalkDir(filepath.Join(torchCompileCachePath, entry.Name()), func(path string, d fs.DirEntry, err error) error {
+				err := filepath.WalkDir(hashDir, func(path string, d fs.DirEntry, err error) error {
 					if err != nil {
 						return err
 					}
@@ -94,7 +114,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					return nil
 				})
 				if err != nil || tritonCachePath == "" {
-					logging.Warnf("Triton cache path not found for entry: %s", entry.Name())
+					logging.Warnf("Neither binary cache nor triton cache found for entry: %s", entry.Name())
 					continue
 				}
 
@@ -113,10 +133,11 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 				tc = _tc
 				vllmMetadata := VLLMCacheMetadata{
 					VllmHash:           entry.Name(),
+					CacheFormat:        "triton",
 					TritonCacheEntries: tc.Metadata(),
 				}
 
-				logging.Debugf("Adding VLLM metadata: %+v", vllmMetadata)
+				logging.Debugf("Adding VLLM triton cache metadata: %+v", vllmMetadata)
 				metadata = append(metadata, vllmMetadata)
 			}
 		}
@@ -133,6 +154,132 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 	return nil
 }
 
+// detectBinaryCache detects binary cache format in a hash directory
+// It looks for rank_X_Y directories containing binary cache artifacts
+func detectBinaryCache(hashDir string) ([]BinaryCacheMetadata, error) {
+	var binaryCaches []BinaryCacheMetadata
+
+	entries, err := os.ReadDir(hashDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read hash directory: %w", err)
+	}
+
+	// Look for rank_X_Y directories
+	rankDirRegex := regexp.MustCompile(`^rank_\d+_\d+$`)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if !rankDirRegex.MatchString(entry.Name()) {
+			continue
+		}
+
+		rankPath := filepath.Join(hashDir, entry.Name())
+		logging.Debugf("Inspecting rank directory: %s", rankPath)
+
+		// Look for prefix directories (e.g., backbone, eagle_head)
+		prefixEntries, err := os.ReadDir(rankPath)
+		if err != nil {
+			logging.Warnf("Failed to read rank directory %s: %v", rankPath, err)
+			continue
+		}
+
+		for _, prefixEntry := range prefixEntries {
+			if !prefixEntry.IsDir() {
+				continue
+			}
+
+			prefixPath := filepath.Join(rankPath, prefixEntry.Name())
+			logging.Debugf("Inspecting prefix directory: %s", prefixPath)
+
+			// Check for binary cache indicators:
+			// 1. cache_key_factors.json
+			// 2. artifact_compile_range_* files
+			cacheKeyPath := filepath.Join(prefixPath, "cache_key_factors.json")
+			if _, err := os.Stat(cacheKeyPath); os.IsNotExist(err) {
+				logging.Debugf("No cache_key_factors.json in %s, skipping", prefixPath)
+				continue
+			}
+
+			// Read cache key factors
+			var keyFactors CacheKeyFactors
+			data, err := os.ReadFile(cacheKeyPath)
+			if err != nil {
+				logging.Warnf("Failed to read cache_key_factors.json: %v", err)
+				continue
+			}
+			if err := json.Unmarshal(data, &keyFactors); err != nil {
+				logging.Warnf("Failed to parse cache_key_factors.json: %v", err)
+				continue
+			}
+
+			// Count and collect artifact files
+			var artifacts []string
+			artifactRegex := regexp.MustCompile(`^artifact_compile_range_`)
+			prefixFiles, err := os.ReadDir(prefixPath)
+			if err != nil {
+				logging.Warnf("Failed to read prefix directory %s: %v", prefixPath, err)
+				continue
+			}
+
+			// Detect actual format by inspecting the first artifact
+			cacheSaveFormat := "binary"
+			foundFirstArtifact := false
+
+			for _, file := range prefixFiles {
+				if artifactRegex.MatchString(file.Name()) {
+					artifacts = append(artifacts, file.Name())
+
+					// Detect format from the first artifact: directory = unpacked, file = binary
+					if !foundFirstArtifact {
+						if file.IsDir() {
+							cacheSaveFormat = "unpacked"
+						} else {
+							cacheSaveFormat = "binary"
+						}
+						foundFirstArtifact = true
+					}
+				}
+			}
+
+			if len(artifacts) == 0 {
+				logging.Debugf("No binary artifacts found in %s, skipping", prefixPath)
+				continue
+			}
+
+			// Extract target device (could be cuda, rocm, tpu, cpu, etc.)
+			targetDevice := ""
+			if env, ok := keyFactors.Env["VLLM_TARGET_DEVICE"]; ok {
+				if device, ok := env.(string); ok {
+					targetDevice = device
+				}
+			}
+
+			binaryCache := BinaryCacheMetadata{
+				Rank:            entry.Name(),
+				Prefix:          prefixEntry.Name(),
+				ArtifactCount:   len(artifacts),
+				ArtifactNames:   artifacts,
+				CodeHash:        keyFactors.CodeHash,
+				ConfigHash:      keyFactors.ConfigHash,
+				CompilerHash:    keyFactors.CompilerHash,
+				CacheSaveFormat: cacheSaveFormat,
+				TargetDevice:    targetDevice,
+				Env:             keyFactors.Env,
+			}
+
+			logging.Debugf("Found binary cache: %+v", binaryCache)
+			binaryCaches = append(binaryCaches, binaryCache)
+		}
+	}
+
+	if len(binaryCaches) == 0 {
+		return nil, fmt.Errorf("no binary cache detected")
+	}
+
+	return binaryCaches, nil
+}
+
 func (v *VLLMCache) Name() string { return constants.VLLM }
 
 func (v *VLLMCache) EntryCount() int {
@@ -147,11 +294,26 @@ func (v *VLLMCache) CacheSizeBytes() int64 {
 func (v *VLLMCache) Summary() string {
 	// The summary should include the target hardware summary from the Triton cache
 	// as well as any relevant VLLM-specific details (if applicable)
-	// For now, we only include the Triton summary if available
 	var summary *Summary
 	var err error
 
-	if v.tritonCache != nil && len(v.tritonCache.allMetadata) > 0 {
+	// Check if we have binary cache metadata
+	hasBinaryCache := false
+	for _, meta := range v.allMetadata {
+		if meta.CacheFormat == "binary" && len(meta.BinaryCacheEntries) > 0 {
+			hasBinaryCache = true
+			break
+		}
+	}
+
+	if hasBinaryCache {
+		logging.Debugf("Building VLLM summary from binary cache metadata")
+		summary, err = buildBinaryCacheSummary(v.allMetadata)
+		if err != nil {
+			logging.WithError(err).Error("failed to build binary cache summary")
+			return ""
+		}
+	} else if v.tritonCache != nil && len(v.tritonCache.allMetadata) > 0 {
 		logging.Debugf("Building VLLM summary from Triton metadata")
 		tempSummary, tempErr := BuildTritonSummary(v.tritonCache.allMetadata)
 		if tempErr != nil {
@@ -172,11 +334,84 @@ func (v *VLLMCache) Summary() string {
 	return string(jsonData)
 }
 
+// buildBinaryCacheSummary builds a summary from binary cache metadata
+func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
+	targetMap := make(map[string]SummaryTargetInfo)
+
+	for _, meta := range metadata {
+		if meta.CacheFormat != "binary" {
+			continue
+		}
+
+		for _, binaryCache := range meta.BinaryCacheEntries {
+			// Extract target info from the stored environment variables
+			backend := binaryCache.TargetDevice
+			if backend == "" {
+				backend = "cuda" // Default if not specified
+			}
+
+			// Determine arch and warpSize based on backend and env vars
+			arch := "unknown"
+			warpSize := 32 // Default for CUDA
+
+			switch backend {
+			case "rocm", "hip":
+				warpSize = 64 // AMD GPUs use 64-wide wavefronts
+				// Try to extract GPU architecture from env
+				if env, ok := binaryCache.Env["VLLM_ROCM_CUSTOM_PAGED_ATTN"]; ok && env != nil {
+					// ROCm is being used
+					arch = "gfx90a" // Common MI250/MI300 arch, could be extracted more precisely
+				}
+			case "cuda":
+				// Try to extract CUDA architecture
+				if mainVersion, ok := binaryCache.Env["VLLM_MAIN_CUDA_VERSION"]; ok {
+					if version, ok := mainVersion.(string); ok {
+						arch = "sm_" + version
+					}
+				}
+			case "tpu":
+				warpSize = 128 // TPU uses different parallelism model
+			case "cpu":
+				warpSize = 1 // CPU doesn't have warp concept
+			}
+
+			key := fmt.Sprintf("%s-%s-%d", backend, arch, warpSize)
+			if _, exists := targetMap[key]; !exists {
+				targetMap[key] = SummaryTargetInfo{
+					Backend:  backend,
+					Arch:     arch,
+					WarpSize: warpSize,
+				}
+			}
+		}
+	}
+
+	targets := make([]SummaryTargetInfo, 0, len(targetMap))
+	for _, target := range targetMap {
+		targets = append(targets, target)
+	}
+
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("no targets found in binary cache metadata")
+	}
+
+	return &Summary{Targets: targets}, nil
+}
+
 func (v *VLLMCache) Labels() map[string]string {
+	// Determine the cache format from metadata
+	// Default to "unpacked" for triton cache format (older unpacked format)
+	// or "binary" for new binary format
+	cacheFormat := "unpacked"
+	if len(v.allMetadata) > 0 && v.allMetadata[0].CacheFormat == "binary" {
+		cacheFormat = "binary"
+	}
+
 	return map[string]string{
 		cacheVLLMImageEntryCount: strconv.Itoa(v.EntryCount()),
 		cacheVLLMImageCacheSize:  strconv.FormatInt(v.CacheSizeBytes(), 10),
 		cacheVLLMImageSummary:    v.Summary(),
+		cacheVLLMImageFormat:     cacheFormat,
 	}
 }
 
