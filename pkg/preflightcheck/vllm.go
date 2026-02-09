@@ -49,11 +49,12 @@ func CompareVLLMCacheManifestToGPU(manifestPath string, devInfo []devices.Triton
 
 // compareBinaryCacheEntriesToGPU validates binary cache entries against GPU hardware
 func compareBinaryCacheEntriesToGPU(entries []cache.BinaryCacheMetadata, devInfo []devices.TritonGPUInfo) error {
-	for _, entry := range entries {
+	for i := range entries {
+		entry := &entries[i]
 		// Extract hardware info from the binary cache metadata
 		backend := entry.TargetDevice
 		if backend == "" {
-			backend = "cuda" // Default if not specified
+			backend = cache.CUDABackend // Default if not specified
 		}
 
 		// Determine arch and warpSize based on backend and env vars

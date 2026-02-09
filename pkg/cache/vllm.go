@@ -23,6 +23,10 @@ const (
 	cacheVLLMImageCacheSize  = cacheVLLMImagePrefix + "/cache-size-bytes"
 	cacheVLLMImageSummary    = cacheVLLMImagePrefix + "/summary"
 	cacheVLLMImageFormat     = cacheVLLMImagePrefix + "/format"
+
+	// Cache format constants
+	BinaryCacheFormat = "binary"
+	CUDABackend       = "cuda"
 )
 
 // VLLMCache represents a VLLM-style compile cache (e.g., torch_inductor or fxgraph)
@@ -93,7 +97,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					logging.Debugf("Detected binary cache format for hash: %s", entry.Name())
 					vllmMetadata := VLLMCacheMetadata{
 						VllmHash:           entry.Name(),
-						CacheFormat:        "binary",
+						CacheFormat:        BinaryCacheFormat,
 						BinaryCacheEntries: binaryCacheData,
 					}
 					logging.Debugf("Adding VLLM binary cache metadata: %+v", vllmMetadata)
@@ -208,8 +212,8 @@ func detectBinaryCache(hashDir string) ([]BinaryCacheMetadata, error) {
 				logging.Warnf("Failed to read cache_key_factors.json: %v", err)
 				continue
 			}
-			if err := json.Unmarshal(data, &keyFactors); err != nil {
-				logging.Warnf("Failed to parse cache_key_factors.json: %v", err)
+			if unmarshalErr := json.Unmarshal(data, &keyFactors); unmarshalErr != nil {
+				logging.Warnf("Failed to parse cache_key_factors.json: %v", unmarshalErr)
 				continue
 			}
 
@@ -223,7 +227,7 @@ func detectBinaryCache(hashDir string) ([]BinaryCacheMetadata, error) {
 			}
 
 			// Detect actual format by inspecting the first artifact
-			cacheSaveFormat := "binary"
+			cacheSaveFormat := BinaryCacheFormat
 			foundFirstArtifact := false
 
 			for _, file := range prefixFiles {
@@ -300,7 +304,7 @@ func (v *VLLMCache) Summary() string {
 	// Check if we have binary cache metadata
 	hasBinaryCache := false
 	for _, meta := range v.allMetadata {
-		if meta.CacheFormat == "binary" && len(meta.BinaryCacheEntries) > 0 {
+		if meta.CacheFormat == BinaryCacheFormat && len(meta.BinaryCacheEntries) > 0 {
 			hasBinaryCache = true
 			break
 		}
@@ -339,15 +343,16 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 	targetMap := make(map[string]SummaryTargetInfo)
 
 	for _, meta := range metadata {
-		if meta.CacheFormat != "binary" {
+		if meta.CacheFormat != BinaryCacheFormat {
 			continue
 		}
 
-		for _, binaryCache := range meta.BinaryCacheEntries {
+		for i := range meta.BinaryCacheEntries {
+			binaryCache := &meta.BinaryCacheEntries[i]
 			// Extract target info from the stored environment variables
 			backend := binaryCache.TargetDevice
 			if backend == "" {
-				backend = "cuda" // Default if not specified
+				backend = CUDABackend // Default if not specified
 			}
 
 			// Determine arch and warpSize based on backend and env vars
@@ -403,8 +408,8 @@ func (v *VLLMCache) Labels() map[string]string {
 	// Default to "unpacked" for triton cache format (older unpacked format)
 	// or "binary" for new binary format
 	cacheFormat := "unpacked"
-	if len(v.allMetadata) > 0 && v.allMetadata[0].CacheFormat == "binary" {
-		cacheFormat = "binary"
+	if len(v.allMetadata) > 0 && v.allMetadata[0].CacheFormat == BinaryCacheFormat {
+		cacheFormat = BinaryCacheFormat
 	}
 
 	return map[string]string{
