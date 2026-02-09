@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -257,6 +258,11 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 		return fmt.Errorf("could not extract %s Cache: %w", ct, extractErr)
 	}
 
+	// Validate extracted cache size matches image label
+	if err := validateExtractedCacheSize(labels, ct, constants.ExtractCacheDir); err != nil {
+		logging.Warnf("Cache size validation: %v", err)
+	}
+
 	// Full manifest compatibility check (after extraction)
 	manifestPath := filepath.Join(constants.ExtractManifestDir, constants.ManifestFileName)
 	if config.IsGPUEnabled() && config.IsBaremetalEnabled() && !config.IsSkipPrecheckEnabled() {
@@ -365,28 +371,32 @@ func extractDockerImg(img v1.Image, cacheType string) ([]string, error) {
 		return nil, errors.New("number of layers must be greater than zero")
 	}
 
-	layer := layers[len(layers)-1]
-	mt, err := layer.MediaType()
-	if err != nil {
-		return nil, fmt.Errorf("could not get media type: %v", err)
-	}
+	var allDirs []string
+	// Process all layers (cache + manifest)
+	for _, layer := range layers {
+		mt, err := layer.MediaType()
+		if err != nil {
+			return nil, fmt.Errorf("could not get media type: %v", err)
+		}
 
-	// Media type must be application/vnd.docker.image.rootfs.diff.tar.gzip.
-	if mt != types.DockerLayer {
-		return nil, fmt.Errorf("invalid media type %s (expect %s)", mt, types.DockerLayer)
-	}
+		// Media type must be application/vnd.docker.image.rootfs.diff.tar.gzip.
+		if mt != types.DockerLayer {
+			return nil, fmt.Errorf("invalid media type %s (expect %s)", mt, types.DockerLayer)
+		}
 
-	r, err := layer.Compressed()
-	if err != nil {
-		return nil, fmt.Errorf("could not get layer content: %v", err)
-	}
-	defer r.Close()
+		r, err := layer.Compressed()
+		if err != nil {
+			return nil, fmt.Errorf("could not get layer content: %v", err)
+		}
 
-	dirs, err := cache.ExtractCacheDirectory(r, cacheType)
-	if err != nil {
-		return nil, fmt.Errorf("could not extract %s Kernel Cache: %v", cacheType, err)
+		dirs, err := cache.ExtractCacheDirectory(r, cacheType)
+		r.Close()
+		if err != nil {
+			return nil, fmt.Errorf("could not extract %s Kernel Cache: %v", cacheType, err)
+		}
+		allDirs = append(allDirs, dirs...)
 	}
-	return dirs, nil
+	return allDirs, nil
 }
 
 // extractOCIStandardImg extracts the Triton/vLLM Kernel Cache from the
@@ -429,4 +439,62 @@ func extractOCIStandardImg(img v1.Image, cacheType string) ([]string, error) {
 		return nil, fmt.Errorf("could not extract %s Kernel Cache: %v", cacheType, err)
 	}
 	return dirs, nil
+}
+
+// validateExtractedCacheSize validates that the extracted cache size matches the image label
+func validateExtractedCacheSize(labels map[string]string, cacheType, extractedDir string) error {
+	var labelKey string
+	switch cacheType {
+	case constants.Triton:
+		labelKey = "cache.triton.image/cache-size-bytes"
+	case constants.VLLM:
+		labelKey = "cache.vllm.image/cache-size-bytes"
+	default:
+		return fmt.Errorf("unsupported cache type: %s", cacheType)
+	}
+
+	expectedSizeStr, ok := labels[labelKey]
+	if !ok {
+		return fmt.Errorf("cache size label %s not found", labelKey)
+	}
+
+	expectedSize, err := strconv.ParseInt(expectedSizeStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid cache size in label: %v", err)
+	}
+
+	// Calculate actual extracted cache size
+	var actualSize int64
+	err = filepath.Walk(extractedDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			actualSize += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to calculate extracted cache size: %w", err)
+	}
+
+	// For vanilla Triton cache, allow a small difference due to group JSON path restoration
+	// The RestoreFullPathsInGroupJSON function adds paths during extraction
+	tolerance := int64(0)
+	if cacheType == constants.Triton {
+		// Allow up to 1KB per file for JSON formatting differences
+		tolerance = 1024
+	}
+
+	diff := actualSize - expectedSize
+	if diff < 0 {
+		diff = -diff
+	}
+
+	if diff > tolerance {
+		return fmt.Errorf("cache size mismatch: expected %d bytes, extracted %d bytes (diff: %d)", expectedSize, actualSize, actualSize-expectedSize)
+	}
+
+	logging.Infof("Cache size validated: %d bytes (label: %d, extracted: %d)", expectedSize, expectedSize, actualSize)
+	return nil
 }

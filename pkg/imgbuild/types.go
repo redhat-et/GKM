@@ -4,7 +4,7 @@ import "github.com/redhat-et/MCU/mcv/pkg/cache"
 
 const DockerfileTemplate = `FROM scratch
 LABEL org.opencontainers.image.title={{ .ImageTitle }}
-COPY "./{{ .CacheDir }}." "./{{ .CacheDir }}"
+COPY "./{{ .CacheDir }}" "./{{ .CacheDir }}"
 COPY "./{{ .ManifestDir }}/manifest.json" "./{{ .ManifestDir }}/manifest.json"
 `
 
