@@ -21,7 +21,7 @@ import (
 // Options encapsulates configurable settings for cache extraction operations.
 type Options struct {
 	ImageName       string // The name of the OCI image (e.g., quay.io/user/image:tag)
-	CacheDir        string // Path to store the cache; for triton defaults to ~/.triton/cache
+	CacheDir        string // Path to store the extracted cache; if not specified, defaults are: ~/.triton/cache (vanilla Triton), ~/.cache/vllm (vLLM)
 	EnableGPU       *bool  // Whether to enable GPU logic for preflight checks (nil = auto-detect, false = disable, true = force)
 	LogLevel        string // Logging level: debug, info, warning, error
 	EnableBaremetal *bool  // If true, enables full hardware checks including kernel dummy key validation (for baremetal envs only)

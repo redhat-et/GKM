@@ -87,8 +87,8 @@ directory for a Triton Kernel/vLLM model. The details can be found in
 ### vLLM Binary Cache Support
 
 MCV supports both legacy (triton cache) and new (binary cache) vLLM formats:
-- **Binary format**: New rank-based structure with `cache_key_factors.json`
-- **Triton format**: Legacy format with `triton_cache/` directory
+1. **vLLM Triton Cache Format** (legacy) - Stores `triton_cache/` and `inductor_cache/` inside rank directories
+2. **vLLM Binary Cache Format** (new) - Stores prefix directories (e.g., `backbone/`) inside rank directories
 
 For detailed information about vLLM binary cache support, see:
 [vllm-binary-cache.md](./docs/vllm-binary-cache.md)
