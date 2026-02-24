@@ -274,7 +274,7 @@ skopeo inspect containers-storage:quay.io/gkm/vector-add-cache:rocm | jq -r '.La
 To Create an OCI image for a vLLM Cache run the following:
 
 ```bash
-mcv -c -i quay.io/mtahhan/vllm-flash-attention:rocm -d example/vllm-cache
+mcv -c -i quay.io/gkm/cache-examples:vllm-example -d example/vllm-cache
 INFO[2025-09-03 09:04:15] Hardware accelerator(s) detected (2). GPU support enabled.
 INFO[2025-09-03 09:04:15] Using buildah to build the image
 INFO[2025-09-03 09:04:23] Detected cache components: [vllm]
@@ -285,12 +285,12 @@ INFO[2025-09-03 09:04:24] OCI image created successfully.
 To inspect the image labels specifically run:
 
 ```bash
-skopeo inspect containers-storage:quay.io/mtahhan/vllm-flash-attention:rocm
+skopeo inspect containers-storage:quay.io/gkm/cache-examples:vllm-example
 {
-    "Name": "quay.io/mtahhan/vllm-flash-attention",
-    "Digest": "sha256:ed4dad604449aec384cf71ca310b55b71369357596bfa2d38b16697dc314d848",
+    "Name": "quay.io/gkm/cache-examples",
+    "Digest": "sha256:9e731d58adccd608cb18dcefe259acd30ffe976d5e98208a4158ce22c0b5d1e2",
     "RepoTags": [],
-    "Created": "2025-09-03T09:04:23.891933044Z",
+    "Created": "2026-02-10T12:04:38.260317569Z",
     "DockerVersion": "",
     "Labels": {
         "cache.vllm.image/cache-size-bytes": "2269180",
@@ -300,13 +300,13 @@ skopeo inspect containers-storage:quay.io/mtahhan/vllm-flash-attention:rocm
     "Architecture": "amd64",
     "Os": "linux",
     "Layers": [
-        "sha256:088097095e6040fe597c64330f2f2e0f256b31b2243417a8c2a6a38408e2c1da"
+        "sha256:440b5cbd3b76dc17a6012e17fc56341d4894b88ab7a85b12c5e2f6f7c4b80661"
     ],
     "LayersData": [
         {
-            "MIMEType": "application/vnd.oci.image.layer.v1.tar",
-            "Digest": "sha256:088097095e6040fe597c64330f2f2e0f256b31b2243417a8c2a6a38408e2c1da",
-            "Size": 2357760,
+            "MIMEType": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "Digest": "sha256:440b5cbd3b76dc17a6012e17fc56341d4894b88ab7a85b12c5e2f6f7c4b80661",
+            "Size": 250291,
             "Annotations": null
         }
     ],
@@ -317,7 +317,7 @@ skopeo inspect containers-storage:quay.io/mtahhan/vllm-flash-attention:rocm
 To extract the vLLM Cache run the following:
 
 ```bash
-mcv -e -i  quay.io/mtahhan/vllm-flash-attention:rocm
+mcv -e -i quay.io/gkm/cache-examples:vllm-example
 INFO[2025-09-03 09:06:00] Hardware accelerator(s) detected (2). GPU support enabled.
 INFO[2025-09-03 09:06:02] Preflight GPU compatibility check passed.
 INFO[2025-09-03 09:06:02] Preflight completed                           matched="[0 1]" unmatched="[]"
@@ -375,7 +375,7 @@ Upon successful completion, you will see an output similar to:
 ```bash
 Successfully verified SCT...
 tlog entry created with index: 215011903
-Pushing signature to: quay.io/mtahhan/01-vector-add-cache
+Pushing signature to: quay.io/gkm/cache-examples
 ```
 
 ## MCV Client API
@@ -398,7 +398,7 @@ import (
 
 func main() {
     err := client.ExtractCache(client.Options{
-        ImageName:       "quay.io/mtahhan/01-vector-add-cache:latest",
+        ImageName:       "quay.io/gkm/cache-examples:vector-add-cache-cuda",
         CacheDir:        "/tmp/testcache",
         LogLevel:        "debug",
         EnableBaremetal: nil, // or false if explicitly desired
@@ -456,7 +456,7 @@ import (
 
 func main() {
     matched, unmatched, err := client.PreflightCheck(
-        "quay.io/mtahhan/01-vector-add-cache:latest")
+        "quay.io/gkm/cache-examples:vector-add-cache-cuda")
     if err != nil {
         log.Fatalf("Preflight check failed: %v", err)
     }

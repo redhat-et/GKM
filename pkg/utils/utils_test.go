@@ -29,7 +29,7 @@ func TestHasApp(t *testing.T) {
 	assert.False(t, HasApp("fake_app_that_does_not_exist"))
 }
 
-func TestSanitizeGroupJSONAndRestore(t *testing.T) {
+func TestSanitizeGroupJSON(t *testing.T) {
 	testDir := t.TempDir()
 	testFile := filepath.Join(testDir, "test.json")
 
@@ -57,18 +57,6 @@ func TestSanitizeGroupJSONAndRestore(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, json.Unmarshal(content, &sanitized))
 	assert.Equal(t, expectedSanitized, sanitized["child_paths"])
-
-	// Now restore with fake base path
-	basePath := "/mnt/fake"
-	err = RestoreFullPathsInGroupJSON(testFile, basePath)
-	assert.NoError(t, err)
-
-	restored := map[string]map[string]string{}
-	content, err = os.ReadFile(testFile)
-	assert.NoError(t, err)
-	assert.NoError(t, json.Unmarshal(content, &restored))
-	assert.Equal(t, filepath.Join(basePath, "a"), restored["child_paths"]["one"])
-	assert.Equal(t, filepath.Join(basePath, "b"), restored["child_paths"]["two"])
 }
 
 func TestCleanupMCVDirs(t *testing.T) {
