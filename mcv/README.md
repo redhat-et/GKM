@@ -15,7 +15,7 @@ A Model/GPU kernel cache container packaging utility inspired by
 
 ### Kernel Cache artifact and image signing
 
-- Cache artifact signing with with Cosign (intoto)
+- Cache artifact signing with Cosign
 - Container image signing support with Cosign
 
 ## Build Instructions

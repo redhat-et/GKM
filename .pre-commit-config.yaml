@@ -27,4 +27,5 @@ repos:
     rev: v0.21.0
     hooks:
       - id: markdownlint-cli2-rules-docker
-exclude: ^vendor/.*|^config/*|^docs/crds/*
+        exclude: ^mcv/
+exclude: ^vendor/.*|^mcv/vendor/.*|^config/*|^docs/crds/*
