@@ -37,6 +37,11 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.agent.log.level
+          - name: EXTRACT_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.extract.image
           - name: KUBE_NODE_NAME
             valueFrom:
               fieldRef:

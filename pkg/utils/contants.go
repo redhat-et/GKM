@@ -30,24 +30,53 @@ const (
 	// Name of the GKM ConfigMap that is used to control how GKM is Deployed and Functions.
 	GKMConfigName = "gkm-config"
 
-	// CSI Driver Constants
-	CsiDriverName          = "csi.gkm.io"
-	CsiCacheNamespaceIndex = "csi.gkm.io/namespace"
-	CsiCacheNameIndex      = "csi.gkm.io/GKMCache"
-	CsiPodNameIndex        = "csi.storage.k8s.io/pod.name"
-	CsiPodNamespaceIndex   = "csi.storage.k8s.io/pod.namespace"
-	CsiDriverYamlFile      = "./csi-driver.yaml"
+	// Name of the GKM Namespace where Operator and Agent run.
+	GKMDefaultNamespace = "gkm-system"
 
 	// GKMCache and ClusterGKMCache Annotations
-	GMKCacheAnnotationResolvedDigest  = "gkm.io/resolvedDigest"
-	GMKClusterAnnotationMutationSig   = "gkm.io/mutationSig"
-	GMKClusterAnnotationLastMutatedBy = "gkm.io/lastMutatedBy"
+	GKMCacheAnnotationResolvedDigest  = "gkm.io/resolvedDigest"
+	GKMCacheAnnotationCacheSizeBytes  = "gkm.io/cache-size-bytes"
+	GKMClusterAnnotationMutationSig   = "gkm.io/mutationSig"
+	GKMClusterAnnotationLastMutatedBy = "gkm.io/lastMutatedBy"
+
+	// GKMCache and ClusterGKMCache Labels
+	GKMCacheLabelHostname         = "kubernetes.io/hostname"
+	GKMCacheNodeLabelCache        = "gkm.io/gkm-cache"
+	GKMClusterCacheNodeLabelCache = "gkm.io/cluster-gkm-cache"
+	GKMCachePvcMutation           = "gkm.io/pvc-mutation"
+
+	// PV and PVC Labels
+	PvLabelCache         = "cache-name"
+	PvLabelPvcNamespace  = "pvc-namespace"
+	PvLabelNode          = "node"
+	PvLabelDigest        = "digest"
+	PvcLabelCache        = "cache-name"
+	PvcLabelPvcNamespace = "pvc-namespace"
+	PvcLabelNode         = "node"
+	PvcLabelDigest       = "digest"
+
+	// OCI Image Label
+	ImageLabelCacheSizeBytesSubstring = "cache-size-bytes"
+
+	// Job to Extract Cache
+	JobExtractName               = "gkm-kernel-cache-extract"
+	JobExtractImage              = "quay.io/gkm/gkm-extract:latest"
+	JobInitImage                 = "quay.io/fedora/fedora-minimal"
+	JobExtractEnvCacheDir        = "GKM_CACHE_DIR"
+	JobExtractEnvImageUrl        = "GKM_IMAGE_URL"
+	JobExtractEnvNoGpu           = "NO_GPU"
+	JobExtractPvcSourceMountName = "gkm-pvc-source"
+	JobExtractLabelPvc           = "pvc"
+	JobExtractLabelDigest        = "digest"
+	JobExtractLabelNode          = "node"
+	JobTTLSeconds                = 3600 // One hour. Can be overwritten by the value in the configmap
+	JobFSGroup                   = 1000
+	MaxLabelValueLength          = 60 // Labels can only be 63 characters
+	DigestPrefix                 = "sha256:"
+	MountPath                    = "/cache"
 
 	// Kyverno Annotations
 	KyvernoVerifyImagesAnnotation = "kyverno.io/verify-images"
-
-	// GKMCache and ClusterGKMCache Labels
-	GKMCacheLabelHostname = "kubernetes.io/hostname"
 
 	// GKMOperatorFinalizer is the finalizer that holds a ConfigMap from deletion until
 	// cleanup can be performed.
@@ -71,9 +100,10 @@ const (
 	ConfigMapIndexOperatorLogLevel = "gkm.operator.log.level"
 	ConfigMapIndexAgentImage       = "gkm.agent.image"
 	ConfigMapIndexAgentLogLevel    = "gkm.agent.log.level"
-	ConfigMapIndexCsiImage         = "gkm.csi.image"
-	ConfigMapIndexCsiLogLevel      = "gkm.csi.log.level"
+	ConfigMapIndexExtractImage     = "gkm.extract.image"
+	ConfigMapIndexExtractLogLevel  = "gkm.extract.log.level"
 	ConfigMapIndexNoGpu            = "gkm.nogpu"
+	ConfigMapIndexKindCluster      = "gkm.kind.cluster"
 	ConfigMapIndexKyvernoEnabled   = "gkm.kyverno.enabled"
 
 	// Duration for Kubernetes to Retry a failed request

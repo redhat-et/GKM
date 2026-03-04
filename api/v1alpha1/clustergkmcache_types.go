@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -85,6 +86,26 @@ func (cache ClusterGKMCache) GetName() string {
 
 func (cache ClusterGKMCache) GetNamespace() string {
 	return ""
+}
+
+func (cache ClusterGKMCache) GetPodTemplate() *PodTemplate {
+	return cache.Spec.PodTemplate
+}
+
+func (cache ClusterGKMCache) GetStorageClassName() string {
+	return cache.Spec.StorageClassName
+}
+
+func (cache ClusterGKMCache) GetAccessMode() []corev1.PersistentVolumeAccessMode {
+	return cache.Spec.AccessModes
+}
+
+func (cache ClusterGKMCache) GetWorkloadNamespaces() []string {
+	return cache.Spec.WorkloadNamespaces
+}
+
+func (cache ClusterGKMCache) GetPvcOwner() PvcOwner {
+	return cache.Status.PvcOwner
 }
 
 func (cache ClusterGKMCache) GetAnnotations() map[string]string {

@@ -58,8 +58,8 @@ jobs:
 
           - registry: quay.io
             repository: gkm
-            image: gkm-csi-plugin
-            dockerfile: ./Containerfile.gkm-csi
+            image: gkm-extract
+            dockerfile: ./Containerfile.gkm-extract
             context: .
             tags: |
               type=ref,event=branch

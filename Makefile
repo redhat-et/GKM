@@ -55,6 +55,9 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 # BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
 BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 
+# WEBHOOK_DIRS is added so controller-gen will pick up the Pod Webhook
+WEBHOOK_DIRS=./...
+
 # USE_IMAGE_DIGESTS defines if images are resolved via tags or digests
 # You can enable this value if you would like to use SHA Based Digests
 # To enable set flag to true
@@ -66,13 +69,15 @@ endif
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.39.2
+
 # Image URL to use all building/pushing image targets
 QUAY_USER ?= gkm
 IMAGE_TAG ?= latest
 REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
-CSI_IMG ?=$(REPO)/gkm-csi-plugin:$(IMAGE_TAG)
+EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -189,12 +194,12 @@ build-gkm-operator:
 build-gkm-agent:
 	${GO_BUILD_FLAGS} CGO_ENABLED=$(CGO_ENABLED) go build -o bin/gkm-agent ./agent
 
-.PHONY: build-csi
-build-csi:
-	${GO_BUILD_FLAGS} CGO_ENABLED=$(CGO_ENABLED) go build -o bin/gkm-csi-plugin ./csi-plugin
+.PHONY: build-gkm-extract
+build-gkm-extract:
+	${GO_BUILD_FLAGS} CGO_ENABLED=$(CGO_ENABLED) go build -o bin/gkm-extract ./gkm-extract
 
 .PHONY: build
-build: manifests generate fmt vet build-gkm-operator build-gkm-agent build-csi ## Build all binaries.
+build: manifests generate fmt vet build-gkm-operator build-gkm-agent build-gkm-extract ## Build all binaries.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -208,21 +213,21 @@ build-image-operator:
 build-image-agent:
 	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --build-arg NO_GPU=$(NO_GPU_BUILD) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
 
-.PHONY: build-image-csi
-build-image-csi:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-csi -t ${CSI_IMG} .
+.PHONY: build-image-gkm-extract
+build-image-gkm-extract:
+	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${EXTRACT_IMG} .
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
-build-images: build-image-operator build-image-agent build-image-csi ## Build all container images.
+build-images: build-image-operator build-image-agent build-image-gkm-extract ## Build all container images.
 
 .PHONY: push-images
 push-images: ## Push all container image.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_IMG}
-	$(CONTAINER_TOOL) push ${CSI_IMG}
+	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
 
 # Mapping old commands after rename
 .PHONY: docker-build
@@ -291,19 +296,18 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-	cd config/csi-plugin && $(KUSTOMIZE) edit set image quay.io/gkm/gkm-csi-plugin=${CSI_IMG}
 ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 else
 	cd config/configMap && \
 	  $(SED) \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 endif
 ifneq ($(KYVERNO_ENABLED),true)
@@ -338,9 +342,11 @@ undeploy-force: ## Same as "make undeploy" but also delete any dependencies.
 .PHONY: deploy-examples
 deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/config.
 	@echo "Create Namespace based GKMCache"
-	$(KUBECTL) apply -f examples/namespace/
+	$(KUBECTL) apply -f examples/namespace/RWO/
+	$(KUBECTL) apply -f examples/namespace/ROX/
 	@echo "Create Cluster based ClusterGKMCache"
-	$(KUBECTL) apply -f examples/cluster/
+	$(KUBECTL) apply -f examples/cluster/RWO/
+	$(KUBECTL) apply -f examples/cluster/ROX/
 
 .PHONY: undeploy-examples
 undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.
@@ -350,9 +356,8 @@ undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/
 	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/cluster/
 
 ##@ Kind Cluster Management
-
-KIND_GPU_SIM_SCRIPT := https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh
 KIND_CLUSTER_NAME ?= kind-gpu-sim
+CERT_MGR_VERSION = v1.19.4
 
 # GPU Type (either "rocm" or "nvidia")
 # In a KIND Cluster, NO_GPU is true and GPU_TYPE is the simulated GPU type.
@@ -367,10 +372,10 @@ GPU_TYPE ?= rocm
 # export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
 .PHONY: get-example-images
 get-example-images:
-	$(CONTAINER_TOOL) pull quay.io/gkm/vector-add-cache:rocm
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/vector-add-cache:rocm --cluster-name=$(KIND_CLUSTER_NAME)
+	$(CONTAINER_TOOL) pull quay.io/gkm/cache-examples:vector-add-cache-rocm-v2
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/cache-examples:vector-add-cache-rocm-v2 --cluster-name=$(KIND_CLUSTER_NAME)
 	$(CONTAINER_TOOL) pull quay.io/gkm/cache-examples:vector-add-cache-rocm
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/cache-examples:vector-add-cache-rocm --cluster-name=$(KIND_CLUSTER_NAME)
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/cache-examples:vector-add-cache-rocm --cluster-name=$(KIND_CLUSTER_NAME)
 
 .PHONY: deploy-webhook-certs
 deploy-webhook-certs:
@@ -393,16 +398,16 @@ rotate-webhook-secret:
 	$(KUSTOMIZE) build config/secret | $(KUBECTL) apply -f -
 
 .PHONY: get-cert-manager-images
-get-cert-manager-images:
+get-cert-manager-images: kind-gpu-sim-script
 	@echo "Getting Images ..."
-	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-controller:v1.18.0
-	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-cainjector:v1.18.0
-	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-webhook:v1.18.0
+	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-controller:$(CERT_MGR_VERSION)
+	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-cainjector:$(CERT_MGR_VERSION)
+	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-webhook:$(CERT_MGR_VERSION)
 	@if [[ "$$($(KUBECTL) get nodes -o jsonpath='{.items[*].metadata.name}')" =~ "kind" ]]; then \
 		echo "Kind detected – loading cert-manager images to kind..."; \
-		wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-controller:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME); \
-		wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-cainjector:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME); \
-		wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-webhook:v1.18.0 --cluster-name=$(KIND_CLUSTER_NAME); \
+		cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-controller:$(CERT_MGR_VERSION) --cluster-name=$(KIND_CLUSTER_NAME); \
+		cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-cainjector:$(CERT_MGR_VERSION) --cluster-name=$(KIND_CLUSTER_NAME); \
+		cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/jetstack/cert-manager-webhook:$(CERT_MGR_VERSION) --cluster-name=$(KIND_CLUSTER_NAME); \
 	fi
 
 .PHONY: deploy-cert-manager
@@ -486,19 +491,19 @@ undeploy-kyverno: ## Undeploy Kyverno
 ##@ Kind Cluster Management
 
 .PHONY: setup-kind
-setup-kind:
+setup-kind: kind-gpu-sim-script
 	@echo "Creating Kind GPU cluster with GPU type: $(GPU_TYPE) and cluster name: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name=$(KIND_CLUSTER_NAME)
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) created successfully."
 
 .PHONY: kind-load-images
-kind-load-images: get-example-images
+kind-load-images: kind-gpu-sim-script get-example-images
 	@echo "Loading operator image ${OPERATOR_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading csi-driver image ${CSI_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${CSI_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Loading gkm-extract image ${EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
 
@@ -523,10 +528,12 @@ endif
 
 .PHONY: deploy-on-kind
 deploy-on-kind: kind-load-images tmp-cleanup
+	@echo "Add label gkm-test-node=true to node kind-gpu-sim-worker."
+	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
+	@echo "Add label gkm-test-node=false to node kind-gpu-sim-worker2."
+	$(KUBECTL) label node kind-gpu-sim-worker2 gkm-test-node=false --overwrite
 	## NOTE: config/kind-gpu is an overlay of config/default
 	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
-	@echo "Add label gkm-test-node= to node kind-gpu-sim-worker."
-	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 
 .PHONY: redeploy-on-kind
 redeploy-on-kind: ## Redeploy controller and agent to Kind GPU cluster after run-on-kind and undeploy-on-kind have been called. Skips some onetime steps in deploy.
@@ -543,9 +550,9 @@ undeploy-on-kind-force: ## Same as "make undeploy-on-kind" but also delete any d
 	$(MAKE) undeploy-on-kind FORCE=--force
 
 .PHONY: destroy-kind
-destroy-kind: ## Delete the Kind GPU cluster
+destroy-kind: kind-gpu-sim-script ## Delete the Kind GPU cluster
 	@echo "Deleting Kind GPU cluster: $(KIND_CLUSTER_NAME)"
-	wget -qO- $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name=$(KIND_CLUSTER_NAME)
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
 
 ##@ Dependencies
@@ -562,6 +569,8 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 UNDEPLOY_SCRIPT ?= $(shell pwd)/hack/undeploy.sh
+KIND_GPU_SIM_SCRIPT_URL := https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh
+KIND_GPU_SIM_SCRIPT := $(LOCALBIN)/kind-gpu-sim.sh
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
@@ -589,6 +598,15 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: kind-gpu-sim-script
+kind-gpu-sim-script: $(KIND_GPU_SIM_SCRIPT) ## Download  kind-gpu-sim-script locally if necessary.
+$(KIND_GPU_SIM_SCRIPT): $(LOCALBIN)
+	if [ ! -f $(KIND_GPU_SIM_SCRIPT) ]; then \
+		echo "Downloading $(KIND_GPU_SIM_SCRIPT)"; \
+		wget -P $(LOCALBIN) $(KIND_GPU_SIM_SCRIPT_URL); \
+		chmod +x $(KIND_GPU_SIM_SCRIPT); \
+	fi
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
@@ -628,8 +646,9 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/operator && $(KUSTOMIZE) edit set image controller=$(OPERATOR_IMG)
 	cd config/configMap && \
-	  $(SED) -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	      -e 's@gkm\.csi\.image=.*@gkm.csi.image=$(CSI_IMG)@' \
+	  $(SED) \
+	      -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	      -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
 ifneq ($(KYVERNO_ENABLED),true)
 	cd config/configMap && \

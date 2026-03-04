@@ -89,6 +89,11 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.operator.log.level
+          - name: EXTRACT_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.extract.image
           - name: HOME
             value: /run/gkm
           - name: MUTATION_SIGNING_KEY
@@ -123,34 +128,6 @@ spec:
             readOnly: true
           - name: sigstore-cache
             mountPath: /var/run/gkm
-
-      - name: csi-provisioner
-        image: k8s.gcr.io/sig-storage/csi-provisioner:v2.2.0
-        imagePullPolicy: "IfNotPresent"
-        args:
-          - "-v=5"
-          - "--csi-address=$(ADDRESS)"
-          - "--timeout=30s"
-          - "--default-fstype=ext4"
-        env:
-          - name: ADDRESS
-            value: /csi/csi.sock
-        volumeMounts:
-          - name: socket-dir
-            mountPath: /csi
-      - name: csi-attacher
-        image: k8s.gcr.io/sig-storage/csi-attacher:v3.1.0
-        imagePullPolicy: "IfNotPresent"
-        args:
-          - "--csi-address=$(ADDRESS)"
-          - "--timeout=30s"
-          - "--v=5"
-        env:
-          - name: ADDRESS
-            value: /csi/csi.sock
-        volumeMounts:
-          - name: socket-dir
-            mountPath: /csi
 
       serviceAccountName: operator
       terminationGracePeriodSeconds: 10
