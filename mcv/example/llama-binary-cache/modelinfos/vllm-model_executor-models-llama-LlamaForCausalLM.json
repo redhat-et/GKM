@@ -1,0 +1,24 @@
+{
+  "hash": "a9013536a88eca40c49613d301e4d8ae",
+  "modelinfo": {
+    "architecture": "LlamaForCausalLM",
+    "is_text_generation_model": true,
+    "is_pooling_model": false,
+    "attn_type": "decoder",
+    "default_seq_pooling_type": "LAST",
+    "default_tok_pooling_type": "ALL",
+    "supports_cross_encoding": false,
+    "supports_multimodal": false,
+    "supports_multimodal_raw_input_only": false,
+    "requires_raw_input_tokens": false,
+    "supports_multimodal_encoder_tp_data": false,
+    "supports_pp": true,
+    "has_inner_state": false,
+    "is_attention_free": false,
+    "is_hybrid": false,
+    "has_noops": false,
+    "supports_mamba_prefix_caching": false,
+    "supports_transcription": false,
+    "supports_transcription_only": false
+  }
+}
