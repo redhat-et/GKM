@@ -182,6 +182,81 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) reconcileCommonOperator(
 		}
 
 		if !reconciler.isBeingDeleted(&gkmCache) {
+			// Ensure PVC exists for this cache (PVC-based storage)
+			pvc, err := GetPVC(ctx, r.Client, &gkmCache)
+			if err != nil {
+				r.Logger.Error(err, "failed to get PVC",
+					"Object", r.CrdCacheStr,
+					"Namespace", gkmCache.GetNamespace(),
+					"Name", gkmCache.GetName())
+				errorHit = true
+				continue
+			}
+
+			if pvc == nil {
+				// PVC doesn't exist, create it
+				r.Logger.Info("Creating PVC for cache",
+					"Object", r.CrdCacheStr,
+					"Namespace", gkmCache.GetNamespace(),
+					"Name", gkmCache.GetName())
+
+				pvc, err = CreatePVC(ctx, r.Client, &gkmCache, resolvedDigest)
+				if err != nil {
+					r.Logger.Error(err, "failed to create PVC",
+						"Object", r.CrdCacheStr,
+						"Namespace", gkmCache.GetNamespace(),
+						"Name", gkmCache.GetName())
+					errorHit = true
+					continue
+				}
+
+				// Update cache status with PVC information
+				gkmCacheStatus := gkmCache.GetStatus().DeepCopy()
+				gkmCacheStatus.PvcName = pvc.Name
+				gkmCacheStatus.PvcSize = GetPVCSize(&gkmCache)
+				gkmCacheStatus.LastUpdated = metav1.Now()
+
+				if err := reconciler.cacheUpdateStatus(ctx, &gkmCache, gkmCacheStatus, "PVC Created"); err != nil {
+					r.Logger.Error(err, "failed to update cache status with PVC info",
+						"Object", r.CrdCacheStr,
+						"Namespace", gkmCache.GetNamespace(),
+						"Name", gkmCache.GetName())
+					errorHit = true
+					continue
+				}
+
+				// PVC created, return and let next reconcile handle the rest
+				return ctrl.Result{Requeue: true}, nil
+			} else {
+				// PVC exists, check if status needs updating
+				gkmCacheStatus := gkmCache.GetStatus()
+				if gkmCacheStatus.PvcName == "" {
+					// Status doesn't have PVC name yet, update it
+					gkmCacheStatus = gkmCacheStatus.DeepCopy()
+					gkmCacheStatus.PvcName = pvc.Name
+					gkmCacheStatus.PvcSize = GetPVCActualSize(pvc)
+					gkmCacheStatus.LastUpdated = metav1.Now()
+
+					if err := reconciler.cacheUpdateStatus(ctx, &gkmCache, gkmCacheStatus, "PVC Info Updated"); err != nil {
+						r.Logger.Error(err, "failed to update cache status with PVC info",
+							"Object", r.CrdCacheStr,
+							"Namespace", gkmCache.GetNamespace(),
+							"Name", gkmCache.GetName())
+						errorHit = true
+						continue
+					}
+					// Status updated, return and let next reconcile handle the rest
+					return ctrl.Result{Requeue: true}, nil
+				}
+
+				r.Logger.V(1).Info("PVC exists for cache",
+					"PVCName", pvc.Name,
+					"Status", pvc.Status.Phase,
+					"ExtractionStatus", GetExtractionStatus(pvc))
+			}
+		}
+
+		if !reconciler.isBeingDeleted(&gkmCache) {
 			// Add Finalizer to GKMCache or ClusterGKMCache if not there. This is a KubeAPI call,
 			// so return if finalizer needed to be added.
 			changed, err := reconciler.cacheAddFinalizer(ctx, &gkmCache)

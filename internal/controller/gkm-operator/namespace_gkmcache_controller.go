@@ -34,6 +34,7 @@ import (
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches/finalizers,verbs=update
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcachenodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
 // GKMCacheOperatorReconciler reconciles a GKMCache Status object
 type GKMCacheOperatorReconciler struct {
