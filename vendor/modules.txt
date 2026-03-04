@@ -72,9 +72,6 @@ github.com/clipperhouse/stringish
 ## explicit; go 1.18
 github.com/clipperhouse/uax29/v2/graphemes
 github.com/clipperhouse/uax29/v2/internal/iterators
-# github.com/container-storage-interface/spec v1.11.0
-## explicit; go 1.18
-github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/errdefs v1.0.0
 ## explicit; go 1.20
 github.com/containerd/errdefs
@@ -378,7 +375,6 @@ github.com/godbus/dbus/v5
 # github.com/golang/protobuf v1.5.4
 ## explicit; go 1.17
 github.com/golang/protobuf/proto
-github.com/golang/protobuf/ptypes/wrappers
 # github.com/golang/snappy v0.0.4
 ## explicit
 github.com/golang/snappy
@@ -577,12 +573,6 @@ github.com/letsencrypt/boulder/revocation
 github.com/manifoldco/promptui
 github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
-# github.com/mattn/go-colorable v0.1.14
-## explicit; go 1.18
-github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.20
-## explicit; go 1.15
-github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.19
 ## explicit; go 1.20
 github.com/mattn/go-runewidth
@@ -763,12 +753,6 @@ github.com/redhat-et/GKM/mcv/pkg/fetcher
 github.com/redhat-et/GKM/mcv/pkg/logformat
 github.com/redhat-et/GKM/mcv/pkg/preflightcheck
 github.com/redhat-et/GKM/mcv/pkg/utils
-# github.com/rs/zerolog v1.34.0
-## explicit; go 1.15
-github.com/rs/zerolog
-github.com/rs/zerolog/internal/cbor
-github.com/rs/zerolog/internal/json
-github.com/rs/zerolog/log
 # github.com/sassoftware/relic v7.2.1+incompatible
 ## explicit
 github.com/sassoftware/relic/lib/pkcs7
@@ -1985,18 +1969,12 @@ k8s.io/kube-openapi/pkg/validation/errors
 k8s.io/kube-openapi/pkg/validation/spec
 k8s.io/kube-openapi/pkg/validation/strfmt
 k8s.io/kube-openapi/pkg/validation/strfmt/bson
-# k8s.io/mount-utils v0.33.2
-## explicit; go 1.24.0
-k8s.io/mount-utils
 # k8s.io/utils v0.0.0-20260106112306-0fe9cd71b2f8
 ## explicit; go 1.23
 k8s.io/utils/buffer
 k8s.io/utils/clock
-k8s.io/utils/exec
 k8s.io/utils/internal/third_party/forked/golang/golang-lru
 k8s.io/utils/internal/third_party/forked/golang/net
-k8s.io/utils/io
-k8s.io/utils/keymutex
 k8s.io/utils/lru
 k8s.io/utils/net
 k8s.io/utils/path
