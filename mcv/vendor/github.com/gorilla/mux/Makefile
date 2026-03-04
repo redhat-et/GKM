@@ -12,7 +12,7 @@ golangci-lint:
 	$(if $(GO_LINT), ,go install $(GO_LINT_URI))
 	@echo "##### Running golangci-lint"
 	golangci-lint run -v
-	
+
 .PHONY: gosec
 gosec:
 	$(if $(GO_SEC), ,go install $(GO_SEC_URI))

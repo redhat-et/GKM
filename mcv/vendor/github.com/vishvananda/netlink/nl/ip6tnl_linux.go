@@ -15,7 +15,3 @@ const (
 	LWTUNNEL_IP6_OPTS // not implemented
 	__LWTUNNEL_IP6_MAX
 )
-
-
-
-

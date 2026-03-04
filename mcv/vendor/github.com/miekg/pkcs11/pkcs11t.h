@@ -4,7 +4,7 @@
  * IMPLIED OR EXPRESS WARRANTY; there is no warranty of MERCHANTABILITY, FITNESS FOR A
  * PARTICULAR PURPOSE or NONINFRINGEMENT of the rights of others.
  */
-        
+
 /* Latest version of the specification:
  * http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/pkcs11-base-v2.40.html
  */
@@ -2044,4 +2044,3 @@ typedef CK_SEED_CBC_ENCRYPT_DATA_PARAMS CK_PTR \
                                         CK_SEED_CBC_ENCRYPT_DATA_PARAMS_PTR;
 
 #endif /* _PKCS11T_H_ */
-

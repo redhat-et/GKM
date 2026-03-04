@@ -175,7 +175,7 @@ class GraphModule(torch.nn.Module):
         l_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_ = L_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_
         l_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_ = L_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_
         l_self_modules_norm_parameters_weight_ = L_self_modules_norm_parameters_weight_
-        
+
         # No stacktrace found for following nodes
         submod_0 = self.submod_0(l_input_ids_, s0, l_self_modules_embed_tokens_parameters_weight_, l_self_modules_layers_modules_0_modules_input_layernorm_parameters_weight_, l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_bias_, l_positions_, l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_);  l_input_ids_ = l_self_modules_embed_tokens_parameters_weight_ = l_self_modules_layers_modules_0_modules_input_layernorm_parameters_weight_ = l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
         getitem = submod_0[0]
@@ -324,4108 +324,4107 @@ class GraphModule(torch.nn.Module):
         submod_47 = self.submod_47(getitem_93, s0, getitem_94, getitem_95, getitem_96);  getitem_93 = getitem_94 = getitem_95 = submod_47 = None
         submod_48 = self.submod_48(getitem_96, s0, l_self_modules_layers_modules_23_modules_self_attn_modules_o_proj_parameters_weight_, l_self_modules_layers_modules_23_modules_post_attention_layernorm_parameters_weight_, getitem_4, l_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_, l_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_, l_self_modules_norm_parameters_weight_);  getitem_96 = s0 = l_self_modules_layers_modules_23_modules_self_attn_modules_o_proj_parameters_weight_ = l_self_modules_layers_modules_23_modules_post_attention_layernorm_parameters_weight_ = getitem_4 = l_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_ = l_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_ = l_self_modules_norm_parameters_weight_ = None
         return (submod_48,)
-        
+
     class submod_0(torch.nn.Module):
         def forward(self, l_input_ids_: "i32[s0]", s0: "Sym(s0)", l_self_modules_embed_tokens_parameters_weight_: "bf16[151936, 1024]", l_self_modules_layers_modules_0_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/vocab_parallel_embedding.py:418 in forward, code: masked_input.long())
             long: "i64[s0]" = l_input_ids_.long();  l_input_ids_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/vocab_parallel_embedding.py:49 in embedding, code: return F.embedding(input_, layer.weight)
             embedding: "bf16[s0, 1024]" = torch.nn.functional.embedding(long, l_self_modules_embed_tokens_parameters_weight_);  long = l_self_modules_embed_tokens_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/torch/_dynamo/polyfills/__init__.py:156 in instantiate_user_defined_class_object, code: obj.__init__(*args, **kwargs)
             _log_api_usage_once = torch._C._log_api_usage_once('python.nn_module');  _log_api_usage_once = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:185 in forward_cuda, code: return norm_func(x, self.weight.data, self.variance_epsilon)
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_0_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_0_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:22 in rms_norm, code: out = torch.empty_like(x)
             empty_like: "bf16[s0, 1024]" = torch.empty_like(embedding)
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:280 in rms_norm, code: input_contiguous = input.contiguous()
             contiguous: "bf16[s0, 1024]" = embedding.contiguous()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:281 in rms_norm, code: torch.ops._C.rms_norm(out, input_contiguous, weight, epsilon)
             rms_norm = torch.ops._C.rms_norm(empty_like, contiguous, _get_data_attr, 1e-06);  contiguous = _get_data_attr = rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 3072]" = torch._C._nn.linear(empty_like, l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_bias_);  empty_like = l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_0_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear.split([1024, 1024, 1024], dim = -1);  linear = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view[(Ellipsis, slice(64, None, None))];  view = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_1: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_1[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_1[(Ellipsis, slice(64, None, None))];  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_2: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_3: "bf16[s0, 16, 64]" = empty.view(-1, 16, 64);  empty = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_4: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_2, view_4, view_5, view_3, embedding)
-            
+
     class submod_1(torch.nn.Module):
         def forward(self, query_2: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_2: "bf16[s0, 16, 64]", value: "bf16[s0, 16, 64]", output_1: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_2, key_2, value, output_1, 'model.layers.0.self_attn.attn');  query_2 = key_2 = value = output_1 = unified_attention_with_output = None
             return ()
-            
+
     class submod_2(torch.nn.Module):
         def forward(self, output_1: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_0_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_0_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_0_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_0_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_1_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_1_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_1_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_1.view(-1, 1024);  output_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_0_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_0_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_0_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_0_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_0_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_0_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_0_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_0_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_1_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_1_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_1_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_1_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_1_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_1_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_3(torch.nn.Module):
         def forward(self, query_5: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_5: "bf16[s0, 16, 64]", value_1: "bf16[s0, 16, 64]", output_3: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_5, key_5, value_1, output_3, 'model.layers.1.self_attn.attn');  query_5 = key_5 = value_1 = output_3 = unified_attention_with_output = None
             return ()
-            
+
     class submod_4(torch.nn.Module):
         def forward(self, output_3: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_1_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_1_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_1_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_1_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_2_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_2_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_2_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_3.view(-1, 1024);  output_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_1_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_1_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_1_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_1_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_1_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_1_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_1_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_1_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_2_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_2_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_2_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_2_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_2_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_2_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_5(torch.nn.Module):
         def forward(self, query_8: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_8: "bf16[s0, 16, 64]", value_2: "bf16[s0, 16, 64]", output_5: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_8, key_8, value_2, output_5, 'model.layers.2.self_attn.attn');  query_8 = key_8 = value_2 = output_5 = unified_attention_with_output = None
             return ()
-            
+
     class submod_6(torch.nn.Module):
         def forward(self, output_5: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_2_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_2_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_2_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_2_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_3_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_3_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_3_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_5.view(-1, 1024);  output_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_2_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_2_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_2_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_2_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_2_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_2_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_2_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_2_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_3_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_3_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_3_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_3_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_3_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_3_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_7(torch.nn.Module):
         def forward(self, query_11: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_11: "bf16[s0, 16, 64]", value_3: "bf16[s0, 16, 64]", output_7: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_11, key_11, value_3, output_7, 'model.layers.3.self_attn.attn');  query_11 = key_11 = value_3 = output_7 = unified_attention_with_output = None
             return ()
-            
+
     class submod_8(torch.nn.Module):
         def forward(self, output_7: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_3_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_3_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_3_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_3_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_4_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_4_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_4_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_7.view(-1, 1024);  output_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_3_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_3_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_3_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_3_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_3_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_3_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_3_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_3_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_4_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_4_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_4_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_4_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_4_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_4_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_9(torch.nn.Module):
         def forward(self, query_14: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_14: "bf16[s0, 16, 64]", value_4: "bf16[s0, 16, 64]", output_9: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_14, key_14, value_4, output_9, 'model.layers.4.self_attn.attn');  query_14 = key_14 = value_4 = output_9 = unified_attention_with_output = None
             return ()
-            
+
     class submod_10(torch.nn.Module):
         def forward(self, output_9: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_4_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_4_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_4_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_4_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_5_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_5_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_5_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_9.view(-1, 1024);  output_9 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_4_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_4_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_4_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_4_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_4_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_4_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_4_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_4_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_5_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_5_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_5_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_5_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_5_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_5_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_11(torch.nn.Module):
         def forward(self, query_17: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_17: "bf16[s0, 16, 64]", value_5: "bf16[s0, 16, 64]", output_11: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_17, key_17, value_5, output_11, 'model.layers.5.self_attn.attn');  query_17 = key_17 = value_5 = output_11 = unified_attention_with_output = None
             return ()
-            
+
     class submod_12(torch.nn.Module):
         def forward(self, output_11: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_5_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_5_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_5_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_5_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_6_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_6_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_6_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_11.view(-1, 1024);  output_11 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_5_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_5_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_5_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_5_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_5_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_5_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_5_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_5_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_6_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_6_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_6_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_6_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_6_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_6_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_13(torch.nn.Module):
         def forward(self, query_20: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_20: "bf16[s0, 16, 64]", value_6: "bf16[s0, 16, 64]", output_13: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_20, key_20, value_6, output_13, 'model.layers.6.self_attn.attn');  query_20 = key_20 = value_6 = output_13 = unified_attention_with_output = None
             return ()
-            
+
     class submod_14(torch.nn.Module):
         def forward(self, output_13: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_6_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_6_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_6_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_6_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_7_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_7_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_7_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_13.view(-1, 1024);  output_13 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_6_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_6_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_6_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_6_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_6_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_6_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_6_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_6_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_7_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_7_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_7_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_7_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_7_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_7_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_15(torch.nn.Module):
         def forward(self, query_23: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_23: "bf16[s0, 16, 64]", value_7: "bf16[s0, 16, 64]", output_15: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_23, key_23, value_7, output_15, 'model.layers.7.self_attn.attn');  query_23 = key_23 = value_7 = output_15 = unified_attention_with_output = None
             return ()
-            
+
     class submod_16(torch.nn.Module):
         def forward(self, output_15: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_7_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_7_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_7_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_7_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_8_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_8_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_8_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_15.view(-1, 1024);  output_15 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_7_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_7_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_7_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_7_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_7_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_7_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_7_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_7_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_8_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_8_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_8_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_8_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_8_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_8_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_17(torch.nn.Module):
         def forward(self, query_26: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_26: "bf16[s0, 16, 64]", value_8: "bf16[s0, 16, 64]", output_17: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_26, key_26, value_8, output_17, 'model.layers.8.self_attn.attn');  query_26 = key_26 = value_8 = output_17 = unified_attention_with_output = None
             return ()
-            
+
     class submod_18(torch.nn.Module):
         def forward(self, output_17: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_8_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_8_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_8_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_8_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_9_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_9_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_9_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_17.view(-1, 1024);  output_17 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_8_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_8_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_8_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_8_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_8_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_8_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_8_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_8_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_9_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_9_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_9_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_9_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_9_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_9_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_19(torch.nn.Module):
         def forward(self, query_29: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_29: "bf16[s0, 16, 64]", value_9: "bf16[s0, 16, 64]", output_19: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_29, key_29, value_9, output_19, 'model.layers.9.self_attn.attn');  query_29 = key_29 = value_9 = output_19 = unified_attention_with_output = None
             return ()
-            
+
     class submod_20(torch.nn.Module):
         def forward(self, output_19: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_9_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_9_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_9_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_9_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_10_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_10_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_10_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_19.view(-1, 1024);  output_19 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_9_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_9_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_9_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_9_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_9_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_9_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_9_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_9_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_10_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_10_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_10_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_10_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_10_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_10_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_21(torch.nn.Module):
         def forward(self, query_32: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_32: "bf16[s0, 16, 64]", value_10: "bf16[s0, 16, 64]", output_21: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_32, key_32, value_10, output_21, 'model.layers.10.self_attn.attn');  query_32 = key_32 = value_10 = output_21 = unified_attention_with_output = None
             return ()
-            
+
     class submod_22(torch.nn.Module):
         def forward(self, output_21: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_10_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_10_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_10_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_10_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_11_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_11_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_11_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_21.view(-1, 1024);  output_21 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_10_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_10_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_10_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_10_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_10_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_10_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_10_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_10_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_11_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_11_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_11_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_11_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_11_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_11_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_23(torch.nn.Module):
         def forward(self, query_35: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_35: "bf16[s0, 16, 64]", value_11: "bf16[s0, 16, 64]", output_23: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_35, key_35, value_11, output_23, 'model.layers.11.self_attn.attn');  query_35 = key_35 = value_11 = output_23 = unified_attention_with_output = None
             return ()
-            
+
     class submod_24(torch.nn.Module):
         def forward(self, output_23: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_11_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_11_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_11_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_11_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_12_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_12_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_12_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_23.view(-1, 1024);  output_23 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_11_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_11_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_11_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_11_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_11_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_11_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_11_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_11_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_12_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_12_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_12_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_12_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_12_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_12_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_25(torch.nn.Module):
         def forward(self, query_38: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_38: "bf16[s0, 16, 64]", value_12: "bf16[s0, 16, 64]", output_25: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_38, key_38, value_12, output_25, 'model.layers.12.self_attn.attn');  query_38 = key_38 = value_12 = output_25 = unified_attention_with_output = None
             return ()
-            
+
     class submod_26(torch.nn.Module):
         def forward(self, output_25: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_12_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_12_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_12_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_12_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_13_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_13_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_13_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_25.view(-1, 1024);  output_25 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_12_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_12_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_12_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_12_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_12_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_12_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_12_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_12_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_13_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_13_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_13_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_13_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_13_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_13_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_27(torch.nn.Module):
         def forward(self, query_41: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_41: "bf16[s0, 16, 64]", value_13: "bf16[s0, 16, 64]", output_27: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_41, key_41, value_13, output_27, 'model.layers.13.self_attn.attn');  query_41 = key_41 = value_13 = output_27 = unified_attention_with_output = None
             return ()
-            
+
     class submod_28(torch.nn.Module):
         def forward(self, output_27: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_13_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_13_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_13_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_13_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_14_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_14_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_14_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_27.view(-1, 1024);  output_27 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_13_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_13_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_13_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_13_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_13_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_13_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_13_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_13_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_14_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_14_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_14_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_14_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_14_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_14_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_29(torch.nn.Module):
         def forward(self, query_44: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_44: "bf16[s0, 16, 64]", value_14: "bf16[s0, 16, 64]", output_29: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_44, key_44, value_14, output_29, 'model.layers.14.self_attn.attn');  query_44 = key_44 = value_14 = output_29 = unified_attention_with_output = None
             return ()
-            
+
     class submod_30(torch.nn.Module):
         def forward(self, output_29: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_14_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_14_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_14_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_14_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_15_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_15_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_15_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_29.view(-1, 1024);  output_29 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_14_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_14_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_14_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_14_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_14_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_14_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_14_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_14_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_15_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_15_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_15_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_15_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_15_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_15_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_31(torch.nn.Module):
         def forward(self, query_47: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_47: "bf16[s0, 16, 64]", value_15: "bf16[s0, 16, 64]", output_31: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_47, key_47, value_15, output_31, 'model.layers.15.self_attn.attn');  query_47 = key_47 = value_15 = output_31 = unified_attention_with_output = None
             return ()
-            
+
     class submod_32(torch.nn.Module):
         def forward(self, output_31: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_15_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_15_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_15_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_15_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_16_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_16_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_16_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_31.view(-1, 1024);  output_31 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_15_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_15_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_15_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_15_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_15_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_15_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_15_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_15_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_16_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_16_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_16_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_16_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_16_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_16_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_33(torch.nn.Module):
         def forward(self, query_50: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_50: "bf16[s0, 16, 64]", value_16: "bf16[s0, 16, 64]", output_33: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_50, key_50, value_16, output_33, 'model.layers.16.self_attn.attn');  query_50 = key_50 = value_16 = output_33 = unified_attention_with_output = None
             return ()
-            
+
     class submod_34(torch.nn.Module):
         def forward(self, output_33: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_16_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_16_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_16_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_16_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_17_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_17_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_17_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_33.view(-1, 1024);  output_33 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_16_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_16_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_16_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_16_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_16_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_16_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_16_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_16_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_17_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_17_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_17_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_17_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_17_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_17_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_35(torch.nn.Module):
         def forward(self, query_53: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_53: "bf16[s0, 16, 64]", value_17: "bf16[s0, 16, 64]", output_35: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_53, key_53, value_17, output_35, 'model.layers.17.self_attn.attn');  query_53 = key_53 = value_17 = output_35 = unified_attention_with_output = None
             return ()
-            
+
     class submod_36(torch.nn.Module):
         def forward(self, output_35: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_17_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_17_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_17_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_17_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_18_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_18_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_18_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_35.view(-1, 1024);  output_35 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_17_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_17_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_17_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_17_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_17_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_17_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_17_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_17_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_18_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_18_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_18_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_18_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_18_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_18_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_37(torch.nn.Module):
         def forward(self, query_56: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_56: "bf16[s0, 16, 64]", value_18: "bf16[s0, 16, 64]", output_37: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_56, key_56, value_18, output_37, 'model.layers.18.self_attn.attn');  query_56 = key_56 = value_18 = output_37 = unified_attention_with_output = None
             return ()
-            
+
     class submod_38(torch.nn.Module):
         def forward(self, output_37: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_18_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_18_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_18_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_18_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_19_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_19_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_19_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_37.view(-1, 1024);  output_37 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_18_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_18_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_18_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_18_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_18_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_18_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_18_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_18_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_19_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_19_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_19_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_19_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_19_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_19_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_39(torch.nn.Module):
         def forward(self, query_59: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_59: "bf16[s0, 16, 64]", value_19: "bf16[s0, 16, 64]", output_39: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_59, key_59, value_19, output_39, 'model.layers.19.self_attn.attn');  query_59 = key_59 = value_19 = output_39 = unified_attention_with_output = None
             return ()
-            
+
     class submod_40(torch.nn.Module):
         def forward(self, output_39: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_19_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_19_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_19_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_19_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_20_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_20_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_20_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_39.view(-1, 1024);  output_39 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_19_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_19_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_19_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_19_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_19_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_19_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_19_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_19_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_20_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_20_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_20_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_20_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_20_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_20_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_41(torch.nn.Module):
         def forward(self, query_62: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_62: "bf16[s0, 16, 64]", value_20: "bf16[s0, 16, 64]", output_41: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_62, key_62, value_20, output_41, 'model.layers.20.self_attn.attn');  query_62 = key_62 = value_20 = output_41 = unified_attention_with_output = None
             return ()
-            
+
     class submod_42(torch.nn.Module):
         def forward(self, output_41: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_20_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_20_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_20_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_20_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_21_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_21_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_21_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_41.view(-1, 1024);  output_41 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_20_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_20_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_20_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_20_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_20_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_20_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_20_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_20_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_21_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_21_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_21_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_21_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_21_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_21_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_43(torch.nn.Module):
         def forward(self, query_65: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_65: "bf16[s0, 16, 64]", value_21: "bf16[s0, 16, 64]", output_43: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_65, key_65, value_21, output_43, 'model.layers.21.self_attn.attn');  query_65 = key_65 = value_21 = output_43 = unified_attention_with_output = None
             return ()
-            
+
     class submod_44(torch.nn.Module):
         def forward(self, output_43: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_21_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_21_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_21_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_21_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_22_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_22_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_22_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_43.view(-1, 1024);  output_43 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_21_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_21_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_21_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_21_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_21_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_21_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_21_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_21_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_22_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_22_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_22_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_22_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_22_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_22_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_45(torch.nn.Module):
         def forward(self, query_68: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_68: "bf16[s0, 16, 64]", value_22: "bf16[s0, 16, 64]", output_45: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_68, key_68, value_22, output_45, 'model.layers.22.self_attn.attn');  query_68 = key_68 = value_22 = output_45 = unified_attention_with_output = None
             return ()
-            
+
     class submod_46(torch.nn.Module):
         def forward(self, output_45: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_22_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_22_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_22_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_22_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_layers_modules_23_modules_input_layernorm_parameters_weight_: "bf16[1024]", l_self_modules_layers_modules_23_modules_self_attn_modules_qkv_proj_parameters_weight_: "bf16[3072, 1024]", l_self_modules_layers_modules_23_modules_self_attn_modules_qkv_proj_parameters_bias_: "bf16[3072]", l_positions_: "i64[s0]", l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_: "bf16[32768, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_45.view(-1, 1024);  output_45 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_22_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_22_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_22_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_22_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_22_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_22_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0))
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_22_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_22_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_23_modules_input_layernorm_parameters_weight_);  l_self_modules_layers_modules_23_modules_input_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:80 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_3: "bf16[s0, 3072]" = torch._C._nn.linear(linear_2, l_self_modules_layers_modules_23_modules_self_attn_modules_qkv_proj_parameters_weight_, l_self_modules_layers_modules_23_modules_self_attn_modules_qkv_proj_parameters_bias_);  linear_2 = l_self_modules_layers_modules_23_modules_self_attn_modules_qkv_proj_parameters_weight_ = l_self_modules_layers_modules_23_modules_self_attn_modules_qkv_proj_parameters_bias_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/models/qwen2.py:185 in forward, code: q, k, v = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
             split = linear_3.split([1024, 1024, 1024], dim = -1);  linear_3 = None
             getitem: "bf16[s0, 1024]" = split[0]
             getitem_1: "bf16[s0, 1024]" = split[1]
             getitem_2: "bf16[s0, 1024]" = split[2];  split = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:147 in forward_native, code: positions = positions.flatten()
             flatten: "i64[s0]" = l_positions_.flatten();  l_positions_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:149 in forward_native, code: cos_sin = self.cos_sin_cache.index_select(0, positions)
             index_select: "bf16[s0, 64]" = l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_.index_select(0, flatten);  l_self_modules_layers_modules_0_modules_self_attn_modules_rotary_emb_buffers_cos_sin_cache_ = flatten = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:150 in forward_native, code: cos, sin = cos_sin.chunk(2, dim=-1)
             chunk = index_select.chunk(2, dim = -1);  index_select = None
             getitem_3: "bf16[s0, 32]" = chunk[0]
             getitem_4: "bf16[s0, 32]" = chunk[1];  chunk = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:152 in forward_native, code: query_shape = query.shape
             size = getitem.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:153 in forward_native, code: query = query.view(num_tokens, -1, self.head_size)
             view_4: "bf16[s0, 16, 64]" = getitem.view(s0, -1, 64);  getitem = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:154 in forward_native, code: query_rot = query[..., :self.rotary_dim]
             getitem_5: "bf16[s0, 16, 64]" = view_4[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:155 in forward_native, code: query_pass = query[..., self.rotary_dim:]
             getitem_6: "bf16[s0, 16, 0]" = view_4[(Ellipsis, slice(64, None, None))];  view_4 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2)
             to: "bf16[s0, 1, 32]" = unsqueeze.to(torch.bfloat16);  unsqueeze = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_1: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2)
             to_1: "bf16[s0, 1, 32]" = unsqueeze_1.to(torch.bfloat16);  unsqueeze_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_1 = torch.chunk(getitem_5, 2, dim = -1);  getitem_5 = None
             getitem_7: "bf16[s0, 16, 32]" = chunk_1[0]
             getitem_8: "bf16[s0, 16, 32]" = chunk_1[1];  chunk_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul: "bf16[s0, 16, 32]" = getitem_7 * to
             mul_1: "bf16[s0, 16, 32]" = getitem_8 * to_1
             sub: "bf16[s0, 16, 32]" = mul - mul_1;  mul = mul_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_2: "bf16[s0, 16, 32]" = getitem_8 * to;  getitem_8 = to = None
             mul_3: "bf16[s0, 16, 32]" = getitem_7 * to_1;  getitem_7 = to_1 = None
             add: "bf16[s0, 16, 32]" = mul_2 + mul_3;  mul_2 = mul_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat: "bf16[s0, 16, 64]" = torch.cat((sub, add), dim = -1);  sub = add = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:158 in forward_native, code: query = torch.cat((query_rot, query_pass), dim=-1).reshape(query_shape)
             cat_1: "bf16[s0, 16, 64]" = torch.cat((cat, getitem_6), dim = -1);  cat = getitem_6 = None
             reshape: "bf16[s0, 1024]" = cat_1.reshape(size);  cat_1 = size = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:162 in forward_native, code: key_shape = key.shape
             size_1 = getitem_1.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:163 in forward_native, code: key = key.view(num_tokens, -1, self.head_size)
             view_5: "bf16[s0, 16, 64]" = getitem_1.view(s0, -1, 64);  getitem_1 = s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:164 in forward_native, code: key_rot = key[..., :self.rotary_dim]
             getitem_9: "bf16[s0, 16, 64]" = view_5[(Ellipsis, slice(None, 64, None))]
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:165 in forward_native, code: key_pass = key[..., self.rotary_dim:]
             getitem_10: "bf16[s0, 16, 0]" = view_5[(Ellipsis, slice(64, None, None))];  view_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:58 in _apply_rotary_emb_torch, code: cos = cos.unsqueeze(-2).to(x.dtype)
             unsqueeze_2: "bf16[s0, 1, 32]" = getitem_3.unsqueeze(-2);  getitem_3 = None
             to_2: "bf16[s0, 1, 32]" = unsqueeze_2.to(torch.bfloat16);  unsqueeze_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:59 in _apply_rotary_emb_torch, code: sin = sin.unsqueeze(-2).to(x.dtype)
             unsqueeze_3: "bf16[s0, 1, 32]" = getitem_4.unsqueeze(-2);  getitem_4 = None
             to_3: "bf16[s0, 1, 32]" = unsqueeze_3.to(torch.bfloat16);  unsqueeze_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:61 in _apply_rotary_emb_torch, code: x1, x2 = torch.chunk(x, 2, dim=-1)
             chunk_2 = torch.chunk(getitem_9, 2, dim = -1);  getitem_9 = None
             getitem_11: "bf16[s0, 16, 32]" = chunk_2[0]
             getitem_12: "bf16[s0, 16, 32]" = chunk_2[1];  chunk_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:65 in _apply_rotary_emb_torch, code: o1 = x1 * cos - x2 * sin
             mul_4: "bf16[s0, 16, 32]" = getitem_11 * to_2
             mul_5: "bf16[s0, 16, 32]" = getitem_12 * to_3
             sub_1: "bf16[s0, 16, 32]" = mul_4 - mul_5;  mul_4 = mul_5 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:66 in _apply_rotary_emb_torch, code: o2 = x2 * cos + x1 * sin
             mul_6: "bf16[s0, 16, 32]" = getitem_12 * to_2;  getitem_12 = to_2 = None
             mul_7: "bf16[s0, 16, 32]" = getitem_11 * to_3;  getitem_11 = to_3 = None
             add_1: "bf16[s0, 16, 32]" = mul_6 + mul_7;  mul_6 = mul_7 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:68 in _apply_rotary_emb_torch, code: return torch.cat((o1, o2), dim=-1)
             cat_2: "bf16[s0, 16, 64]" = torch.cat((sub_1, add_1), dim = -1);  sub_1 = add_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/rotary_embedding.py:168 in forward_native, code: key = torch.cat((key_rot, key_pass), dim=-1).reshape(key_shape)
             cat_3: "bf16[s0, 16, 64]" = torch.cat((cat_2, getitem_10), dim = -1);  cat_2 = getitem_10 = None
             reshape_1: "bf16[s0, 1024]" = cat_3.reshape(size_1);  cat_3 = size_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:193 in forward, code: if output_shape is not None else query.shape)
             size_2 = reshape.size()
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:196 in forward, code: output = torch.empty(output_shape,
             empty_1: "bf16[s0, 1024]" = torch.empty(size_2, dtype = torch.bfloat16, device = device(type='cuda', index=0));  size_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:207 in forward, code: query = query.view(-1, self.num_heads, self.head_size)
             view_6: "bf16[s0, 16, 64]" = reshape.view(-1, 16, 64);  reshape = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:208 in forward, code: output = output.view(-1, self.num_heads, self.head_size)
             view_7: "bf16[s0, 16, 64]" = empty_1.view(-1, 16, 64);  empty_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:210 in forward, code: key = key.view(-1, self.num_kv_heads, self.head_size)
             view_8: "bf16[s0, 16, 64]" = reshape_1.view(-1, 16, 64);  reshape_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:212 in forward, code: value = value.view(-1, self.num_kv_heads, self.head_size)
             view_9: "bf16[s0, 16, 64]" = getitem_2.view(-1, 16, 64);  getitem_2 = None
             return (view_6, view_8, view_9, view_7)
-            
+
     class submod_47(torch.nn.Module):
         def forward(self, query_71: "bf16[s0, 16, 64]", s0: "Sym(s0)", key_71: "bf16[s0, 16, 64]", value_23: "bf16[s0, 16, 64]", output_47: "bf16[s0, 16, 64]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:227 in forward, code: torch.ops.vllm.unified_attention_with_output(
             unified_attention_with_output = torch.ops.vllm.unified_attention_with_output(query_71, key_71, value_23, output_47, 'model.layers.23.self_attn.attn');  query_71 = key_71 = value_23 = output_47 = unified_attention_with_output = None
             return ()
-            
+
     class submod_48(torch.nn.Module):
         def forward(self, output_47: "bf16[s0, 16, 64]", s0: "Sym(s0)", l_self_modules_layers_modules_23_modules_self_attn_modules_o_proj_parameters_weight_: "bf16[1024, 1024]", l_self_modules_layers_modules_23_modules_post_attention_layernorm_parameters_weight_: "bf16[1024]", output_parallel: "bf16[s0, 1024]", l_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_: "bf16[5632, 1024]", l_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_: "bf16[1024, 2816]", l_self_modules_norm_parameters_weight_: "bf16[1024]"):
              # File: /usr/local/lib/python3.12/dist-packages/vllm/attention/layer.py:229 in forward, code: return output.view(-1, hidden_size)
             view: "bf16[s0, 1024]" = output_47.view(-1, 1024);  output_47 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_1: "bf16[s0, 1024]" = view.view(-1, 1024);  view_1 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear: "bf16[s0, 1024]" = torch._C._nn.linear(view, l_self_modules_layers_modules_23_modules_self_attn_modules_o_proj_parameters_weight_, None);  view = l_self_modules_layers_modules_23_modules_self_attn_modules_o_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_layers_modules_23_modules_post_attention_layernorm_parameters_weight_);  l_self_modules_layers_modules_23_modules_post_attention_layernorm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm = torch.ops._C.fused_add_rms_norm(linear, output_parallel, _get_data_attr, 1e-06);  _get_data_attr = fused_add_rms_norm = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_2: "bf16[s0, 1024]" = linear.view(-1, 1024);  view_2 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_1: "bf16[s0, 5632]" = torch._C._nn.linear(linear, l_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_, None);  linear = l_self_modules_layers_modules_23_modules_mlp_modules_gate_up_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:87 in forward_cuda, code: out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
             empty: "bf16[s0, 2816]" = torch.empty((s0, 2816), dtype = torch.bfloat16, device = device(type='cuda', index=0));  s0 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/activation.py:88 in forward_cuda, code: self.op(out, x)
             silu_and_mul = torch.ops._C.silu_and_mul(empty, linear_1);  linear_1 = silu_and_mul = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:82 in rocm_unquantized_gemm, code: x_view = x.view(-1, x.size(-1))
             view_3: "bf16[s0, 2816]" = empty.view(-1, 2816);  view_3 = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/utils.py:93 in rocm_unquantized_gemm, code: return torch.nn.functional.linear(x, weight, bias)
             linear_2: "bf16[s0, 1024]" = torch._C._nn.linear(empty, l_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_, None);  empty = l_self_modules_layers_modules_23_modules_mlp_modules_down_proj_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/layernorm.py:182 in forward_cuda, code: return norm_func(x, residual, self.weight.data,
             _get_data_attr_1: "bf16[1024]" = torch._C._autograd._get_data_attr(l_self_modules_norm_parameters_weight_);  l_self_modules_norm_parameters_weight_ = None
-            
+
              # File: /usr/local/lib/python3.12/dist-packages/vllm/_custom_ops.py:286 in fused_add_rms_norm, code: torch.ops._C.fused_add_rms_norm(input, residual, weight, epsilon)
             fused_add_rms_norm_1 = torch.ops._C.fused_add_rms_norm(linear_2, output_parallel, _get_data_attr_1, 1e-06);  output_parallel = _get_data_attr_1 = fused_add_rms_norm_1 = None
             return linear_2
-            

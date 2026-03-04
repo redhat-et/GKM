@@ -61,4 +61,3 @@ release to 1.9.
 * migration to go modules.
 * release of master branch of the dormant upstream, because it contains
 fixes and improvement no present in the tagged release.
-

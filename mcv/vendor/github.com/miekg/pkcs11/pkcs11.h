@@ -4,7 +4,7 @@
  * IMPLIED OR EXPRESS WARRANTY; there is no warranty of MERCHANTABILITY, FITNESS FOR A
  * PARTICULAR PURPOSE or NONINFRINGEMENT of the rights of others.
  */
-        
+
 /* Latest version of the specification:
  * http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/pkcs11-base-v2.40.html
  */
@@ -262,4 +262,3 @@ struct CK_FUNCTION_LIST {
 #endif
 
 #endif /* _PKCS11_H_ */
-

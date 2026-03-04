@@ -42,4 +42,3 @@ Stemming from the use cases, the snapshot content must have the following proper
 It must be noted that trivially cloning subtrees from `/proc` and `/sys` and creating a tarball out of them doesn't work
 because both pseudo filesystems make use of symlinks, and [docker doesn't really play nice with symlinks](https://github.com/jaypipes/ghw/commit/f8ffd4d24e62eb9017511f072ccf51f13d4a3399).
 This conflcits with (way 1) above.
-

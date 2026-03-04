@@ -13,7 +13,7 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
- 
+
 // This package transforms JSON data in UTF-8 according to:
 // https://tools.ietf.org/html/draft-rundgren-json-canonicalization-scheme-02
 
@@ -40,7 +40,7 @@ var binaryEscapes = []byte{'\\', '"', '\b', '\f', '\n', '\r', '\t'}
 
 // JSON literals
 var literals      = []string{"true", "false", "null"}
-    
+
 func Transform(jsonData []byte) (result []byte, e error) {
 
     // JSON data MUST be UTF-8 encoded
@@ -64,7 +64,7 @@ func Transform(jsonData []byte) (result []byte, e error) {
             globalError = e
         }
     }
-    
+
     setError := func(msg string) {
         checkError(errors.New(msg))
     }
@@ -139,7 +139,7 @@ func Transform(jsonData []byte) (result []byte, e error) {
             }
             if c < 0x20 {
                 // Other ASCII control characters must be escaped with \uhhhh
-                quotedString.WriteString(fmt.Sprintf("\\u%04x", c))         
+                quotedString.WriteString(fmt.Sprintf("\\u%04x", c))
             } else {
                 quotedString.WriteByte(c)
             }

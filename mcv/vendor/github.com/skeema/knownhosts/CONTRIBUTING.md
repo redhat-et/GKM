@@ -33,4 +33,3 @@ skeema/knownhosts is intended to be a relatively thin *wrapper* around x/crypto/
 To solve shortcomings in x/crypto/ssh/knownhosts, we try to come up with workarounds that still utilize x/crypto/ssh/knownhosts functionality whenever possible.
 
 Some bugs in x/crypto/ssh/knownhosts do require re-reading the known_hosts file here to solve, but we make that *optional* by offering separate constructors/types with and without that behavior.
-

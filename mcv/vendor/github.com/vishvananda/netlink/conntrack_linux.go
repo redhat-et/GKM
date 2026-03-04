@@ -364,7 +364,7 @@ func (s *ConntrackFlow) toNlData() ([]*nl.RtAttr, error) {
 	//	<len, CTA_TIMEOUT>
 	//	<BEuint64>
 	//	<len, NLA_F_NESTED|CTA_PROTOINFO>
- 
+
 	// CTA_TUPLE_ORIG
 	ctTupleOrig := nl.NewRtAttr(unix.NLA_F_NESTED|nl.CTA_TUPLE_ORIG, nil)
 	forwardFlowAttrs, err := s.Forward.toNlData(s.FamilyType)

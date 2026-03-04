@@ -4,7 +4,7 @@
  * IMPLIED OR EXPRESS WARRANTY; there is no warranty of MERCHANTABILITY, FITNESS FOR A
  * PARTICULAR PURPOSE or NONINFRINGEMENT of the rights of others.
  */
-        
+
 /* Latest version of the specification:
  * http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/pkcs11-base-v2.40.html
  */
@@ -936,4 +936,3 @@ CK_PKCS11_FUNCTION_INFO(C_WaitForSlotEvent)
   CK_VOID_PTR pRserved   /* reserved.  Should be NULL_PTR */
 );
 #endif
-

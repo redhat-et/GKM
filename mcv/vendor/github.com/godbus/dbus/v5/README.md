@@ -25,7 +25,7 @@ go get github.com/godbus/dbus/v5
 The complete package documentation and some simple examples are available at
 [pkg.go.dev](https://pkg.go.dev/github.com/godbus/dbus/v5). Also, the
 [_examples](https://github.com/godbus/dbus/tree/master/_examples) directory
-gives a short overview over the basic usage. 
+gives a short overview over the basic usage.
 
 #### Projects using godbus
 - [fyne](https://github.com/fyne-io/fyne) a cross platform GUI in Go inspired by Material Design.

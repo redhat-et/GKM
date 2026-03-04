@@ -12,8 +12,8 @@ go get github.com/morikuni/aec
 
 ## Features
 
-ANSI escape codes depend on terminal environment.  
-Some of these features may not work.  
+ANSI escape codes depend on terminal environment.
+Some of these features may not work.
 Check supported Font-Style/Font-Color features with [checkansi](./checkansi).
 
 [Wikipedia](https://en.wikipedia.org/wiki/ANSI_escape_code) for more detail.
@@ -174,5 +174,3 @@ func main() {
 ## License
 
 [MIT](./LICENSE)
-
-

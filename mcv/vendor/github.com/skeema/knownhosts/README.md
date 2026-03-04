@@ -11,7 +11,7 @@
 > functionality, which internally makes use of this package.
 
 Go provides excellent functionality for OpenSSH known_hosts files in its
-external package [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts). 
+external package [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts).
 However, that package is somewhat low-level, making it difficult to implement full known_hosts management similar to OpenSSH's command-line behavior. Additionally, [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts) has several known issues in edge cases, some of which have remained open for multiple years.
 
 Package [github.com/skeema/knownhosts](https://github.com/skeema/knownhosts) provides a *thin wrapper* around [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts), adding the following improvements and fixes without duplicating its core logic:
@@ -30,7 +30,7 @@ By using this technique, [github.com/skeema/knownhosts](https://github.com/skeem
 
 ## Populating ssh.ClientConfig.HostKeyAlgorithms based on known_hosts
 
-Hosts often have multiple public keys, each of a different type (algorithm). This can be [problematic](https://github.com/golang/go/issues/29286) in [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts): if a host's first public key is *not* in known_hosts, but a key of a different type *is*, the HostKeyCallback returns an error. The solution is to populate `ssh.ClientConfig.HostKeyAlgorithms` based on the algorithms of the known_hosts entries for that host, but 
+Hosts often have multiple public keys, each of a different type (algorithm). This can be [problematic](https://github.com/golang/go/issues/29286) in [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts): if a host's first public key is *not* in known_hosts, but a key of a different type *is*, the HostKeyCallback returns an error. The solution is to populate `ssh.ClientConfig.HostKeyAlgorithms` based on the algorithms of the known_hosts entries for that host, but
 [golang.org/x/crypto/ssh/knownhosts](https://pkg.go.dev/golang.org/x/crypto/ssh/knownhosts)
 does not provide an obvious way to do so.
 

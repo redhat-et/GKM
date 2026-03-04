@@ -12,13 +12,13 @@ hello"${leading}" def | hello  ab c,def
 hello"${leading}" | hello  ab c
 hello${leading} | hello,ab,c
 # next line MUST have 3 trailing spaces, don't erase them!
-ENV trailing=ab c   
+ENV trailing=ab c
 hello${trailing} | helloab,c
 hello${trailing}d | helloab,c,d
 hello"${trailing}"d | helloab c   d
 # next line MUST have 3 trailing spaces, don't erase them!
-hel"lo${trailing}" | helloab c   
-hello" there  " | hello there  
+hel"lo${trailing}" | helloab c
+hello" there  " | hello there
 hello there     | hello,there
 hello\ there | hello there
 hello" there | error

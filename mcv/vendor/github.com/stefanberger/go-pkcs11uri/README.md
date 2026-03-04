@@ -99,4 +99,3 @@ $ go build ./...
 $ sudo ./pkcs11-example 'pkcs11:slot-id=2053753261?module-path=/usr/lib64/pkcs11/libsofthsm2.so&pin-value=1234'
 517592df8fec3ad146a79a9af153db2a4d784ec5
 ```
-

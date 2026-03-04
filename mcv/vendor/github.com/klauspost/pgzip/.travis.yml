@@ -25,4 +25,4 @@ script:
 matrix:
   allow_failures:
     - go: 'master'
-  fast_finish: true 
+  fast_finish: true
