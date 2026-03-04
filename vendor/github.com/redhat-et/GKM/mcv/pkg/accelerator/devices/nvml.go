@@ -23,7 +23,7 @@ import (
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	logging "github.com/sirupsen/logrus"
 
-	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 )
 
 const (

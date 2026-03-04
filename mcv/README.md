@@ -387,13 +387,13 @@ container image is shown below.
 
 ```go
 import (
-    "github.com/redhat-et/MCU/mcv/pkg/client"
+    "github.com/redhat-et/GKM/mcv/pkg/client"
 )
 
 package main
 
 import (
-    "github.com/redhat-et/MCU/mcv/pkg/client"
+    "github.com/redhat-et/GKM/mcv/pkg/client"
 )
 
 func main() {
@@ -422,7 +422,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/redhat-et/MCU/mcv/pkg/client"
+    "github.com/redhat-et/GKM/mcv/pkg/client"
 )
 
 func main() {
@@ -451,7 +451,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/redhat-et/MCU/mcv/pkg/client"
+    "github.com/redhat-et/GKM/mcv/pkg/client"
 )
 
 func main() {

@@ -8,20 +8,20 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/MCU/mcv/pkg/config"
-	"github.com/redhat-et/MCU/mcv/pkg/constants"
-	"github.com/redhat-et/MCU/mcv/pkg/fetcher"
-	"github.com/redhat-et/MCU/mcv/pkg/logformat"
-	"github.com/redhat-et/MCU/mcv/pkg/preflightcheck"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
+	"github.com/redhat-et/GKM/mcv/pkg/fetcher"
+	"github.com/redhat-et/GKM/mcv/pkg/logformat"
+	"github.com/redhat-et/GKM/mcv/pkg/preflightcheck"
 	logging "github.com/sirupsen/logrus"
 )
 
 // Options encapsulates configurable settings for cache extraction operations.
 type Options struct {
 	ImageName       string // The name of the OCI image (e.g., quay.io/user/image:tag)
-	CacheDir        string // Path to store the cache; for triton defaults to ~/.triton/cache
+	CacheDir        string // Path to store the extracted cache; if not specified, defaults are: ~/.triton/cache (vanilla Triton), ~/.cache/vllm (vLLM)
 	EnableGPU       *bool  // Whether to enable GPU logic for preflight checks (nil = auto-detect, false = disable, true = force)
 	LogLevel        string // Logging level: debug, info, warning, error
 	EnableBaremetal *bool  // If true, enables full hardware checks including kernel dummy key validation (for baremetal envs only)

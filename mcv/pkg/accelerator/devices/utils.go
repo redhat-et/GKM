@@ -7,7 +7,7 @@ import (
 	"github.com/jaypipes/ghw/pkg/accelerator"
 	"github.com/jaypipes/ghw/pkg/pci"
 	"github.com/jaypipes/pcidb"
-	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 

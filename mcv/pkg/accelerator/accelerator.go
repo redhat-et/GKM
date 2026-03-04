@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 

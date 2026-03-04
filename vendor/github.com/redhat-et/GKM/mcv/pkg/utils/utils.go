@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -58,27 +57,6 @@ func SanitizeGroupJSON(filePath string) error {
 	for key, val := range parsed["child_paths"] {
 		if idx := strings.Index(val, ".triton/cache"); idx != -1 {
 			parsed["child_paths"][key] = val[idx:]
-		}
-	}
-
-	return writeFormattedJSON(filePath, parsed)
-}
-
-// RestoreFullPathsInGroupJSON prepends the full TritonCacheDir path to child_paths in __grp__*.json files.
-func RestoreFullPathsInGroupJSON(filePath, basePath string) error {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", filePath, err)
-	}
-
-	var parsed map[string]map[string]string
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return fmt.Errorf("failed to parse JSON in %s: %w", filePath, err)
-	}
-
-	for key, val := range parsed["child_paths"] {
-		if strings.HasPrefix(val, ".triton/cache") {
-			parsed["child_paths"][key] = filepath.Join(basePath, strings.TrimPrefix(val, ".triton/cache/"))
 		}
 	}
 

@@ -39,7 +39,7 @@ GOARCH := $(shell go env GOARCH)
 GOENV = GO111MODULE="" \
 				GOOS=$(GOOS) \
 				GOARCH=$(GOARCH)
-PKG_BUILD="github.com/redhat-et/MCU/mcv/pkg/build"
+PKG_BUILD="github.com/redhat-et/GKM/mcv/pkg/build"
 LDFLAGS := $(LDFLAGS) \
 		-X $(PKG_BUILD).Version=$(VERSION) \
 		-X $(PKG_BUILD).Revision=$(GIT_SHA) \
@@ -96,7 +96,7 @@ clean_build_local: ## Clean local build directory
 format:
 	@echo "******     go fmt     ******"
 	@echo
-	go fmt github.com/redhat-et/MCU/mcv/...
+	go fmt github.com/redhat-et/GKM/mcv/...
 	@echo
 	@echo
 
@@ -104,7 +104,7 @@ format:
 vet: ## Run go vet against code.
 	@echo "******     go Vet     ******"
 	@echo
-	go vet github.com/redhat-et/MCU/mcv/...
+	go vet github.com/redhat-et/GKM/mcv/...
 
 lint:
 	@echo "******     golangci-lint     ******"
@@ -116,7 +116,7 @@ lint:
 test:
 	@echo "******     testing     ******"
 	@echo
-	go test github.com/redhat-et/MCU/mcv/...
+	go test github.com/redhat-et/GKM/mcv/...
 
 ##@ Installation
 .PHONY: install

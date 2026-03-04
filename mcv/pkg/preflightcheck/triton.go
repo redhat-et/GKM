@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/MCU/mcv/pkg/cache"
-	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 

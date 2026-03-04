@@ -3,7 +3,7 @@ package devices
 import (
 	"errors"
 
-	"github.com/redhat-et/MCU/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 	logging "github.com/sirupsen/logrus"
 )
 

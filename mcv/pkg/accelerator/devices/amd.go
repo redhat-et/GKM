@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redhat-et/MCU/mcv/pkg/config"
-	"github.com/redhat-et/MCU/mcv/pkg/utils"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 

@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redhat-et/MCU/mcv/pkg/config"
-	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 )

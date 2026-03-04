@@ -8,13 +8,13 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/MCU/mcv/pkg/config"
-	"github.com/redhat-et/MCU/mcv/pkg/constants"
-	"github.com/redhat-et/MCU/mcv/pkg/fetcher"
-	"github.com/redhat-et/MCU/mcv/pkg/logformat"
-	"github.com/redhat-et/MCU/mcv/pkg/preflightcheck"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
+	"github.com/redhat-et/GKM/mcv/pkg/fetcher"
+	"github.com/redhat-et/GKM/mcv/pkg/logformat"
+	"github.com/redhat-et/GKM/mcv/pkg/preflightcheck"
 	logging "github.com/sirupsen/logrus"
 )
 

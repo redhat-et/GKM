@@ -1,4 +1,4 @@
-module github.com/redhat-et/MCU/mcv
+module github.com/redhat-et/GKM/mcv
 
 go 1.25.0
 

@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator"
-	"github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
-	"github.com/redhat-et/MCU/mcv/pkg/cache"
-	"github.com/redhat-et/MCU/mcv/pkg/config"
-	"github.com/redhat-et/MCU/mcv/pkg/constants"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 )
 

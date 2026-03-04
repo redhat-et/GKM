@@ -66,3 +66,25 @@ type TritonManifest struct {
 type VLLMManifest struct {
 	VLLM []VLLMCacheMetadata `json:"vllm"`
 }
+
+// BinaryCacheMetadata represents metadata for binary cache artifacts
+type BinaryCacheMetadata struct {
+	Rank            string                 `json:"rank"`
+	Prefix          string                 `json:"prefix"`
+	ArtifactCount   int                    `json:"artifact_count"`
+	ArtifactNames   []string               `json:"artifact_names,omitempty"`
+	CodeHash        string                 `json:"code_hash,omitempty"`
+	ConfigHash      string                 `json:"config_hash,omitempty"`
+	CompilerHash    string                 `json:"compiler_hash,omitempty"`
+	CacheSaveFormat string                 `json:"cache_save_format,omitempty"`
+	TargetDevice    string                 `json:"target_device,omitempty"`
+	Env             map[string]interface{} `json:"env,omitempty"`
+}
+
+// CacheKeyFactors represents the cache_key_factors.json structure
+type CacheKeyFactors struct {
+	CodeHash     string                 `json:"code_hash"`
+	CompilerHash string                 `json:"compiler_hash"`
+	ConfigHash   string                 `json:"config_hash"`
+	Env          map[string]interface{} `json:"env"`
+}
