@@ -41,6 +41,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: GKM_PVC_BASE_PATH
+            value: "/mnt/gkm-pvcs"
         resources:
           limits:
             memory: "128Mi"
@@ -49,9 +51,17 @@ spec:
           - name: gkm-state
             mountPath: /var/lib/gkm
             mountPropagation: Bidirectional
+          # TODO: Remove gkm-state volume mount once PVC migration is complete
           - name: gkm-runtime
             mountPath: /run/gkm
             mountPropagation: Bidirectional
+          - name: gkm-pvc-base
+            mountPath: /mnt/gkm-pvcs
+          # TODO: Add dynamic PVC mounts under /mnt/gkm-pvcs/{pvc-name}
+          # This will require either:
+          # 1. Init container to discover and mount PVCs dynamically
+          # 2. Operator-managed DaemonSet updates to add PVC mounts
+          # 3. CSI driver replacement for dynamic mounting
           - name: sys
             mountPath: /sys
             readOnly: true
@@ -60,7 +70,8 @@ spec:
 
       volumes:
         # This volume is the GKM State directory. This is where GPU Kernel Cache
-        # will be extracted.
+        # will be extracted (DEPRECATED - transitioning to PVC-based storage).
+        # TODO: Remove this volume once PVC migration is complete
         - name: gkm-state
           hostPath:
             path: /var/lib/gkm
@@ -71,6 +82,15 @@ spec:
           hostPath:
             path: /run/gkm
             type: DirectoryOrCreate
+        # Base directory for PVC mounts. Individual PVCs will be mounted as subdirectories.
+        - name: gkm-pvc-base
+          emptyDir: {}
+        # TODO: Add PVC volumes dynamically. Each GKMCache PVC should be mounted at:
+        #   /mnt/gkm-pvcs/{pvc-name}/
+        # This requires dynamic volume management, which can be implemented via:
+        # 1. Operator updating DaemonSet spec when GKMCaches are created/deleted
+        # 2. Init container using Kubernetes API to discover and mount PVCs
+        # 3. Custom volume plugin or CSI driver replacement
         - name: sys
           hostPath:
             path: /sys
