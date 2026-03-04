@@ -1,0 +1,190 @@
+name: MCV Example Image Build
+
+# On Pull Requests, only want to build image to make sure build isn't broken, don't push to quay.io.
+# On Push to main (in repo, not forks), want to build and push image to quay.io.
+
+on: # yamllint disable-line rule:truthy
+  pull_request:
+    branches: ["*"]
+    paths:
+      - mcv/**
+      - .github/workflows/mcv-build-example-images.yml
+  push:
+    branches: [main]
+    paths:
+      - mcv/**
+      - .github/workflows/mcv-build-example-images.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+env:
+  REGISTRY: quay.io
+  ORG: gkm
+  REPO: cache-examples
+  COSIGN_YES: "true"
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  build:
+    name: Build example cache images with MCV container
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.push-images.outputs.tags }}
+      digests: ${{ steps.push-images.outputs.digests }}
+
+    steps:
+      # Set a `push_flag`. This is only true if the github action is a push and the repository
+      # organization is `redhat-et`. This keeps credential fails from occurring on push to forks.
+      - name: Set push flag
+        id: set-push
+        run: |
+          if [[ (${{ github.event_name }} == 'push' || ${{ github.event_name }} == 'workflow_dispatch') && ${{ github.repository_owner }} == 'redhat-et' ]]; then
+            echo "push_flag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push_flag=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Login to quay.io/gkm
+        uses: redhat-actions/podman-login@v1
+        if: ${{ fromJSON(steps.set-push.outputs.push_flag) }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GH_USERNAME }}
+          password: ${{ secrets.GH_TOKEN }}
+      - name: Pull MCV builder image
+        run: podman pull quay.io/gkm/mcv:latest
+
+      - name: Build images inside MCV container and load to host
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          ORG: ${{ env.ORG }}
+          REPO: ${{ env.REPO }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${REGISTRY}/${ORG}/${REPO}"
+          out_dir="${GITHUB_WORKSPACE}/.mcv-out"
+          mkdir -p "${out_dir}"
+
+          # tag|relative_context_dir (relative to repo root)
+          images=(
+            "vector-add-cache-rocm|mcv/example/vector-add-cache-rocm"
+            "vector-add-cache-cuda|mcv/example/vector-add-cache"
+            "vllm-example|mcv/example/vllm-cache"
+            "llama-binary-cache|mcv/example/llama-binary-cache"
+            "qwen-binary-cache|mcv/example/qwen-binary-cache"
+          )
+
+          for e in "${images[@]}"; do
+            IFS="|" read -r tag reldir <<<"${e}"
+            image="${repo}:${tag}"
+            archive="${out_dir}/${tag}.oci"
+
+            echo "==> Building ${image} using MCV container from /work/${reldir}"
+            podman run --rm --privileged \
+              -e TAG="${tag}" \
+              -e IMAGE="${image}" \
+              -e RELDIR="${reldir}" \
+              -v "${GITHUB_WORKSPACE}:/work:rw" \
+              quay.io/gkm/mcv:latest bash -lc '
+                set -euo pipefail
+                /mcv -l info -c -i "$IMAGE" -d "/work/$RELDIR" &&
+                buildah push "containers-storage:$IMAGE" "oci-archive:/work/.mcv-out/$TAG.oci:$IMAGE"
+              '
+            echo "==> Loading ${archive} into host podman"
+            podman load -i "${archive}"
+          done
+
+      - name: Push images
+        id: push-images
+        if: ${{ fromJSON(steps.set-push.outputs.push_flag) }}
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          ORG: ${{ env.ORG }}
+          REPO: ${{ env.REPO }}
+        shell: bash
+        run: |
+            set -euo pipefail
+            repo="${REGISTRY}/${ORG}/${REPO}"
+            images=(vector-add-cache-rocm vector-add-cache-cuda vllm-example llama-binary-cache qwen-binary-cache)
+            tags_output=""
+            digests_output=""
+
+            for tag in "${images[@]}"; do
+              img="${repo}:${tag}"
+              echo "==> Pushing ${img}"
+              digest_file=$(mktemp)
+              podman push "${img}" --digestfile "${digest_file}"
+              digest=$(cat "${digest_file}")
+              rm -f "${digest_file}"
+
+              echo "Pushed ${img}@${digest}"
+
+              # Build comma-separated tags
+              if [ -z "${tags_output}" ]; then
+                tags_output="${tag}"
+              else
+                tags_output="${tags_output},${tag}"
+              fi
+
+              # Build comma-separated image@digest references
+              if [ -z "${digests_output}" ]; then
+                digests_output="${img}@${digest}"
+              else
+                digests_output="${digests_output},${img}@${digest}"
+              fi
+            done
+
+            echo "tags=${tags_output}" >> "$GITHUB_OUTPUT"
+            echo "digests=${digests_output}" >> "$GITHUB_OUTPUT"
+            echo "==> Pushed images with tags: ${tags_output}"
+            echo "==> Image digests: ${digests_output}"
+
+  sign:
+    name: Sign example cache images
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # needed for signing the images with GitHub OIDC Token
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository_owner == 'redhat-et'
+
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.0.0
+        with:
+          cosign-release: v3.0.4
+      - name: Check install!
+        run: cosign version
+
+      - name: Login to quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GH_USERNAME }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Sign the images with GitHub OIDC Token
+        env:
+          TAGS: ${{ needs.build.outputs.tags }}
+          REGISTRY: ${{ env.REGISTRY }}
+          ORG: ${{ env.ORG }}
+          REPO: ${{ env.REPO }}
+        run: |
+          repo="${REGISTRY}/${ORG}/${REPO}"
+          images=""
+          for tag in ${TAGS//,/ }; do
+            images+="${repo}:${tag} "
+          done
+          cosign sign --yes -d ${images}
