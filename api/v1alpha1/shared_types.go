@@ -54,6 +54,29 @@ type CacheCounts struct {
 	PodOutdatedCnt int `json:"podOutdatedCnt"`
 }
 
+// StorageSpec defines the storage configuration for the GPU Kernel Cache.
+type StorageSpec struct {
+	// size specifies the size of the PVC to create for this cache.
+	// If not specified, GKM will attempt to determine the size from the image
+	// metadata or use a default size of 10Gi.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$`
+	Size string `json:"size,omitempty"`
+
+	// storageClassName is the name of the StorageClass to use for the PVC.
+	// If not specified, the default StorageClass will be used.
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
+
+	// accessMode specifies the access mode for the PVC during extraction.
+	// Valid values are ReadWriteOnce (default) and ReadWriteMany.
+	// After extraction completes, pods will mount the cache as ReadOnly.
+	// +optional
+	// +kubebuilder:validation:Enum=ReadWriteOnce;ReadWriteMany
+	// +kubebuilder:default=ReadWriteOnce
+	AccessMode string `json:"accessMode,omitempty"`
+}
+
 type GKMCacheSpec struct {
 	// image is a required field and is a valid container image URL used to
 	// reference a remote GPU Kernel Cache image. url must not be an empty string,
@@ -63,11 +86,25 @@ type GKMCacheSpec struct {
 	// +kubebuilder:validation:MaxLength:=525
 	// +kubebuilder:validation:Pattern=`[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}`
 	Image string `json:"image"`
+
+	// storage defines the persistent storage configuration for the GPU Kernel Cache.
+	// If not specified, default values will be used (10Gi, default StorageClass, ReadWriteOnce).
+	// +optional
+	Storage *StorageSpec `json:"storage,omitempty"`
 }
 
 type GKMCacheStatus struct {
 	// resolvedDigest contains the digest of the image after it has been verified.
 	ResolvedDigest string `json:"resolvedDigest,omitempty"` // Injected by webhook
+
+	// pvcName contains the name of the PersistentVolumeClaim created for this cache.
+	// This field is populated by the operator after the PVC is created.
+	// +optional
+	PvcName string `json:"pvcName,omitempty"`
+
+	// pvcSize contains the actual size of the PVC that was created.
+	// +optional
+	PvcSize string `json:"pvcSize,omitempty"`
 
 	// conditions contains the summary state for the GPU Kernel Cache for all the
 	// Kubernetes nodes in the cluster.

@@ -15,8 +15,16 @@ const (
 
 	// DefaultCacheDir is the default root directory to store the expanded the GPU Kernel
 	// images.
+	// NOTE: This will be deprecated in favor of PVC-based storage.
 	DefaultCacheDir = "/var/lib/gkm/caches"
 	CacheFilename   = "cache.json"
+
+	// PVC Configuration Defaults
+	DefaultPVCSize        = "10Gi"
+	DefaultPVCAccessMode  = "ReadWriteOnce"
+	DefaultPVCMountPath   = "/mnt/gkm-cache"
+	PVCNamePrefix         = "gkm-cache"
+	PVCClusterNamePrefix  = "gkm-clustercache"
 
 	// DefaultUsageDir is the default root directory to store the usage data for the GPU Kernel
 	// images.
@@ -43,11 +51,27 @@ const (
 	GMKClusterAnnotationMutationSig   = "gkm.io/mutationSig"
 	GMKClusterAnnotationLastMutatedBy = "gkm.io/lastMutatedBy"
 
+	// PVC Annotations
+	GKMPVCAnnotationCacheImage       = "gkm.io/cache-image"
+	GKMPVCAnnotationExtractionStatus = "gkm.io/extraction-status"
+	GKMPVCAnnotationCacheDigest      = "gkm.io/cache-digest"
+
 	// Kyverno Annotations
 	KyvernoVerifyImagesAnnotation = "kyverno.io/verify-images"
 
 	// GKMCache and ClusterGKMCache Labels
 	GKMCacheLabelHostname = "kubernetes.io/hostname"
+
+	// PVC Labels
+	GKMPVCLabelApp       = "app.kubernetes.io/name"
+	GKMPVCLabelComponent = "app.kubernetes.io/component"
+	GKMPVCLabelCacheName = "gkm.io/cache-name"
+
+	// PVC Extraction Status Values
+	PVCExtractionStatusPending    = "pending"
+	PVCExtractionStatusExtracting = "extracting"
+	PVCExtractionStatusCompleted  = "completed"
+	PVCExtractionStatusFailed     = "failed"
 
 	// GKMOperatorFinalizer is the finalizer that holds a ConfigMap from deletion until
 	// cleanup can be performed.

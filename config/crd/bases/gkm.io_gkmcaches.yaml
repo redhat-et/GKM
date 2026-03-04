@@ -91,6 +91,34 @@ spec:
                 maxLength: 525
                 pattern: '[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}'
                 type: string
+              storage:
+                description: |-
+                  storage defines the persistent storage configuration for the GPU Kernel Cache.
+                  If not specified, default values will be used (10Gi, default StorageClass, ReadWriteOnce).
+                properties:
+                  accessMode:
+                    default: ReadWriteOnce
+                    description: |-
+                      accessMode specifies the access mode for the PVC during extraction.
+                      Valid values are ReadWriteOnce (default) and ReadWriteMany.
+                      After extraction completes, pods will mount the cache as ReadOnly.
+                    enum:
+                    - ReadWriteOnce
+                    - ReadWriteMany
+                    type: string
+                  size:
+                    description: |-
+                      size specifies the size of the PVC to create for this cache.
+                      If not specified, GKM will attempt to determine the size from the image
+                      metadata or use a default size of 10Gi.
+                    pattern: ^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$
+                    type: string
+                  storageClassName:
+                    description: |-
+                      storageClassName is the name of the StorageClass to use for the PVC.
+                      If not specified, the default StorageClass will be used.
+                    type: string
+                type: object
             required:
             - image
             type: object
@@ -216,6 +244,15 @@ spec:
                   lastUpdated contains the timestamp of the last time the status field for
                   this instance was updated.
                 format: date-time
+                type: string
+              pvcName:
+                description: |-
+                  pvcName contains the name of the PersistentVolumeClaim created for this cache.
+                  This field is populated by the operator after the PVC is created.
+                type: string
+              pvcSize:
+                description: pvcSize contains the actual size of the PVC that was
+                  created.
                 type: string
               resolvedDigest:
                 description: resolvedDigest contains the digest of the image after
