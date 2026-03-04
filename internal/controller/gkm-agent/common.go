@@ -19,6 +19,7 @@ package gkmAgent
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -149,11 +150,17 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 				err)
 	}
 
-	extractedList, err := database.GetExtractedCacheList(r.Logger)
+	// Get list of extracted caches from PVCs instead of host filesystem
+	extractedList, err := database.GetExtractedCacheListFromPVC(
+		ctx,
+		r.Client,
+		r.PVCBasePath,
+		r.Logger,
+	)
 	if err != nil {
-		r.Logger.Error(err, "failed to list Extracted Cache")
+		r.Logger.Error(err, "failed to list Extracted Cache from PVCs")
 		return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure},
-			fmt.Errorf("failed getting list of installed %s for full reconcile: %v",
+			fmt.Errorf("failed getting list of installed %s from PVCs for full reconcile: %v",
 				r.CrdCacheStr,
 				err)
 	}
@@ -569,12 +576,24 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addCacheInCacheNode(
 		"digest", resolvedDigest,
 		"NoGpu", r.NoGpu)
 
-	// Image has NOT been extracted, call MCV to extract cache from image to host.
-	matchedIds, unmatchedIds, err := database.ExtractCache(
+	// Extract cache to PVC instead of host filesystem.
+	// Generate PVC name and construct mount path.
+	pvcName := database.GeneratePVCNameForCache((*gkmCache).GetNamespace(), (*gkmCache).GetName())
+	pvcMountPath := filepath.Join(r.PVCBasePath, pvcName)
+
+	r.Logger.Info("Extracting cache to PVC",
+		"pvcName", pvcName,
+		"pvcMountPath", pvcMountPath)
+
+	// Call ExtractCacheToPVC to extract cache from OCI image to PVC
+	matchedIds, unmatchedIds, err := database.ExtractCacheToPVC(
+		ctx,
+		r.Client,
 		(*gkmCache).GetNamespace(),
 		(*gkmCache).GetName(),
 		(*gkmCache).GetImage(),
 		resolvedDigest,
+		pvcMountPath,
 		r.NoGpu,
 		r.Logger,
 	)
@@ -642,21 +661,20 @@ func (r *ReconcilerCommonAgent[C, CL, N]) checkForCacheUpdateInCacheNode(
 	nodeStatus := (*gkmCacheNode).GetStatus().DeepCopy()
 	if nodeStatus != nil {
 		if cacheStatus, ok := nodeStatus.CacheStatuses[(*gkmCache).GetName()][resolvedDigest]; ok {
-			// Read the Cache File
+			// Get cache size from PVC
 			cacheStatus.VolumeSize = 0
-			cacheFile, err := database.GetCacheFile(
-				(*gkmCache).GetNamespace(),
-				(*gkmCache).GetName(),
-				r.Logger)
+			pvcName := database.GeneratePVCNameForCache((*gkmCache).GetNamespace(), (*gkmCache).GetName())
+			pvcMountPath := filepath.Join(r.PVCBasePath, pvcName)
+
+			size, err := database.GetCacheSizeInPVC(pvcMountPath, resolvedDigest)
 			if err != nil {
-				r.Logger.Error(err, "unable to read cache file, continuing",
+				r.Logger.Error(err, "unable to get cache size from PVC, continuing",
 					"Namespace", (*gkmCache).GetNamespace(),
 					"Name", (*gkmCache).GetName(),
-					"Digest", resolvedDigest)
+					"Digest", resolvedDigest,
+					"pvcMountPath", pvcMountPath)
 			} else {
-				if size, ok := cacheFile.Sizes[resolvedDigest]; ok {
-					cacheStatus.VolumeSize = size
-				}
+				cacheStatus.VolumeSize = size
 			}
 
 			// Read Usage Data
@@ -766,28 +784,33 @@ func (r *ReconcilerCommonAgent[C, CL, N]) removeCacheFromCacheNode(
 	// GKMCacheNode object updates.
 	updated := false
 
-	// Delete Extracted Cache from host.
-	r.Logger.Info("Cache being deleted, removing extracted cache from host",
+	// Delete Extracted Cache from PVC.
+	r.Logger.Info("Cache being deleted, removing extracted cache from PVC",
 		"namespace", cacheNamespace,
 		"name", cacheName,
 		"digest", digest)
-	inUse, err := database.RemoveCache(
-		cacheNamespace,
-		cacheName,
-		digest,
-		r.Logger,
-	)
-	if inUse {
-		r.Logger.Info("Not deleted, extracted Cache still in use",
+
+	// Check if cache is in use (from usage tracking in /run/gkm/usage)
+	inUse := false
+	if _, err := database.GetUsageData(cacheNamespace, cacheName, digest, r.Logger); err == nil {
+		r.Logger.V(1).Info("cache still in use",
 			"namespace", cacheNamespace,
 			"name", cacheName,
 			"digest", digest)
-		return inUse, updated, nil
-	} else if err != nil {
-		r.Logger.Error(err, "failed to delete extracted cache from host",
+		inUse = true
+		return inUse, updated, fmt.Errorf("kernel cache still in use")
+	}
+
+	// Cache is not in use, remove it from the PVC
+	pvcName := database.GeneratePVCNameForCache(cacheNamespace, cacheName)
+	pvcMountPath := filepath.Join(r.PVCBasePath, pvcName)
+
+	if err := database.RemoveCacheFromPVC(pvcMountPath, digest, r.Logger); err != nil {
+		r.Logger.Error(err, "failed to delete extracted cache from PVC",
 			"namespace", cacheNamespace,
 			"name", cacheName,
-			"digest", digest)
+			"digest", digest,
+			"pvcMountPath", pvcMountPath)
 		return inUse, updated, err
 	}
 
