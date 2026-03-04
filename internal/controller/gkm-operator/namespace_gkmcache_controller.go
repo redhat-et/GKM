@@ -20,6 +20,7 @@ package gkmOperator
 
 import (
 	"context"
+	"strings"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +31,9 @@ import (
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=create;list;watch;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches/finalizers,verbs=update
@@ -118,11 +122,20 @@ func (r *GKMCacheOperatorReconciler) cacheUpdateStatus(
 		"CacheName", gkmCache.Name,
 	)
 	if err := r.Status().Update(ctx, gkmCache); err != nil {
-		r.Logger.Info("failed to update GKMCache Status",
-			"err", err,
-			"reason", reason,
-			"Namespace", gkmCache.Namespace,
-			"CacheName", gkmCache.Name)
+		if strings.Contains(err.Error(), "object has been modified") {
+			r.Logger.Info("failed to update GKMCache Status - outdated",
+				"reason", reason,
+				"Namespace", gkmCache.Namespace,
+				"CacheName", gkmCache.Name,
+				"Error", err,
+			)
+		} else {
+			r.Logger.Error(err, "failed to update GKMCache Status",
+				"reason", reason,
+				"Namespace", gkmCache.Namespace,
+				"CacheName", gkmCache.Name,
+			)
+		}
 		return err
 	}
 
@@ -132,33 +145,6 @@ func (r *GKMCacheOperatorReconciler) cacheUpdateStatus(
 func (r *GKMCacheOperatorReconciler) isBeingDeleted(gkmCache *gkmv1alpha1.GKMCache) bool {
 	return !gkmCache.GetDeletionTimestamp().IsZero()
 }
-
-/*
-
-func isConditionTrue(conds []metav1.Condition, condType string) bool {
-	for _, c := range conds {
-		if c.Type == condType && c.Status == metav1.ConditionTrue {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *GKMCacheOperatorReconciler) getCacheNodeList(ctx context.Context, cacheNamespace string) (*gkmv1alpha1.GKMCacheNodeList, error) {
-	cacheNodeList := &gkmv1alpha1.GKMCacheNodeList{}
-
-	err := r.List(
-		ctx,
-		cacheNodeList,
-		client.InNamespace(cacheNamespace),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return cacheNodeList, nil
-}
-*/
 
 func (r *GKMCacheOperatorReconciler) cacheAddFinalizer(ctx context.Context, gkmCache *gkmv1alpha1.GKMCache) (bool, error) {
 	if changed := controllerutil.AddFinalizer(gkmCache, r.getCacheFinalizer()); changed {

@@ -64,6 +64,10 @@ FIELDS:
   nodeName	<string> -required-
     nodeName is the name of the Kubernetes Node this instance is created.
 
+  resolvedDigest	<string>
+    resolvedDigest contains the digest of the image after it has been verified.
+    This is a copy of the field in the GKMCache or ClusterGKMCache.
+
 $ kubectl explain ClusterGKMCacheNode.status.caches
 GROUP:      gkm.io
 KIND:       ClusterGKMCacheNode
@@ -82,10 +86,6 @@ FIELDS:
     compatibleGPUs is the list of GPU ids that the extracted GPU Kernel Cache
     is compatible with. The ids refer back to the list of GPUs in status.gpus.
 
-  conditions	<[]Object>
-    conditions contains the summary state for the GPU Kernel Cache on the
-    Kubernetes node referenced by status.nodeName.
-
   incompatibleGPUs	<[]integer>
     incompatibleGPUs is the list of GPU ids that the extracted GPU Kernel Cache
     is not compatible with. The ids refer back to the list of GPUs in
@@ -99,10 +99,64 @@ FIELDS:
     pods is the list of pods the GPU Kernel Cache that is actively Volume
     Mounted.
 
+  pvcStatus	<map[string]Object>
+    pvcStatus tracks the Persistent Volume Claim that was created for the
+    storage of the extract GPU Kernel Cache. The map is indexed by the namespace
+    the PVC is created .
+
   volumeSize	<integer>
     volumeSize is the size of the extracted GPU Kernel Cache in bytes.
 
-$ kubectl explain ClusterGKMCacheNode.status.caches.conditions
+$ kubectl explain ClusterGKMCacheNode.status.caches.pods
+GROUP:      gkm.io
+KIND:       ClusterGKMCacheNode
+VERSION:    v1alpha1
+
+FIELD: pods <[]Object>
+
+
+DESCRIPTION:
+    pods is the list of pods the GPU Kernel Cache that is actively Volume
+    Mounted.
+    
+FIELDS:
+  podName	<string>
+    podName is the name of the pod the GPU Kernel Cache is mounted in.
+
+  podNamespace	<string>
+    podNamespace is the namespace of the pod the GPU Kernel Cache is mounted in.
+
+  volumeId	<string>
+    volumeId is the Volume Id the CSI Driver received from Kubelet. It
+    identifies the GPU Kernel Cache that is actively Volume Mounted in a pod.
+
+$ kubectl explain ClusterGKMCacheNode.status.caches.pvcStatus
+GROUP:      gkm.io
+KIND:       ClusterGKMCacheNode
+VERSION:    v1alpha1
+
+FIELD: pvcStatus <map[string]Object>
+
+
+DESCRIPTION:
+    pvcStatus tracks the Persistent Volume Claim that was created for the
+    storage of the extract GPU Kernel Cache. The map is indexed by the namespace
+    the PVC is created .
+    
+FIELDS:
+  conditions	<[]Object>
+    conditions contains the summary state for the GPU Kernel Cache on the
+    Kubernetes node referenced by status.nodeName.
+
+  pvName	<string>
+    pvName contains the name of the Persistent Volume that was created for the
+    storage of the extract GPU Kernel Cache.
+
+  pvcName	<string>
+    pvcName contains the name of the Persistent Volume Claim that was created
+    for the storage of the extract GPU Kernel Cache.
+
+$ kubectl explain ClusterGKMCacheNode.status.caches.pvcStatus.conditions
 GROUP:      gkm.io
 KIND:       ClusterGKMCacheNode
 VERSION:    v1alpha1
@@ -149,29 +203,6 @@ FIELDS:
 
   type	<string> -required-
     type of condition in CamelCase or in foo.example.com/CamelCase.
-
-$ kubectl explain ClusterGKMCacheNode.status.caches.pods
-GROUP:      gkm.io
-KIND:       ClusterGKMCacheNode
-VERSION:    v1alpha1
-
-FIELD: pods <[]Object>
-
-
-DESCRIPTION:
-    pods is the list of pods the GPU Kernel Cache that is actively Volume
-    Mounted.
-    
-FIELDS:
-  podName	<string>
-    podName is the name of the pod the GPU Kernel Cache is mounted in.
-
-  podNamespace	<string>
-    podNamespace is the namespace of the pod the GPU Kernel Cache is mounted in.
-
-  volumeId	<string>
-    volumeId is the Volume Id the CSI Driver received from Kubelet. It
-    identifies the GPU Kernel Cache that is actively Volume Mounted in a pod.
 
 $ kubectl explain ClusterGKMCacheNode.status.counts
 GROUP:      gkm.io

@@ -18,16 +18,11 @@ package gkmOperator
 
 import (
 	"context"
-	"io"
-	"os"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,17 +34,14 @@ import (
 
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=configmaps/finalizers,verbs=update
 
 // GKMConfigMapReconciler reconciles a GKM ConfigMap object
 type GKMConfigMapReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
-	Logger              logr.Logger
-	CsiDriverYamlFile   string
-	CsiDriverRegistered bool
+	Scheme *runtime.Scheme
+	Logger logr.Logger
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -72,14 +64,6 @@ func (r *GKMConfigMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, nil
 		}
 	} else {
-		/*
-			if updated := controllerutil.AddFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer); updated {
-				if err := r.Update(ctx, gkmConfigMap); err != nil {
-					r.Logger.Error(err, "failed adding gkm-operator finalizer to GKM ConfigMap")
-					return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
-				}
-			}
-		*/
 		return r.ReconcileGKMConfigMap(ctx, req, gkmConfigMap)
 	}
 
@@ -97,60 +81,24 @@ func (r *GKMConfigMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *GKMConfigMapReconciler) ReconcileGKMConfigMap(ctx context.Context, req ctrl.Request, gkmConfigMap *corev1.ConfigMap,
 ) (ctrl.Result, error) {
-	// one-shot try to create GKM's CSIDriver object if it doesn't exist, does not re-trigger reconcile.
-	if !r.CsiDriverRegistered {
-		if result, err := r.RegisterCSIDriver(ctx); err != nil {
-			return result, err
-		}
-	}
-
 	agentLogLevel := gkmConfigMap.Data[utils.ConfigMapIndexAgentLogLevel]
 	agentImage := gkmConfigMap.Data[utils.ConfigMapIndexAgentImage]
-	csiLogLevel := gkmConfigMap.Data[utils.ConfigMapIndexCsiLogLevel]
-	csiImage := gkmConfigMap.Data[utils.ConfigMapIndexCsiImage]
+	extractLogLevel := gkmConfigMap.Data[utils.ConfigMapIndexExtractLogLevel]
+	extractImage := gkmConfigMap.Data[utils.ConfigMapIndexExtractImage]
 	noGpu := gkmConfigMap.Data[utils.ConfigMapIndexNoGpu]
+	kindCluster := gkmConfigMap.Data[utils.ConfigMapIndexKindCluster]
 
 	r.Logger.Info("ConfigMap Values",
-		"agentLogLevel", agentLogLevel,
 		"agentImage", agentImage,
-		"csiLogLevel", csiLogLevel,
-		"csiImage", csiImage,
+		"agentLogLevel", agentLogLevel,
+		"extractImage", extractImage,
+		"extractLogLevel", extractLogLevel,
 		"noGpu", noGpu,
+		"kindCluster", kindCluster,
 	)
 
 	if !gkmConfigMap.DeletionTimestamp.IsZero() {
-		if r.CsiDriverRegistered {
-			if result, err := r.DeregisterCSIDriver(ctx); err != nil {
-				return result, err
-			}
-		}
-
 		r.Logger.Info("Deleting GKM DaemonSet (ToDo) and ConfigMap")
-
-		gkmCsiDriver := &storagev1.CSIDriver{}
-
-		// one-shot try to delete the GKM CSIDriver object if it exists.
-		if err := r.Get(
-			ctx,
-			types.NamespacedName{Namespace: corev1.NamespaceAll, Name: utils.CsiDriverName},
-			gkmCsiDriver,
-		); err == nil {
-			r.Logger.Info("Deleting GKM CSIDriver object")
-			if err := r.Delete(ctx, gkmCsiDriver); err != nil {
-				r.Logger.Error(err, "Failed to delete GKM CSIDriver object")
-				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
-			}
-		}
-
-		/*
-			controllerutil.RemoveFinalizer(gkmConfigMap, utils.GKMOperatorFinalizer)
-			err := r.Update(ctx, gkmConfigMap)
-			if err != nil {
-				r.Logger.Error(err, "failed removing gkm-operator finalizer from GKM ConfigMap")
-				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryOperatorConfigMapFailure}, nil
-			}
-		*/
-
 		return ctrl.Result{}, nil
 	}
 
@@ -173,75 +121,4 @@ func gkmConfigPredicate() predicate.Funcs {
 			return e.Object.GetName() == utils.GKMConfigName
 		},
 	}
-}
-
-// RegisterCSIDriver calls KubeAPI Server to register the CSIDriver with Kubernetes. This
-// only needs to be done once.
-//
-// This function only returns err if the call to KubeAPI fails.
-func (r *GKMConfigMapReconciler) RegisterCSIDriver(ctx context.Context) (ctrl.Result, error) {
-	gkmCsiDriver := &storagev1.CSIDriver{}
-	if err := r.Get(
-		ctx,
-		types.NamespacedName{Namespace: corev1.NamespaceAll, Name: utils.CsiDriverName},
-		gkmCsiDriver,
-	); err != nil {
-		if errors.IsNotFound(err) {
-			gkmCsiDriver = LoadCsiDriver(r.CsiDriverYamlFile)
-
-			r.Logger.Info("Creating GKM CSIDriver object")
-			if err := r.Create(ctx, gkmCsiDriver); err != nil {
-				r.Logger.Error(err, "Failed to create GKM CSIDriver object")
-				return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure}, err
-			}
-		} else {
-			r.Logger.Error(err, "Failed to get CSIDriver object", "Driver Name", utils.CsiDriverName)
-			return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure}, err
-		}
-	}
-
-	r.CsiDriverRegistered = true
-	return ctrl.Result{Requeue: false}, nil
-}
-
-// DeregisterCSIDriver calls KubeAPI Server to deregister the CSIDriver with Kubernetes. This
-// only needs to be done once.
-//
-// This function only returns err if the call to KubeAPI fails.
-func (r *GKMConfigMapReconciler) DeregisterCSIDriver(ctx context.Context) (ctrl.Result, error) {
-	gkmCsiDriver := &storagev1.CSIDriver{}
-
-	// one-shot try to delete the GKM CSIDriver object if it exists.
-	if err := r.Get(
-		ctx,
-		types.NamespacedName{Namespace: corev1.NamespaceAll, Name: utils.CsiDriverName},
-		gkmCsiDriver,
-	); err == nil {
-		r.Logger.Info("Deleting GKM CSIDriver object")
-		if err := r.Delete(ctx, gkmCsiDriver); err != nil {
-			r.Logger.Error(err, "Failed to delete CSIDriver object")
-			return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure}, err
-		}
-	}
-
-	r.CsiDriverRegistered = false
-	return ctrl.Result{Requeue: false}, nil
-}
-
-func LoadCsiDriver(path string) *storagev1.CSIDriver {
-	// Load static CSIDriver yaml from disk
-	file, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-
-	b, err := io.ReadAll(file)
-	if err != nil {
-		panic(err)
-	}
-
-	decode := scheme.Codecs.UniversalDeserializer().Decode
-	obj, _, _ := decode(b, nil, nil)
-
-	return obj.(*storagev1.CSIDriver)
 }
