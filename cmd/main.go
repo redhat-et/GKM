@@ -33,9 +33,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
 	gkmOperator "github.com/redhat-et/GKM/internal/controller/gkm-operator"
+
+	gkmWebhook "github.com/redhat-et/GKM/internal/webhook"
 	"github.com/redhat-et/GKM/pkg/utils"
 	// +kubebuilder:scaffold:imports
 )
@@ -64,6 +67,13 @@ func main() {
 		noGpu = true
 		setupLog.Info("No-GPU set to true", "noGpu", noGpu)
 	}
+
+	extractImage := utils.JobExtractImage
+	tmpExtractImage := os.Getenv("EXTRACT_IMAGE")
+	if tmpExtractImage != "" {
+		extractImage = tmpExtractImage
+	}
+	setupLog.Info("EXTRACT_IMAGE processing", "tmpExtractImage", tmpExtractImage, "extractImage", extractImage)
 
 	// Process inputs from Commandline
 	var metricsAddr string
@@ -153,11 +163,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	mutator := &gkmWebhook.PodMutator{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Decoder: admission.NewDecoder(mgr.GetScheme()),
+	}
+	mgr.GetWebhookServer().Register(
+		"/mutate-v1-pod",
+		&admission.Webhook{Handler: mutator},
+	)
+
 	if err = (&gkmOperator.GKMConfigMapReconciler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		CsiDriverYamlFile:   utils.CsiDriverYamlFile,
-		CsiDriverRegistered: false,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GKMConfigMap")
 		os.Exit(1)
@@ -172,6 +190,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		NoGpu:           noGpu,
+		ExtractImage:    extractImage,
 		CrdCacheStr:     "GKMCache",
 		CrdCacheNodeStr: "GKMCacheNode",
 	}
@@ -191,6 +210,7 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		NoGpu:           noGpu,
+		ExtractImage:    extractImage,
 		CrdCacheStr:     "ClusterGKMCache",
 		CrdCacheNodeStr: "ClusterGKMCacheNode",
 	}

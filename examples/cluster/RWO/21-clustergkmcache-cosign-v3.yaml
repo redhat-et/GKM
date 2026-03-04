@@ -1,0 +1,11 @@
+---
+apiVersion: gkm.io/v1alpha1
+kind: ClusterGKMCache
+metadata:
+  name: vector-add-cache-rocm-v3-rwo
+spec:
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+  workloadNamespaces:
+    - gkm-test-cl-rwo-2
+  accessModes:
+    - ReadWriteOnce

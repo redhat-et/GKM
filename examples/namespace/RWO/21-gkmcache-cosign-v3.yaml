@@ -1,0 +1,11 @@
+---
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: vector-add-cache-rocm-v3-rwo
+  namespace: gkm-test-ns-rwo-1
+  labels:
+    gkm.io/signature-format: cosign-v3
+spec:
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+  storageClassName: standard

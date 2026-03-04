@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +38,10 @@ import (
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=create;list;watch;delete
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcaches,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcachenodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=clustergkmcachenodes/status,verbs=get;update;patch
@@ -116,12 +121,17 @@ func (r *ClusterGKMCacheAgentReconciler) getCacheList(
 func (r *ClusterGKMCacheAgentReconciler) getCacheNode(
 	ctx context.Context,
 	cacheNamespace string,
+	cacheName string,
 ) (*gkmv1alpha1.ClusterGKMCacheNode, error) {
 	cacheNodeList := &gkmv1alpha1.ClusterGKMCacheNodeList{}
 
+	labelSelector := map[string]string{
+		utils.GKMClusterCacheNodeLabelCache: cacheName,
+		utils.GKMCacheLabelHostname:         r.NodeName,
+	}
 	err := r.List(ctx, cacheNodeList,
 		client.InNamespace(cacheNamespace),
-		client.MatchingLabels{utils.GKMCacheLabelHostname: r.NodeName},
+		client.MatchingLabels(labelSelector),
 	)
 	if err != nil {
 		return nil, err
@@ -139,7 +149,7 @@ func (r *ClusterGKMCacheAgentReconciler) getCacheNode(
 		// More than one matching ClusterGKMCacheNode found. This should never
 		// happen, but if it does, return an error
 		r.Logger.Info("Found Multiple ClusterGKMCacheNode, looking for",
-			"Namespace", cacheNamespace, "Node", r.NodeName)
+			"Namespace", cacheNamespace, "Name", cacheName, "Node", r.NodeName)
 		for cacheIndex := range cacheNodeList.Items {
 			r.Logger.Info("Found Multiple ClusterGKMCacheNode",
 				"Namespace", cacheNodeList.Items[cacheIndex].Namespace,
@@ -155,10 +165,11 @@ func (r *ClusterGKMCacheAgentReconciler) createCacheNode(ctx context.Context, ca
 	// Build up GKMCacheNode
 	gkmCacheNode := &gkmv1alpha1.ClusterGKMCacheNode{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       generateUniqueName(cacheName),
+			Name:       utils.GenerateUniqueName(cacheName),
 			Finalizers: []string{},
 			Labels: map[string]string{
-				utils.GKMCacheLabelHostname: r.NodeName,
+				utils.GKMCacheLabelHostname:         r.NodeName,
+				utils.GKMClusterCacheNodeLabelCache: cacheName,
 			},
 		},
 	}
@@ -190,10 +201,19 @@ func (r *ClusterGKMCacheAgentReconciler) cacheNodeUpdateStatus(
 		"CacheNodeName", gkmCacheNode.Name,
 	)
 	if err := r.Status().Update(ctx, gkmCacheNode); err != nil {
-		r.Logger.Error(err, "failed to update ClusterGKMCacheNode Status",
-			"reason", reason,
-			"Namespace", gkmCacheNode.Namespace,
-			"CacheNodeName", gkmCacheNode.Name)
+		if strings.Contains(err.Error(), "object has been modified") {
+			r.Logger.Info("failed to update ClusterGKMCacheNode Status - outdated",
+				"reason", reason,
+				"Namespace", gkmCacheNode.Namespace,
+				"CacheNodeName", gkmCacheNode.Name,
+				"Error", err,
+			)
+		} else {
+			r.Logger.Error(err, "failed to update ClusterGKMCacheNode Status",
+				"reason", reason,
+				"Namespace", gkmCacheNode.Namespace,
+				"CacheNodeName", gkmCacheNode.Name)
+		}
 		return err
 	}
 

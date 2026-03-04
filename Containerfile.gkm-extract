@@ -1,0 +1,39 @@
+FROM public.ecr.aws/docker/library/golang:1.25 AS extract-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgpgme-dev \
+    libbtrfs-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+# Copy the go source
+COPY gkm-extract/ gkm-extract/
+COPY pkg/ pkg/
+COPY vendor/ vendor/
+COPY Makefile Makefile
+
+# Build the GKM MCV-Extract binary.
+RUN make build-gkm-extract
+
+# Use the fedora minimal image to reduce the size of the final image but still
+# be able to easily install extra packages.
+FROM quay.io/fedora/fedora-minimal
+
+RUN dnf update -y && dnf install -y \
+    gpgme-devel \
+    libbtrfs \
+ && dnf clean all
+
+# Copy the binary from the builder
+COPY --from=extract-builder /workspace/bin/gkm-extract /usr/sbin/.
+ENV PATH="$PATH:/usr/sbin"
+
+# Run as non-root user
+USER 65532:65532
+
+ENTRYPOINT ["gkm-extract"]

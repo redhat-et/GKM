@@ -83,6 +83,22 @@ spec:
               packaged in an OCI Image which allows the cache to be distributed to
               Kubernetes Nodes, where it is extracted to host memory.
             properties:
+              accessModes:
+                default:
+                - ReadWriteOnce
+                description: |-
+                  accessMode is the set of capabilities being requested by the generated PVC.
+                  This field is optional. If not provided, it will default to "ReadWriteOnce".
+                  This implies that the StorageClass and backing CSI Agent do not support
+                  distributing the PVC data to multiple Nodes. GKM will create a PVC per Node
+                  and populate each with the extracted GPU Kernel Cache. If the StorageClass
+                  and backing CSI Agent do support distributing the PVC data to multiple
+                  Nodes, then set this field to "ReadWriteOnce, ReadOnlyMany". GKM will create
+                  one PVC for the cluster and leave it up to the StorageClass and backing CSI
+                  Agent to distribute the PVC contents to each Node.
+                items:
+                  type: string
+                type: array
               image:
                 description: |-
                   image is a required field and is a valid container image URL used to
@@ -91,8 +107,25 @@ spec:
                 maxLength: 525
                 pattern: '[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}'
                 type: string
+              storageClassName:
+                description: |-
+                  storageClassName contains the name of the Kubernetes Storage Class, which
+                  will be used for the PersistentVolume and PersistentVolumeClaim the GKM will
+                  create in order to store the extract GPU Kernel Cache.
+                type: string
+              workloadNamespaces:
+                description: |-
+                  workloadNamespaces is optional for GKMCache instances, but required for
+                  ClusterGKMCache instances. For ClusterGKMCache instances, the cache is
+                  cluster scoped, but the workload using the cache must be in a namespace, and
+                  the PVC the is mounted in the pods will be in the same namespace. GKM
+                  creates this PVC and needs to know what namespace to create it in.
+                items:
+                  type: string
+                type: array
             required:
             - image
+            - storageClassName
             type: object
           status:
             description: |-
@@ -105,6 +138,7 @@ spec:
                 description: |-
                   conditions contains the summary state for the GPU Kernel Cache for all the
                   Kubernetes nodes in the cluster.
+                  DEPRECATED!!
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -217,12 +251,103 @@ spec:
                   this instance was updated.
                 format: date-time
                 type: string
+              pvcOwner:
+                default: Unknown
+                description: |-
+                  pvcOwner is an indication of which process, Agent or Operator, manages the
+                  PVC used to store the extracted GPU Kernel Cache. Value of Agent indicates
+                  Agent manages the PVC, value of Operator indicates Operator manages the PVC.
+                enum:
+                - Unknown
+                - Agent
+                - Operator
+                type: string
+              pvcStatus:
+                additionalProperties:
+                  properties:
+                    conditions:
+                      description: |-
+                        conditions contains the summary state for the GPU Kernel Cache on the
+                        Kubernetes node referenced by status.nodeName.
+                      items:
+                        description: Condition contains details for one aspect of
+                          the current state of this API Resource.
+                        properties:
+                          lastTransitionTime:
+                            description: |-
+                              lastTransitionTime is the last time the condition transitioned from one status to another.
+                              This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                            format: date-time
+                            type: string
+                          message:
+                            description: |-
+                              message is a human readable message indicating details about the transition.
+                              This may be an empty string.
+                            maxLength: 32768
+                            type: string
+                          observedGeneration:
+                            description: |-
+                              observedGeneration represents the .metadata.generation that the condition was set based upon.
+                              For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                              with respect to the current state of the instance.
+                            format: int64
+                            minimum: 0
+                            type: integer
+                          reason:
+                            description: |-
+                              reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                              Producers of specific condition types may define expected values and meanings for this field,
+                              and whether the values are considered a guaranteed API.
+                              The value should be a CamelCase string.
+                              This field may not be empty.
+                            maxLength: 1024
+                            minLength: 1
+                            pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                            type: string
+                          status:
+                            description: status of the condition, one of True, False,
+                              Unknown.
+                            enum:
+                            - "True"
+                            - "False"
+                            - Unknown
+                            type: string
+                          type:
+                            description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                            maxLength: 316
+                            pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                            type: string
+                        required:
+                        - lastTransitionTime
+                        - message
+                        - reason
+                        - status
+                        - type
+                        type: object
+                      type: array
+                    pvName:
+                      description: |-
+                        pvName contains the name of the Persistent Volume that was created for the
+                        storage of the extract GPU Kernel Cache.
+                      type: string
+                    pvcName:
+                      description: |-
+                        pvcName contains the name of the Persistent Volume Claim that was created
+                        for the storage of the extract GPU Kernel Cache.
+                      type: string
+                  type: object
+                description: |-
+                  pvcStatus tracks the Persistent Volume Claim that was created for the
+                  storage of the extract GPU Kernel Cache. The map is indexed by the namespace
+                  the PVC is created .
+                type: object
               resolvedDigest:
                 description: resolvedDigest contains the digest of the image after
                   it has been verified.
                 type: string
             required:
             - counts
+            - pvcOwner
             type: object
         type: object
     served: true

@@ -7,10 +7,9 @@ data:
   ## Can be set to "info", "debug", or "trace". Not processed at runtime.
   gkm.operator.log.level: info
   gkm.agent.log.level: info
-  gkm.csi.log.level: info
   ## Can be configured at runtime
   gkm.agent.image: quay.io/gkm/agent:latest
-  gkm.csi.image: quay.io/gkm/gkm-csi-plugin:latest
+  gkm.extract.image: quay.io/gkm/gkm-extract:latest
   gkm.nogpu: false
   ## Enable/disable Kyverno image signature verification (defaults to true/enabled)
   gkm.kyverno.enabled: "true"

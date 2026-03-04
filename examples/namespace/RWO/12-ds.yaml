@@ -1,0 +1,53 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: gkm-test-ns-rwo-ds-1
+  namespace: gkm-test-ns-rwo-1
+  labels:
+    gkm.io/pvcMutation: "true"
+spec:
+  selector:
+    matchLabels:
+      name: gkm-test-ns-rwo-ds-1
+  template:
+    metadata:
+      labels:
+        name: gkm-test-ns-rwo-ds-1
+        gkm.io/pvc-mutation: "true"
+    spec:
+      tolerations:
+        - key: gpu
+          operator: Equal
+          effect: NoSchedule
+          value: "true"
+
+      # Init-Container is only needed for KIND clusters.
+      initContainers:
+        - name: fix-permissions
+          image: quay.io/fedora/fedora-minimal
+          securityContext:
+            runAsUser: 0
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 1000:1000 /cache
+              chmod -R 775 /cache
+          volumeMounts:
+            - name: kernel-volume
+              mountPath: /cache
+
+      containers:
+        - name: test
+          image: quay.io/fedora/fedora-minimal
+          imagePullPolicy: IfNotPresent
+          command: [sleep, 365d]
+          volumeMounts:
+            - name: kernel-volume
+              mountPath: /cache
+              readOnly: true
+      volumes:
+        - name: kernel-volume
+          persistentVolumeClaim:
+            claimName: vector-add-cache-rocm-v2-rwo
