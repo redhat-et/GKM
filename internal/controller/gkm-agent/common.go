@@ -76,7 +76,8 @@ type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstan
 	Scheme          *runtime.Scheme
 	Logger          logr.Logger
 	Recorder        record.EventRecorder
-	CacheDir        string
+	CacheDir        string // Deprecated: Host path cache directory, will be replaced by PVCBasePath
+	PVCBasePath     string // Base path where PVCs are mounted (e.g., /mnt/gkm-pvcs)
 	NodeName        string
 	NoGpu           bool
 	CrdCacheStr     string // For logging/errors: GKMCache or ClusterGKMCache

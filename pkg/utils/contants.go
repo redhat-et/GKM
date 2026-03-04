@@ -99,6 +99,10 @@ const (
 	ConfigMapIndexCsiLogLevel      = "gkm.csi.log.level"
 	ConfigMapIndexNoGpu            = "gkm.nogpu"
 	ConfigMapIndexKyvernoEnabled   = "gkm.kyverno.enabled"
+	ConfigMapIndexPVCBasePath      = "gkm.pvc.basepath"
+
+	// Environment Variable Names
+	EnvVarPVCBasePath = "GKM_PVC_BASE_PATH"
 
 	// Duration for Kubernetes to Retry a failed request
 	RetryOperatorConfigMapFailure = 5 * time.Second

@@ -52,6 +52,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Get PVC base path from environment variable, default to /mnt/gkm-pvcs if not set
+	pvcBasePath := os.Getenv(utils.EnvVarPVCBasePath)
+	if pvcBasePath == "" {
+		pvcBasePath = "/mnt/gkm-pvcs"
+		setupLog.Info("PVC base path not set, using default", "pvcBasePath", pvcBasePath)
+	} else {
+		setupLog.Info("PVC base path configured", "pvcBasePath", pvcBasePath)
+	}
+
 	// Process inputs from Commandline
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -147,6 +156,7 @@ func main() {
 		Scheme:          mgr.GetScheme(),
 		Recorder:        mgr.GetEventRecorderFor("GKM-Agent-NS"),
 		CacheDir:        utils.DefaultCacheDir,
+		PVCBasePath:     pvcBasePath,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
 		CrdCacheStr:     "GKMCache",
@@ -168,6 +178,7 @@ func main() {
 		Scheme:          mgr.GetScheme(),
 		Recorder:        mgr.GetEventRecorderFor("GKM-Agent-CL"),
 		CacheDir:        utils.DefaultCacheDir,
+		PVCBasePath:     pvcBasePath,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
 		CrdCacheStr:     "ClusterGKMCache",
