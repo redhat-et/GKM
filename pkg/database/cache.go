@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	mcvClient "github.com/redhat-et/MCU/mcv/pkg/client"
+	mcvClient "github.com/redhat-et/GKM/mcv/pkg/client"
 
 	"github.com/redhat-et/GKM/pkg/utils"
 )

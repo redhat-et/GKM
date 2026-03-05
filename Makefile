@@ -688,3 +688,13 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push OPERATOR_IMG=$(CATALOG_IMG)
+
+##@ MCV (Model Cache Validator)
+
+.PHONY: mcv
+mcv: ## Build MCV binary
+	$(MAKE) -C mcv mcv
+
+.PHONY: mcv-test
+mcv-test: ## Run MCV tests
+	$(MAKE) -C mcv test
