@@ -23,8 +23,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
-	mcvDevices "github.com/redhat-et/MCU/mcv/pkg/accelerator/devices"
-	mcvClient "github.com/redhat-et/MCU/mcv/pkg/client"
+	mcvDevices "github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	mcvClient "github.com/redhat-et/GKM/mcv/pkg/client"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

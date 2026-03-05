@@ -1,0 +1,44 @@
+name: MCV Tag New Release
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type (major, minor, patch)
+        required: true
+        default: patch
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo with full history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version
+        id: version
+        run: |
+          bump="${{ github.event.inputs.bump }}"
+          latest=$(git tag --sort=-v:refname | grep '^mcv/v' | head -n1 | sed 's/^mcv\/v//')
+          latest=${latest:-0.0.0}
+          IFS='.' read -r major minor patch <<< "$latest"
+
+          case "$bump" in
+            major) major=$((major+1)); minor=0; patch=0 ;;
+            minor) minor=$((minor+1)); patch=0 ;;
+            patch) patch=$((patch+1)) ;;
+            *) echo "Invalid bump type: $bump" && exit 1 ;;
+          esac
+
+          new_tag="mcv/v$major.$minor.$patch"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+          echo "Next version: $new_tag"
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.new_tag }}
+          git push origin ${{ steps.version.outputs.new_tag }}
