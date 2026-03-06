@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -10,10 +11,12 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -51,6 +54,13 @@ func main() {
 		setupLog.Error(fmt.Errorf("KUBE_NODE_NAME env var not set"), "Couldn't determine current node")
 		os.Exit(1)
 	}
+
+	extractImage := utils.JobExtractImage
+	tmpExtractImage := os.Getenv("EXTRACT_IMAGE")
+	if tmpExtractImage != "" {
+		extractImage = tmpExtractImage
+	}
+	setupLog.Info("EXTRACT_IMAGE processing", "tmpExtractImage", tmpExtractImage, "extractImage", extractImage)
 
 	// Process inputs from Commandline
 	var metricsAddr string
@@ -138,6 +148,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Index Pods by spec.nodeName
+	ctx := context.Background()
+	if err := mgr.GetFieldIndexer().IndexField(
+		ctx,
+		&corev1.Pod{},
+		"spec.nodeName",
+		func(obj client.Object) []string {
+			pod := obj.(*corev1.Pod)
+			if pod.Spec.NodeName == "" {
+				return nil
+			}
+			return []string{pod.Spec.NodeName}
+		},
+	); err != nil {
+		setupLog.Error(err, "Failed to register Pod field indexer")
+		os.Exit(1)
+	}
+
 	commonNs := gkmAgent.ReconcilerCommonAgent[
 		gkmv1alpha1.GKMCache,
 		gkmv1alpha1.GKMCacheList,
@@ -149,6 +177,7 @@ func main() {
 		CacheDir:        utils.DefaultCacheDir,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
+		ExtractImage:    extractImage,
 		CrdCacheStr:     "GKMCache",
 		CrdCacheNodeStr: "GKMCacheNode",
 	}
@@ -170,6 +199,7 @@ func main() {
 		CacheDir:        utils.DefaultCacheDir,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
+		ExtractImage:    extractImage,
 		CrdCacheStr:     "ClusterGKMCache",
 		CrdCacheNodeStr: "ClusterGKMCacheNode",
 	}

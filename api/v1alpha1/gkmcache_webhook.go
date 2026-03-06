@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	gcrremote "github.com/google/go-containerregistry/pkg/v1/remote"
 
 	"github.com/redhat-et/GKM/pkg/utils"
@@ -76,7 +78,7 @@ func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
 			gkmcacheLog.Info("Image already contains digest (likely from Kyverno)", "image", cache.Spec.Image, "digest", extractedDigest)
 			digest = extractedDigest
 		}
-		resolvedDigest, digestFound := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+		resolvedDigest, digestFound := cache.Annotations[utils.GKMCacheAnnotationResolvedDigest]
 		if digestFound && digest != "" {
 			// Digest hasn't changed so just return
 			if digest == resolvedDigest {
@@ -101,7 +103,11 @@ func (w *GKMCache) Default(ctx context.Context, obj runtime.Object) error {
 		}
 	}
 
-	cache.Annotations[utils.GMKCacheAnnotationResolvedDigest] = digest
+	size := extractSizeFromImage(cache.Spec.Image)
+	gkmcacheLog.Info("Extracted size captured", "bytes", size, "MB", float64(size)/(1024*1024))
+
+	cache.Annotations[utils.GKMCacheAnnotationResolvedDigest] = digest
+	cache.Annotations[utils.GKMCacheAnnotationCacheSizeBytes] = strconv.FormatInt(size, 10)
 
 	gkmcacheLog.Info("added/updated resolvedDigest", "image", cache.Spec.Image, "digest", digest)
 	return nil
@@ -122,8 +128,8 @@ func (w *GKMCache) ValidateCreate(ctx context.Context, obj runtime.Object) (admi
 		return nil, fmt.Errorf("spec.image must be set")
 	}
 
-	if _, exists := cache.Annotations[utils.GMKCacheAnnotationResolvedDigest]; !exists {
-		return nil, fmt.Errorf("%s must be set by mutating webhook", utils.GMKCacheAnnotationResolvedDigest)
+	if _, exists := cache.Annotations[utils.GKMCacheAnnotationResolvedDigest]; !exists {
+		return nil, fmt.Errorf("%s must be set by mutating webhook", utils.GKMCacheAnnotationResolvedDigest)
 	}
 
 	if isKyvernoVerificationEnabled() {
@@ -152,13 +158,16 @@ func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Ob
 	oldImg := oldCache.Spec.Image
 	newImg := newCache.Spec.Image
 
-	oldDigest := oldCache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
-	newDigest := newCache.Annotations[utils.GMKCacheAnnotationResolvedDigest]
+	oldDigest := oldCache.Annotations[utils.GKMCacheAnnotationResolvedDigest]
+	newDigest := newCache.Annotations[utils.GKMCacheAnnotationResolvedDigest]
+	oldSize := oldCache.Annotations[utils.GKMCacheAnnotationCacheSizeBytes]
+	newSize := newCache.Annotations[utils.GKMCacheAnnotationCacheSizeBytes]
 
 	// If image didn't change, digest must not change.
 	if oldImg == newImg {
 		if oldDigest != newDigest {
-			return nil, fmt.Errorf("%s is immutable when spec.image is unchanged", utils.GMKCacheAnnotationResolvedDigest)
+			gkmcacheLog.Info("Digests don't match", "oldDigest", oldDigest, "newDigest", newDigest, "oldSize", oldSize, "newSize", newSize)
+			return nil, fmt.Errorf("%s is immutable when spec.image is unchanged", utils.GKMCacheAnnotationResolvedDigest)
 		}
 		return nil, nil
 	}
@@ -168,7 +177,7 @@ func (w *GKMCache) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Ob
 		return nil, fmt.Errorf("spec.image must be set")
 	}
 	if newDigest == "" {
-		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", utils.GMKCacheAnnotationResolvedDigest)
+		return nil, fmt.Errorf("%s must be set by mutating webhook when spec.image changes", utils.GKMCacheAnnotationResolvedDigest)
 	}
 
 	// Validate Kyverno verification if enabled
@@ -215,6 +224,51 @@ func extractDigestFromImage(imageRef string) string {
 	}
 
 	return ""
+}
+
+// extractSizeFromImage walks the layers in the image and adds the sizes
+// of all the layers.
+// Returns 0 if unable to calculate the size.
+func extractSizeFromImage(imageRef string) int64 {
+	var totalUncompressedSize int64 = 0
+
+	ref, err := name.ParseReference(imageRef)
+	if err != nil {
+		gkmcacheLog.Error(err, "ParseReference call failed")
+		return totalUncompressedSize
+	}
+
+	img, err := remote.Image(ref)
+	if err != nil {
+		gkmcacheLog.Error(err, "Image call failed")
+		return totalUncompressedSize
+	}
+
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		gkmcacheLog.Error(err, "ConfigFile call failed")
+		return totalUncompressedSize
+	}
+
+	labels := cfg.Config.Labels
+	if len(labels) == 0 {
+		gkmcacheLog.Error(err, "No labels found")
+		return totalUncompressedSize
+	}
+
+	for key, value := range labels {
+		if strings.Contains(key, utils.ImageLabelCacheSizeBytesSubstring) {
+			size, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				gkmcacheLog.Error(err, "ParseInt call failed", "label", key, "value", value)
+			} else {
+				gkmcacheLog.Info("Found Size Label", "label", key, "value", value)
+				totalUncompressedSize += size
+			}
+		}
+	}
+
+	return totalUncompressedSize
 }
 
 // verifyKyvernoAnnotation checks the kyverno.io/verify-images annotation to ensure

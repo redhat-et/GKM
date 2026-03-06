@@ -23,6 +23,7 @@ import (
 
 // +genclient
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:path=gkmcachenodes,shortName=gkmcn
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced
 

@@ -24,6 +24,7 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:path=clustergkmcachenodes,shortName=cgkmcn
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
