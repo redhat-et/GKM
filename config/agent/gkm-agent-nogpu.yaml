@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: agent-nogpu
+  namespace: gkm-system
+  labels:
+    app: gkm-agent
+    gpu-vendor: none
+spec:
+  selector:
+    matchLabels:
+      app: gkm-agent
+      gpu-vendor: none
+  template:
+    metadata:
+      labels:
+        app: gkm-agent
+        gpu-vendor: none
+    spec:
+      serviceAccountName: gkm-agent
+      # Deploy on nodes without GPUs (nodes that don't have NVIDIA or AMD PCI labels)
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-10de.present
+                operator: DoesNotExist
+              - key: feature.node.kubernetes.io/pci-1002.present
+                operator: DoesNotExist
+      containers:
+      - name: gkm-agent
+        image: quay.io/gkm/agent-nogpu:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          privileged: true
+          capabilities:
+            add: ["CAP_DAC_OVERRIDE", "CAP_FOWNER"]
+          seccompProfile:
+            type: Unconfined
+        env:
+          - name: NO_GPU
+            value: "true"
+          - name: GO_LOG
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.agent.log.level
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+          - name: gkm-state
+            mountPath: /var/lib/gkm
+            mountPropagation: Bidirectional
+          - name: gkm-runtime
+            mountPath: /run/gkm
+            mountPropagation: Bidirectional
+          - name: sys
+            mountPath: /sys
+            readOnly: true
+          - name: dev
+            mountPath: /dev
+
+      volumes:
+        # This volume is the GKM State directory. This is where GPU Kernel Cache
+        # will be extracted.
+        - name: gkm-state
+          hostPath:
+            path: /var/lib/gkm
+            type: DirectoryOrCreate
+        # This volume is the GKM Runtime directory. This is where the Usage data
+        # will tracked which pods are using which cache.
+        - name: gkm-runtime
+          hostPath:
+            path: /run/gkm
+            type: DirectoryOrCreate
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
