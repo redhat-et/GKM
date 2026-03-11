@@ -1,23 +1,29 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: agent
+  name: agent-nvidia
   namespace: gkm-system
   labels:
     app: gkm-agent
+    gpu-vendor: nvidia
 spec:
   selector:
     matchLabels:
       app: gkm-agent
+      gpu-vendor: nvidia
   template:
     metadata:
       labels:
         app: gkm-agent
+        gpu-vendor: nvidia
     spec:
       serviceAccountName: gkm-agent
+      # Deploy only on nodes with NVIDIA GPUs
+      nodeSelector:
+        feature.node.kubernetes.io/pci-10de.present: "true"  # NVIDIA vendor ID
       containers:
       - name: gkm-agent
-        image: quay.io/gkm/agent:latest
+        image: quay.io/gkm/agent-nvidia:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 0
@@ -37,11 +43,6 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.agent.log.level
-          - name: EXTRACT_IMAGE
-            valueFrom:
-              configMapKeyRef:
-                name: gkm-config
-                key: gkm.extract.image
           - name: KUBE_NODE_NAME
             valueFrom:
               fieldRef:
@@ -50,6 +51,7 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
+            nvidia.com/gpu: "0"  # Request 0 GPUs (agent only monitors, doesn't use GPU)
         volumeMounts:
           - name: gkm-state
             mountPath: /var/lib/gkm

@@ -209,25 +209,44 @@ run: manifests generate fmt vet ## Run a controller from your host.
 build-image-operator:
 	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-operator -t ${OPERATOR_IMG} .
 
-.PHONY: build-image-agent
-build-image-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --build-arg NO_GPU=$(NO_GPU_BUILD) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
-
 .PHONY: build-image-gkm-extract
 build-image-gkm-extract:
 	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${EXTRACT_IMG} .
+
+.PHONY: build-image-agent-nvidia
+build-image-agent-nvidia:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-nvidia -t $(REPO)/agent-nvidia:$(IMAGE_TAG) .
+
+.PHONY: build-image-agent-amd
+build-image-agent-amd:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-amd -t $(REPO)/agent-amd:$(IMAGE_TAG) .
+
+.PHONY: build-image-agent-nogpu
+build-image-agent-nogpu:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent-nogpu -t $(REPO)/agent-nogpu:$(IMAGE_TAG) .
+
+.PHONY: build-image-agents
+build-image-agents: build-image-agent-nvidia build-image-agent-amd build-image-agent-nogpu ## Build all agent images (NVIDIA, AMD, and no-GPU)
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
-build-images: build-image-operator build-image-agent build-image-gkm-extract ## Build all container images.
+build-images: build-image-operator build-image-agents build-image-gkm-extract ## Build all container images.
 
 .PHONY: push-images
-push-images: ## Push all container image.
+push-images: ## Push all container images.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
-	$(CONTAINER_TOOL) push ${AGENT_IMG}
 	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
+	$(CONTAINER_TOOL) push $(REPO)/agent-nvidia:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push $(REPO)/agent-amd:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+
+.PHONY: push-images-agents
+push-images-agents: ## Push all agent images
+	$(CONTAINER_TOOL) push $(REPO)/agent-nvidia:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push $(REPO)/agent-amd:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
 
 # Mapping old commands after rename
 .PHONY: docker-build
