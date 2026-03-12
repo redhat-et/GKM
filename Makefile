@@ -77,6 +77,9 @@ REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
+AGENT_NVIDIA_IMG ?= $(REPO)/agent-nvidia:$(IMAGE_TAG)
+AGENT_AMD_IMG ?= $(REPO)/agent-amd:$(IMAGE_TAG)
+AGENT_NOGPU_IMG ?= $(REPO)/agent-nogpu:$(IMAGE_TAG)
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -215,15 +218,15 @@ build-image-gkm-extract:
 
 .PHONY: build-image-agent-nvidia
 build-image-agent-nvidia:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-nvidia -t $(REPO)/agent-nvidia:$(IMAGE_TAG) .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-nvidia -t ${AGENT_NVIDIA_IMG} .
 
 .PHONY: build-image-agent-amd
 build-image-agent-amd:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-amd -t $(REPO)/agent-amd:$(IMAGE_TAG) .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-amd -t ${AGENT_AMD_IMG} .
 
 .PHONY: build-image-agent-nogpu
 build-image-agent-nogpu:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent-nogpu -t $(REPO)/agent-nogpu:$(IMAGE_TAG) .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent-nogpu -t ${AGENT_NOGPU_IMG} .
 
 .PHONY: build-image-agents
 ifeq ($(NO_GPU_BUILD),true)
@@ -243,22 +246,22 @@ push-images: ## Push all container images.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
 ifeq ($(NO_GPU_BUILD),true)
-	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
 else
-	$(CONTAINER_TOOL) push $(REPO)/agent-nvidia:$(IMAGE_TAG)
-	$(CONTAINER_TOOL) push $(REPO)/agent-amd:$(IMAGE_TAG)
-	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push ${AGENT_NVIDIA_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_AMD_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
 endif
 
 .PHONY: push-images-agents
 ifeq ($(NO_GPU_BUILD),true)
 push-images-agents: ## Push no-GPU agent only (NO_GPU_BUILD=true)
-	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
 else
 push-images-agents: ## Push all agent images
-	$(CONTAINER_TOOL) push $(REPO)/agent-nvidia:$(IMAGE_TAG)
-	$(CONTAINER_TOOL) push $(REPO)/agent-amd:$(IMAGE_TAG)
-	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+	$(CONTAINER_TOOL) push ${AGENT_NVIDIA_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_AMD_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
 endif
 
 # Mapping old commands after rename
@@ -343,9 +346,9 @@ undeploy-nfd: kustomize ## Undeploy Node Feature Discovery
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image \
-		quay.io/gkm/agent-nvidia=$(REPO)/agent-nvidia:$(IMAGE_TAG) \
-		quay.io/gkm/agent-amd=$(REPO)/agent-amd:$(IMAGE_TAG) \
-		quay.io/gkm/agent-nogpu=$(REPO)/agent-nogpu:$(IMAGE_TAG)
+		quay.io/gkm/agent-nvidia=${AGENT_NVIDIA_IMG} \
+		quay.io/gkm/agent-amd=${AGENT_AMD_IMG} \
+		quay.io/gkm/agent-nogpu=${AGENT_NOGPU_IMG}
 ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
