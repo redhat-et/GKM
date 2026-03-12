@@ -311,10 +311,28 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Deployment
+
+.PHONY: deploy-nfd
+deploy-nfd: kustomize ## Deploy Node Feature Discovery for GPU detection
+	@echo "Deploying Node Feature Discovery (NFD)..."
+	$(KUSTOMIZE) build config/nfd | $(KUBECTL) apply -f -
+	@echo "Waiting for NFD to be ready..."
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n node-feature-discovery deployment/nfd-master || true
+	@echo "NFD deployed successfully."
+
+.PHONY: undeploy-nfd
+undeploy-nfd: kustomize ## Undeploy Node Feature Discovery
+	@echo "Undeploying Node Feature Discovery..."
+	$(KUSTOMIZE) build config/nfd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "NFD undeployed."
+
 .PHONY: prepare-deploy
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image \
+		quay.io/gkm/agent-nvidia=$(REPO)/agent-nvidia:$(IMAGE_TAG) \
+		quay.io/gkm/agent-amd=$(REPO)/agent-amd:$(IMAGE_TAG) \
+		quay.io/gkm/agent-nogpu=$(REPO)/agent-nogpu:$(IMAGE_TAG)
 ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
@@ -337,7 +355,11 @@ ifneq ($(KYVERNO_ENABLED),true)
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager deploy-nfd redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+ifeq ($(KYVERNO_ENABLED),true)
+	@echo "Deploying Kyverno (KYVERNO_ENABLED=true)..."
+	$(MAKE) deploy-kyverno-with-policies
+endif
 
 .PHONY: redeploy
 redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and undeploy have been called. Skips some onetime steps in deploy.
@@ -352,6 +374,13 @@ undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent fr
     	exit 1; \
     fi
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+ifeq ($(KYVERNO_ENABLED),true)
+	@echo "Undeploying Kyverno (KYVERNO_ENABLED=true)..."
+	-$(MAKE) undeploy-kyverno-policies
+	-$(MAKE) undeploy-kyverno-production
+endif
+	@echo "Undeploying NFD..."
+	-$(MAKE) undeploy-nfd
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy-force
@@ -486,6 +515,24 @@ else
 endif
 	@echo "Kyverno deployed successfully to $(KIND_CLUSTER_NAME)."
 
+.PHONY: deploy-kyverno-production
+deploy-kyverno-production: helm ## Deploy Kyverno for production clusters (no Kind context)
+	@echo "Installing Kyverno..."
+	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
+		--repo https://kyverno.github.io/kyverno/ kyverno \
+		--values config/kyverno/values.yaml \
+		--wait
+	@echo "Waiting for Kyverno to be ready..."
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
+	@echo "Kyverno deployed successfully."
+
+.PHONY: deploy-kyverno-with-policies
+deploy-kyverno-with-policies: deploy-kyverno-production deploy-kyverno-policies ## Deploy Kyverno and its policies
+	@echo "Restarting Kyverno to discover GKM CRDs..."
+	@$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n kyverno
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
+	@echo "Kyverno and policies deployed successfully."
+
 .PHONY: deploy-kyverno-policies
 deploy-kyverno-policies: kustomize ## Deploy Kyverno ClusterPolicies for GKMCache image verification
 	@echo "Deploying Kyverno policies for GKMCache image verification..."
@@ -506,6 +553,13 @@ undeploy-kyverno: ## Undeploy Kyverno
 		--ignore-not-found || true
 	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
 	@echo "Kyverno undeployed from $(KIND_CLUSTER_NAME)."
+
+.PHONY: undeploy-kyverno-production
+undeploy-kyverno-production: ## Undeploy Kyverno from production cluster
+	@echo "Uninstalling Kyverno..."
+	$(HELM) uninstall kyverno --namespace kyverno --ignore-not-found || true
+	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
+	@echo "Kyverno undeployed."
 
 ##@ Kind Cluster Management
 
