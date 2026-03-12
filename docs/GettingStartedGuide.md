@@ -10,14 +10,37 @@ building GKM and description of how to deploy GKM.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
-The following packages are also required to build:
+### Automated Installation (RHEL 10 / CentOS Stream 10)
+
+For RHEL 10 or CentOS Stream 10 systems, you can install all dependencies (including go, podman, kubectl, and build packages) using:
+
+```sh
+make install-deps
+```
+
+This will:
+- Install system development packages (gpgme-devel, libdrm-devel, hwloc-devel)
+- Install btrfs development headers
+- Install or upgrade Go to v1.25.0+ if needed
+- Install or upgrade Podman to v5.3.1+ if needed
+- Install or upgrade kubectl to v1.11.3+ if needed
+
+### Manual Installation
+
+The following packages are required to build:
+
+**For Fedora/RHEL/CentOS:**
 
 ```sh
 sudo dnf install -y gpgme-devel libdrm-devel libbtrfs btrfs-progs \
      btrfs-progs-devel hwloc hwloc-devel
 ```
 
-OR
+> **Note for RHEL 10**: Some packages may not be available in standard repositories.
+> Use `make install-deps` or see [hack/install_deps.sh](../hack/install_deps.sh) for the installation script
+> that sources packages from CentOS Stream 10 and Fedora repositories.
+
+**For Debian/Ubuntu:**
 
 ```sh
 sudo apt-get install -y libgpgme-dev libbtrfs-dev btrfs-progs libgpgme11-dev \
