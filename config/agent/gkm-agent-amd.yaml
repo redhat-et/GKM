@@ -65,6 +65,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: LD_LIBRARY_PATH
+            value: /opt/rocm/lib:/usr/lib64
         resources:
           limits:
             memory: "128Mi"
@@ -82,6 +84,12 @@ spec:
             readOnly: true
           - name: dev
             mountPath: /dev
+          - name: rocm-libs
+            mountPath: /opt/rocm
+            readOnly: true
+          - name: system-libs
+            mountPath: /usr/lib64
+            readOnly: true
 
       volumes:
         # This volume is the GKM State directory. This is where GPU Kernel Cache
@@ -103,4 +111,14 @@ spec:
         - name: dev
           hostPath:
             path: /dev
+            type: Directory
+        # ROCm libraries needed for AMD GPU management
+        - name: rocm-libs
+          hostPath:
+            path: /opt/rocm
+            type: DirectoryOrCreate
+        # System libraries for GPU access
+        - name: system-libs
+          hostPath:
+            path: /usr/lib64
             type: Directory

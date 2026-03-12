@@ -57,6 +57,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: LD_LIBRARY_PATH
+            value: /usr/lib64
         resources:
           limits:
             memory: "128Mi"
@@ -74,6 +76,9 @@ spec:
             readOnly: true
           - name: dev
             mountPath: /dev
+          - name: nvidia-libs
+            mountPath: /usr/lib64
+            readOnly: true
 
       volumes:
         # This volume is the GKM State directory. This is where GPU Kernel Cache
@@ -95,4 +100,9 @@ spec:
         - name: dev
           hostPath:
             path: /dev
+            type: Directory
+        # NVIDIA libraries needed for NVML (NVIDIA Management Library)
+        - name: nvidia-libs
+          hostPath:
+            path: /usr/lib64
             type: Directory
