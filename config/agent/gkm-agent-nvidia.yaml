@@ -19,8 +19,18 @@ spec:
     spec:
       serviceAccountName: gkm-agent
       # Deploy only on nodes with NVIDIA GPUs
-      nodeSelector:
-        feature.node.kubernetes.io/pci-10de.present: "true"  # NVIDIA vendor ID
+      # NVIDIA vendor ID is 10de, with class codes:
+      # 0300: VGA controller, 0302: 3D controller
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_10de.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0302_10de.present
+                operator: Exists
       containers:
       - name: gkm-agent
         image: quay.io/gkm/agent-nvidia:latest
