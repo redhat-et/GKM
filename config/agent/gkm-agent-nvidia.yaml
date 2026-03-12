@@ -1,23 +1,39 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: agent
+  name: agent-nvidia
   namespace: gkm-system
   labels:
     app: gkm-agent
+    gpu-vendor: nvidia
 spec:
   selector:
     matchLabels:
       app: gkm-agent
+      gpu-vendor: nvidia
   template:
     metadata:
       labels:
         app: gkm-agent
+        gpu-vendor: nvidia
     spec:
       serviceAccountName: gkm-agent
+      # Deploy only on nodes with NVIDIA GPUs
+      # NVIDIA vendor ID is 10de, with class codes:
+      # 0300: VGA controller, 0302: 3D controller
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_10de.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0302_10de.present
+                operator: Exists
       containers:
       - name: gkm-agent
-        image: quay.io/gkm/agent:latest
+        image: quay.io/gkm/agent-nvidia:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 0
@@ -37,19 +53,17 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.agent.log.level
-          - name: EXTRACT_IMAGE
-            valueFrom:
-              configMapKeyRef:
-                name: gkm-config
-                key: gkm.extract.image
           - name: KUBE_NODE_NAME
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: LD_LIBRARY_PATH
+            value: /usr/lib64
         resources:
           limits:
             memory: "128Mi"
             cpu: "100m"
+            nvidia.com/gpu: "0"  # Request 0 GPUs (agent only monitors, doesn't use GPU)
         volumeMounts:
           - name: gkm-state
             mountPath: /var/lib/gkm
@@ -62,6 +76,9 @@ spec:
             readOnly: true
           - name: dev
             mountPath: /dev
+          - name: nvidia-libs
+            mountPath: /usr/lib64
+            readOnly: true
 
       volumes:
         # This volume is the GKM State directory. This is where GPU Kernel Cache
@@ -83,4 +100,9 @@ spec:
         - name: dev
           hostPath:
             path: /dev
+            type: Directory
+        # NVIDIA libraries needed for NVML (NVIDIA Management Library)
+        - name: nvidia-libs
+          hostPath:
+            path: /usr/lib64
             type: Directory

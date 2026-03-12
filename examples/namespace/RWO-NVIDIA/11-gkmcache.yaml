@@ -1,0 +1,19 @@
+---
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: vector-add-cache-cuda-rwo
+  namespace: gkm-test-ns-nvidia-rwo-1
+  labels:
+    gkm.io/signature-format: cosign-v2
+spec:
+  image: quay.io/gkm/cache-examples:vector-add-cache-cuda-v2
+  storageClassName: standard  # Update this to match your cluster's storage class
+
+  # Pod template for the extraction job
+  podTemplate:
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule

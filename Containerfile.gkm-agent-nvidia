@@ -30,8 +30,8 @@ COPY Makefile Makefile
 # Build the agent binary
 RUN make build-gkm-agent
 
-# Use a minimal Ubuntu base image that supports CGO binaries
-FROM public.ecr.aws/docker/library/ubuntu:24.04
+# Use NVIDIA CUDA runtime base image for GPU support
+FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04
 
 # Copy the binary from the builder
 COPY --from=builder /workspace/bin/gkm-agent /agent
@@ -56,27 +56,11 @@ RUN apt-get update && \
         lsb-release \
         software-properties-common \
         libseccomp2 && \
-    apt-get clean
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-ARG NO_GPU=false
-ARG ROCM_VERSION=7.0.1
-ARG AMDGPU_VERSION=7.0.1.70001
-ARG OPT_ROCM_VERSION=7.0.1
-
-# Conditionally install ROCm packages based on NO_GPU flag
-RUN if [ "$NO_GPU" = "false" ]; then \
-        wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/noble/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
-        apt install -y ./*.deb && \
-        apt update && DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib && \
-        apt-get clean && rm -rf /var/lib/apt/lists/* && \
-        ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
-        ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi; \
-    else \
-        echo "NO_GPU=true, skipping ROCm installation"; \
-    fi
-
-# Set NO_GPU environment variable
-ENV NO_GPU=${NO_GPU}
+# The NVIDIA CUDA base image already includes libnvidia-ml.so (NVML)
+# No additional NVIDIA packages needed
 
 # Run as non-root user
 USER 65532:65532

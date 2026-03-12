@@ -77,6 +77,9 @@ REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
+AGENT_NVIDIA_IMG ?= $(REPO)/agent-nvidia:$(IMAGE_TAG)
+AGENT_AMD_IMG ?= $(REPO)/agent-amd:$(IMAGE_TAG)
+AGENT_NOGPU_IMG ?= $(REPO)/agent-nogpu:$(IMAGE_TAG)
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -145,6 +148,12 @@ vendors: ## Refresh vendors directory.
 	@echo "### Checking vendors"
 	go mod tidy && go mod vendor
 
+.PHONY: install-deps
+install-deps: ## Install all dependencies (go, podman, kubectl, and build dependencies).
+	@echo "### Installing GKM dependencies"
+	@chmod +x hack/install_deps.sh
+	@./hack/install_deps.sh
+
 .PHONY: explain
 explain: ## Run "kubectl explain" on all CRDs.
 	CRD_1="ClusterGKMCache" CRD_2="GKMCache" CRD_3="ClusterGKMCacheNode" CRD_4="GKMCacheNode" OUTPUT_DIR="../docs/crds" ./hack/crd_explain_txt.sh
@@ -209,25 +218,57 @@ run: manifests generate fmt vet ## Run a controller from your host.
 build-image-operator:
 	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-operator -t ${OPERATOR_IMG} .
 
-.PHONY: build-image-agent
-build-image-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --build-arg NO_GPU=$(NO_GPU_BUILD) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
-
 .PHONY: build-image-gkm-extract
 build-image-gkm-extract:
 	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${EXTRACT_IMG} .
+
+.PHONY: build-image-agent-nvidia
+build-image-agent-nvidia:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-nvidia -t ${AGENT_NVIDIA_IMG} .
+
+.PHONY: build-image-agent-amd
+build-image-agent-amd:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-amd -t ${AGENT_AMD_IMG} .
+
+.PHONY: build-image-agent-nogpu
+build-image-agent-nogpu:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent-nogpu -t ${AGENT_NOGPU_IMG} .
+
+.PHONY: build-image-agents
+ifeq ($(NO_GPU_BUILD),true)
+build-image-agents: build-image-agent-nogpu ## Build no-GPU agent only (NO_GPU_BUILD=true)
+else
+build-image-agents: build-image-agent-nvidia build-image-agent-amd build-image-agent-nogpu ## Build all agent images (NVIDIA, AMD, and no-GPU)
+endif
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
-build-images: build-image-operator build-image-agent build-image-gkm-extract ## Build all container images.
+build-images: build-image-operator build-image-agents build-image-gkm-extract ## Build all container images.
 
 .PHONY: push-images
-push-images: ## Push all container image.
+push-images: ## Push all container images.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
-	$(CONTAINER_TOOL) push ${AGENT_IMG}
 	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
+ifeq ($(NO_GPU_BUILD),true)
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
+else
+	$(CONTAINER_TOOL) push ${AGENT_NVIDIA_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_AMD_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
+endif
+
+.PHONY: push-images-agents
+ifeq ($(NO_GPU_BUILD),true)
+push-images-agents: ## Push no-GPU agent only (NO_GPU_BUILD=true)
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
+else
+push-images-agents: ## Push all agent images
+	$(CONTAINER_TOOL) push ${AGENT_NVIDIA_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_AMD_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
+endif
 
 # Mapping old commands after rename
 .PHONY: docker-build
@@ -292,10 +333,28 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Deployment
+
+.PHONY: deploy-nfd
+deploy-nfd: kustomize ## Deploy Node Feature Discovery for GPU detection
+	@echo "Deploying Node Feature Discovery (NFD)..."
+	$(KUSTOMIZE) build config/nfd | $(KUBECTL) apply -f -
+	@echo "Waiting for NFD to be ready..."
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n node-feature-discovery deployment/nfd-master || true
+	@echo "NFD deployed successfully."
+
+.PHONY: undeploy-nfd
+undeploy-nfd: kustomize ## Undeploy Node Feature Discovery
+	@echo "Undeploying Node Feature Discovery..."
+	$(KUSTOMIZE) build config/nfd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	@echo "NFD undeployed."
+
 .PHONY: prepare-deploy
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
+	cd config/agent && $(KUSTOMIZE) edit set image \
+		quay.io/gkm/agent-nvidia=${AGENT_NVIDIA_IMG} \
+		quay.io/gkm/agent-amd=${AGENT_AMD_IMG} \
+		quay.io/gkm/agent-nogpu=${AGENT_NOGPU_IMG}
 ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
@@ -318,7 +377,11 @@ ifneq ($(KYVERNO_ENABLED),true)
 endif
 
 .PHONY: deploy
-deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager deploy-nfd redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+ifeq ($(KYVERNO_ENABLED),true)
+	@echo "Deploying Kyverno (KYVERNO_ENABLED=true)..."
+	$(MAKE) deploy-kyverno-with-policies
+endif
 
 .PHONY: redeploy
 redeploy: ## Redeploy controller and agent to the K8s cluster after deploy and undeploy have been called. Skips some onetime steps in deploy.
@@ -333,6 +396,13 @@ undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent fr
     	exit 1; \
     fi
 	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+ifeq ($(KYVERNO_ENABLED),true)
+	@echo "Undeploying Kyverno (KYVERNO_ENABLED=true)..."
+	-$(MAKE) undeploy-kyverno-policies
+	-$(MAKE) undeploy-kyverno-production
+endif
+	@echo "Undeploying NFD..."
+	-$(MAKE) undeploy-nfd
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy-force
@@ -467,6 +537,24 @@ else
 endif
 	@echo "Kyverno deployed successfully to $(KIND_CLUSTER_NAME)."
 
+.PHONY: deploy-kyverno-production
+deploy-kyverno-production: helm ## Deploy Kyverno for production clusters (no Kind context)
+	@echo "Installing Kyverno..."
+	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
+		--repo https://kyverno.github.io/kyverno/ kyverno \
+		--values config/kyverno/values.yaml \
+		--wait
+	@echo "Waiting for Kyverno to be ready..."
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
+	@echo "Kyverno deployed successfully."
+
+.PHONY: deploy-kyverno-with-policies
+deploy-kyverno-with-policies: deploy-kyverno-production deploy-kyverno-policies ## Deploy Kyverno and its policies
+	@echo "Restarting Kyverno to discover GKM CRDs..."
+	@$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n kyverno
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
+	@echo "Kyverno and policies deployed successfully."
+
 .PHONY: deploy-kyverno-policies
 deploy-kyverno-policies: kustomize ## Deploy Kyverno ClusterPolicies for GKMCache image verification
 	@echo "Deploying Kyverno policies for GKMCache image verification..."
@@ -487,6 +575,13 @@ undeploy-kyverno: ## Undeploy Kyverno
 		--ignore-not-found || true
 	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
 	@echo "Kyverno undeployed from $(KIND_CLUSTER_NAME)."
+
+.PHONY: undeploy-kyverno-production
+undeploy-kyverno-production: ## Undeploy Kyverno from production cluster
+	@echo "Uninstalling Kyverno..."
+	$(HELM) uninstall kyverno --namespace kyverno --ignore-not-found || true
+	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
+	@echo "Kyverno undeployed."
 
 ##@ Kind Cluster Management
 
@@ -604,7 +699,7 @@ kind-gpu-sim-script: $(KIND_GPU_SIM_SCRIPT) ## Download  kind-gpu-sim-script loc
 $(KIND_GPU_SIM_SCRIPT): $(LOCALBIN)
 	if [ ! -f $(KIND_GPU_SIM_SCRIPT) ]; then \
 		echo "Downloading $(KIND_GPU_SIM_SCRIPT)"; \
-		wget -P $(LOCALBIN) $(KIND_GPU_SIM_SCRIPT_URL); \
+		curl -L -o $(KIND_GPU_SIM_SCRIPT) $(KIND_GPU_SIM_SCRIPT_URL); \
 		chmod +x $(KIND_GPU_SIM_SCRIPT); \
 	fi
 

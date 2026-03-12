@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Deploy Node Feature Discovery from official Helm chart
+# This will automatically label nodes with GPU vendor information
+resources:
+  - https://github.com/kubernetes-sigs/node-feature-discovery/deployment/overlays/default?ref=v0.17.2
+
+# Optional: Add custom NFD configuration
+# Uncomment if you need to customize NFD behavior
+# patchesStrategicMerge:
+#   - nfd-worker-conf.yaml
