@@ -226,7 +226,11 @@ build-image-agent-nogpu:
 	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent-nogpu -t $(REPO)/agent-nogpu:$(IMAGE_TAG) .
 
 .PHONY: build-image-agents
+ifeq ($(NO_GPU_BUILD),true)
+build-image-agents: build-image-agent-nogpu ## Build no-GPU agent only (NO_GPU_BUILD=true)
+else
 build-image-agents: build-image-agent-nvidia build-image-agent-amd build-image-agent-nogpu ## Build all agent images (NVIDIA, AMD, and no-GPU)
+endif
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -238,15 +242,24 @@ build-images: build-image-operator build-image-agents build-image-gkm-extract ##
 push-images: ## Push all container images.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
+ifeq ($(NO_GPU_BUILD),true)
+	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+else
 	$(CONTAINER_TOOL) push $(REPO)/agent-nvidia:$(IMAGE_TAG)
 	$(CONTAINER_TOOL) push $(REPO)/agent-amd:$(IMAGE_TAG)
 	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+endif
 
 .PHONY: push-images-agents
+ifeq ($(NO_GPU_BUILD),true)
+push-images-agents: ## Push no-GPU agent only (NO_GPU_BUILD=true)
+	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+else
 push-images-agents: ## Push all agent images
 	$(CONTAINER_TOOL) push $(REPO)/agent-nvidia:$(IMAGE_TAG)
 	$(CONTAINER_TOOL) push $(REPO)/agent-amd:$(IMAGE_TAG)
 	$(CONTAINER_TOOL) push $(REPO)/agent-nogpu:$(IMAGE_TAG)
+endif
 
 # Mapping old commands after rename
 .PHONY: docker-build
