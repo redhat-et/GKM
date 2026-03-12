@@ -148,6 +148,12 @@ vendors: ## Refresh vendors directory.
 	@echo "### Checking vendors"
 	go mod tidy && go mod vendor
 
+.PHONY: install-deps
+install-deps: ## Install all dependencies (go, podman, kubectl, and build dependencies).
+	@echo "### Installing GKM dependencies"
+	@chmod +x hack/install_deps.sh
+	@./hack/install_deps.sh
+
 .PHONY: explain
 explain: ## Run "kubectl explain" on all CRDs.
 	CRD_1="ClusterGKMCache" CRD_2="GKMCache" CRD_3="ClusterGKMCacheNode" CRD_4="GKMCacheNode" OUTPUT_DIR="../docs/crds" ./hack/crd_explain_txt.sh
@@ -693,7 +699,7 @@ kind-gpu-sim-script: $(KIND_GPU_SIM_SCRIPT) ## Download  kind-gpu-sim-script loc
 $(KIND_GPU_SIM_SCRIPT): $(LOCALBIN)
 	if [ ! -f $(KIND_GPU_SIM_SCRIPT) ]; then \
 		echo "Downloading $(KIND_GPU_SIM_SCRIPT)"; \
-		wget -P $(LOCALBIN) $(KIND_GPU_SIM_SCRIPT_URL); \
+		curl -L -o $(KIND_GPU_SIM_SCRIPT) $(KIND_GPU_SIM_SCRIPT_URL); \
 		chmod +x $(KIND_GPU_SIM_SCRIPT); \
 	fi
 

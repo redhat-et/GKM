@@ -19,8 +19,21 @@ spec:
     spec:
       serviceAccountName: gkm-agent
       # Deploy only on nodes with AMD GPUs
-      nodeSelector:
-        feature.node.kubernetes.io/pci-1002.present: "true"  # AMD vendor ID
+      # AMD vendor ID is 1002, with class codes:
+      # 0300: VGA controller, 0302: 3D controller, 0380: Display controller
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_1002.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0302_1002.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0380_1002.present
+                operator: Exists
       containers:
       - name: gkm-agent
         image: quay.io/gkm/agent-amd:latest
