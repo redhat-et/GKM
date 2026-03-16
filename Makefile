@@ -385,7 +385,11 @@ ifneq ($(KYVERNO_ENABLED),true)
 endif
 
 .PHONY: deploy
+ifeq ($(NO_GPU),true)
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to Kind cluster (skips NFD)
+else
 deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager deploy-nfd redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
+endif
 ifeq ($(KYVERNO_ENABLED),true)
 	@echo "Deploying Kyverno (KYVERNO_ENABLED=true)..."
 	$(MAKE) deploy-kyverno-with-policies
@@ -409,8 +413,10 @@ ifeq ($(KYVERNO_ENABLED),true)
 	-$(MAKE) undeploy-kyverno-policies
 	-$(MAKE) undeploy-kyverno-production
 endif
+ifneq ($(NO_GPU),true)
 	@echo "Undeploying NFD..."
 	-$(MAKE) undeploy-nfd
+endif
 	@echo "Undeployment from $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy-force

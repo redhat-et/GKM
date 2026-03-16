@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gkm-agent-amd
+  namespace: gkm-system
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: rocm.amd.com/gpu.present
+                operator: Exists
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
