@@ -103,15 +103,22 @@ kubectl get pods -n gkm-system -l gpu-vendor=amd -o wide
 
 ## Containerfiles
 
-### NVIDIA Agent ([Containerfile.gkm-agent-nvidia](../../Containerfile.gkm-agent-nvidia))
+All agent variants are built from [Containerfile.gkm-agents](../../Containerfile.gkm-agents) using multi-stage targets:
+
+### NVIDIA Agent (target: `nvidia`)
 - Base image: `nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04`
 - Includes: NVIDIA CUDA runtime with NVML libraries
 - Requires: NVIDIA driver on host
 
-### AMD Agent ([Containerfile.gkm-agent-amd](../../Containerfile.gkm-agent-amd))
-- Base image: `ubuntu:24.04`
+### AMD Agent (target: `amd`)
+- Base image: extends `nogpu` target
 - Includes: ROCm libraries (`amd-smi-lib`, `rocm-smi-lib`)
 - Requires: AMD GPU driver on host
+
+### No-GPU Agent (target: `nogpu`)
+- Base image: `ubuntu:24.04`
+- Includes: Common runtime dependencies only
+- For non-GPU workloads
 
 ## Node Selectors
 
@@ -188,5 +195,4 @@ To migrate from the legacy generic agent:
 - [gkm-agent-nvidia.yaml](gkm-agent-nvidia.yaml) - NVIDIA DaemonSet
 - [gkm-agent-amd.yaml](gkm-agent-amd.yaml) - AMD DaemonSet
 - [kustomization.yaml](kustomization.yaml) - Kustomize configuration
-- [../../Containerfile.gkm-agent-nvidia](../../Containerfile.gkm-agent-nvidia) - NVIDIA Containerfile
-- [../../Containerfile.gkm-agent-amd](../../Containerfile.gkm-agent-amd) - AMD Containerfile
+- [../../Containerfile.gkm-agents](../../Containerfile.gkm-agents) - Multi-target agent Containerfile

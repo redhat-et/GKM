@@ -1,0 +1,139 @@
+# ============================================================================
+# Multi-target Containerfile for GKM Agents
+# Build specific targets with: podman build --target <nogpu|amd|nvidia>
+# ============================================================================
+
+# ============================================================================
+# Stage 1: Builder (shared by all agent variants)
+# ============================================================================
+FROM public.ecr.aws/docker/library/golang:1.25 AS builder
+
+WORKDIR /workspace
+
+# Install required system packages
+RUN apt-get update && \
+    apt-get install -y \
+        libgpgme-dev \
+        btrfs-progs \
+        libbtrfs-dev \
+        libgpgme11-dev \
+        libseccomp-dev \
+        pkg-config \
+        build-essential && \
+    apt-get clean
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+# Copy the go source
+COPY agent/main.go agent/main.go
+COPY api/ api/
+COPY pkg/ pkg/
+COPY internal/controller/ internal/controller/
+COPY vendor/ vendor/
+COPY Makefile Makefile
+
+# Build the agent binary
+RUN make build-gkm-agent
+
+# ============================================================================
+# Target: nogpu (complete no-GPU agent)
+# ============================================================================
+FROM public.ecr.aws/docker/library/ubuntu:24.04 AS nogpu
+
+# Copy the binary from the builder
+COPY --from=builder /workspace/bin/gkm-agent /agent
+
+# Install common runtime libraries (shared with other agent variants)
+RUN apt-get update && \
+    apt-get install -y \
+        ca-certificates \
+        libgpgme11 \
+        libbtrfs0 \
+        libffi8 \
+        libc6 \
+        wget \
+        pciutils \
+        hwdata \
+        gnupg2 \
+        python3-setuptools \
+        python3-wheel \
+        curl \
+        dialog \
+        rsync \
+        lsb-release \
+        software-properties-common \
+        libseccomp2 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Run as non-root user
+USER 65532:65532
+
+ENTRYPOINT ["/agent"]
+
+# ============================================================================
+# Target: amd (extends nogpu, adds ROCm support)
+# ============================================================================
+FROM nogpu AS amd
+
+# Switch to root to install ROCm packages
+USER root
+
+# AMD ROCm version configuration
+ARG ROCM_VERSION=6.3.1
+ARG AMDGPU_VERSION=6.3.60301
+ARG OPT_ROCM_VERSION=6.3.1
+
+# Install AMD ROCm packages (GPU-specific dependencies)
+RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/noble/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    apt install -y ./*.deb && \
+    apt update && DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
+
+# Switch back to non-root user
+USER 65532:65532
+
+# Binary and entrypoint are inherited from nogpu
+
+# ============================================================================
+# Target: nvidia (CUDA runtime with NVML support)
+# ============================================================================
+FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS nvidia
+
+# Copy the binary from the builder
+COPY --from=builder /workspace/bin/gkm-agent /agent
+
+# Install common runtime libraries (shared with other agent variants)
+RUN apt-get update && \
+    apt-get install -y \
+        ca-certificates \
+        libgpgme11 \
+        libbtrfs0 \
+        libffi8 \
+        libc6 \
+        wget \
+        pciutils \
+        hwdata \
+        gnupg2 \
+        python3-setuptools \
+        python3-wheel \
+        curl \
+        dialog \
+        rsync \
+        lsb-release \
+        software-properties-common \
+        libseccomp2 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Note: NVIDIA CUDA base image already includes libnvidia-ml.so (NVML)
+# No additional GPU-specific packages needed
+
+# Run as non-root user
+USER 65532:65532
+
+ENTRYPOINT ["/agent"]
