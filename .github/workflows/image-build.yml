@@ -32,7 +32,7 @@ jobs:
         image:
           - registry: quay.io
             repository: gkm
-            image: operator
+            image: gkm-operator
             dockerfile: ./Containerfile.gkm-operator
             context: .
             tags: |
@@ -45,7 +45,7 @@ jobs:
 
           - registry: quay.io
             repository: gkm
-            image: agent-base
+            image: gkm-agent-base
             dockerfile: ./Containerfile.gkm-agent-base
             context: .
             target: base-runtime
@@ -59,7 +59,7 @@ jobs:
 
           - registry: quay.io
             repository: gkm
-            image: agent-nvidia
+            image: gkm-agent-nvidia
             dockerfile: ./Containerfile.gkm-agent-nvidia
             context: .
             tags: |
@@ -72,7 +72,7 @@ jobs:
 
           - registry: quay.io
             repository: gkm
-            image: agent-amd
+            image: gkm-agent-amd
             dockerfile: ./Containerfile.gkm-agent-amd
             context: .
             tags: |
@@ -85,7 +85,7 @@ jobs:
 
           - registry: quay.io
             repository: gkm
-            image: agent-nogpu
+            image: gkm-agent-nogpu
             dockerfile: ./Containerfile.gkm-agent-nogpu
             context: .
             tags: |

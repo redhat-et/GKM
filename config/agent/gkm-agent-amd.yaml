@@ -36,7 +36,7 @@ spec:
                 operator: Exists
       containers:
       - name: gkm-agent
-        image: quay.io/gkm/agent-amd:latest
+        image: quay.io/gkm/gkm-agent-amd:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 0

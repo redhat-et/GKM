@@ -10,11 +10,20 @@ resources:
 
 images:
 - name: quay.io/gkm/agent-amd
-  newName: quay.io/gkm/agent-amd
+  newName: quay.io/gkm/gkm-agent-amd
   newTag: latest
 - name: quay.io/gkm/agent-nogpu
-  newName: quay.io/gkm/agent-nogpu
+  newName: quay.io/gkm/gkm-agent-nogpu
   newTag: latest
 - name: quay.io/gkm/agent-nvidia
-  newName: quay.io/gkm/agent-nvidia
+  newName: quay.io/gkm/gkm-agent-nvidia
+  newTag: latest
+- name: quay.io/gkm/gkm-agent-amd
+  newName: quay.io/gkm/gkm-agent-amd
+  newTag: latest
+- name: quay.io/gkm/gkm-agent-nogpu
+  newName: quay.io/gkm/gkm-agent-nogpu
+  newTag: latest
+- name: quay.io/gkm/gkm-agent-nvidia
+  newName: quay.io/gkm/gkm-agent-nvidia
   newTag: latest

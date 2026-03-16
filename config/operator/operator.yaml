@@ -71,7 +71,7 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: quay.io/gkm/operator:latest
+        image: quay.io/gkm/gkm-operator:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

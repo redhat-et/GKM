@@ -4,8 +4,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: quay.io/gkm/operator
+  newName: quay.io/gkm/gkm-operator
+  newTag: latest
+- name: quay.io/gkm/gkm-operator
+  newName: quay.io/gkm/gkm-operator
   newTag: latest
 - name: quay.io/gkm/operator
-  newName: quay.io/gkm/operator
+  newName: quay.io/gkm/gkm-operator
   newTag: latest

@@ -77,13 +77,13 @@ OPERATOR_SDK_VERSION ?= v1.39.2
 QUAY_USER ?= gkm
 IMAGE_TAG ?= latest
 REPO ?= quay.io/$(QUAY_USER)
-OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
-AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
+OPERATOR_IMG ?= $(REPO)/gkm-operator:$(IMAGE_TAG)
+AGENT_IMG ?=$(REPO)/gkm-agent:$(IMAGE_TAG)
 EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
-AGENT_BASE_IMG ?= $(REPO)/agent-base:$(IMAGE_TAG)
-AGENT_NVIDIA_IMG ?= $(REPO)/agent-nvidia:$(IMAGE_TAG)
-AGENT_AMD_IMG ?= $(REPO)/agent-amd:$(IMAGE_TAG)
-AGENT_NOGPU_IMG ?= $(REPO)/agent-nogpu:$(IMAGE_TAG)
+AGENT_BASE_IMG ?= $(REPO)/gkm-agent-base:$(IMAGE_TAG)
+AGENT_NVIDIA_IMG ?= $(REPO)/gkm-agent-nvidia:$(IMAGE_TAG)
+AGENT_AMD_IMG ?= $(REPO)/gkm-agent-amd:$(IMAGE_TAG)
+AGENT_NOGPU_IMG ?= $(REPO)/gkm-agent-nogpu:$(IMAGE_TAG)
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0

@@ -39,7 +39,7 @@ spec:
                 operator: DoesNotExist
       containers:
       - name: gkm-agent
-        image: quay.io/gkm/agent-nogpu:latest
+        image: quay.io/gkm/gkm-agent-nogpu:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 0
