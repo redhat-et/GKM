@@ -28,7 +28,7 @@ class.
 ### Option 1: Deploy All Resources
 
 ```bash
-kubectl apply -f examples/namespace/RWO-NVIDIA/
+kubectl apply -f examples/namespace/RWO/CUDA/
 ```
 
 ### Option 2: Deploy Step by Step
@@ -145,5 +145,5 @@ nodeSelector:
 ## Cleanup
 
 ```bash
-kubectl delete -f examples/namespace/RWO-NVIDIA/
+kubectl delete -f examples/namespace/RWO/CUDA/
 ```
