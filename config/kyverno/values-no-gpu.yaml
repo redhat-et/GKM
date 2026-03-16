@@ -33,3 +33,13 @@ reportsController:
       operator: Equal
       value: "true"
       effect: NoSchedule
+
+# Jobs (e.g., migration resources) also need tolerations
+hooks:
+  nodeSelector:
+    hardware-type: gpu
+  tolerations:
+    - key: gpu
+      operator: Equal
+      value: "true"
+      effect: NoSchedule

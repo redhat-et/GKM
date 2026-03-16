@@ -646,17 +646,6 @@ tmp-cleanup:
 
 .PHONY: run-on-kind
 run-on-kind: destroy-kind setup-kind deploy-on-kind ## Setup Kind cluster, load images, and deploy
-ifeq ($(KYVERNO_ENABLED),true)
-	@echo "Deploying Kyverno after GKM CRDs (KYVERNO_ENABLED=true)..."
-	$(MAKE) deploy-kyverno NO_GPU=true
-	@echo "Waiting for Kyverno to be ready..."
-	$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
-	@echo "Deploying Kyverno policies..."
-	$(MAKE) deploy-kyverno-policies
-	@echo "Restarting Kyverno to discover GKM CRDs..."
-	$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n kyverno
-	$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller
-endif
 	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
 
 .PHONY: deploy-on-kind
