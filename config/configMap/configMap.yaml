@@ -8,7 +8,8 @@ data:
   gkm.operator.log.level: info
   gkm.agent.log.level: info
   ## Can be configured at runtime
-  gkm.agent.image: quay.io/gkm/gkm-agent:latest
+  ## Note: gkm.agent.image is legacy/unused - agents use GPU-specific images
+  gkm.agent.image: quay.io/gkm/gkm-agent-nogpu:latest
   gkm.extract.image: quay.io/gkm/gkm-extract:latest
   gkm.nogpu: false
   ## Enable/disable Kyverno image signature verification (defaults to true/enabled)

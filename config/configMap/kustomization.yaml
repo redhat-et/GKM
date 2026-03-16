@@ -9,7 +9,8 @@ configMapGenerator:
 - behavior: merge
   literals:
   - gkm.nogpu=true
-  - gkm.agent.image=quay.io/gkm/gkm-agent:latest
+  # Note: gkm.agent.image is legacy/unused - agents use GPU-specific images
+  - gkm.agent.image=quay.io/gkm/gkm-agent-nogpu:latest
   - gkm.extract.image=quay.io/gkm/gkm-extract:latest
   name: config
   namespace: gkm-system
