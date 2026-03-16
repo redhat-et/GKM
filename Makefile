@@ -663,15 +663,7 @@ deploy-on-kind: kind-load-images tmp-cleanup
 	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 	@echo "Add label gkm-test-node=false to node kind-gpu-sim-worker2."
 	$(KUBECTL) label node kind-gpu-sim-worker2 gkm-test-node=false --overwrite
-	@echo "Add NFD PCI device labels for $(GPU_TYPE) GPUs to worker nodes..."
-ifeq ($(GPU_TYPE),nvidia)
-	$(KUBECTL) label node kind-gpu-sim-worker feature.node.kubernetes.io/pci-0300_10de.present=true --overwrite
-	$(KUBECTL) label node kind-gpu-sim-worker2 feature.node.kubernetes.io/pci-0300_10de.present=true --overwrite
-else ifeq ($(GPU_TYPE),rocm)
-	$(KUBECTL) label node kind-gpu-sim-worker feature.node.kubernetes.io/pci-0300_1002.present=true --overwrite
-	$(KUBECTL) label node kind-gpu-sim-worker2 feature.node.kubernetes.io/pci-0300_1002.present=true --overwrite
-endif
-	## NOTE: config/kind-gpu is an overlay of config/kind-gpu
+	## NOTE: config/kind-gpu is an overlay of config/default
 	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu SKIP_NFD=true NO_GPU=true
 
 .PHONY: redeploy-on-kind
