@@ -1,6 +1,19 @@
+# Common base Containerfile for GKM agents
+# This file contains the shared builder and base runtime stages
+# GPU-specific Containerfiles currently duplicate these stages with references
+# to this file for maintenance purposes.
+#
+# Future Enhancement: This base image could be built and pushed to Quay to
+# improve build efficiency:
+#   podman build -f Containerfile.gkm-agent-base --target base-runtime \
+#     -t quay.io/gkm/agent-runtime-base:latest .
+#   podman push quay.io/gkm/agent-runtime-base:latest
+#
+# Then GPU-specific Containerfiles could reference it:
+#   FROM quay.io/gkm/agent-runtime-base:latest
+
 # ============================================================================
-# Stage 1: Builder (Shared across all agent variants)
-# See Containerfile.gkm-agent-base for the common base stages
+# Stage 1: Builder (Common to all agent variants)
 # ============================================================================
 FROM public.ecr.aws/docker/library/golang:1.25 AS builder
 
@@ -34,16 +47,11 @@ COPY Makefile Makefile
 RUN make build-gkm-agent
 
 # ============================================================================
-# Stage 2: AMD ROCm-specific Runtime
+# Stage 2: Base Runtime (Common runtime dependencies)
 # ============================================================================
+FROM public.ecr.aws/docker/library/ubuntu:24.04 AS base-runtime
 
-# Start from Ubuntu base for AMD ROCm support
-FROM public.ecr.aws/docker/library/ubuntu:24.04
-
-# Copy the binary from the builder
-COPY --from=builder /workspace/bin/gkm-agent /agent
-
-# Install common runtime libraries (shared with other agent variants)
+# Install required runtime libraries for CGO and agent operation
 RUN apt-get update && \
     apt-get install -y \
         ca-certificates \
@@ -63,22 +71,5 @@ RUN apt-get update && \
         lsb-release \
         software-properties-common \
         libseccomp2 && \
-    apt-get clean
-
-# AMD ROCm version configuration
-ARG ROCM_VERSION=6.3.1
-ARG AMDGPU_VERSION=6.3.60301
-ARG OPT_ROCM_VERSION=6.3.1
-
-# Install AMD ROCm packages (GPU-specific dependencies)
-RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/noble/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
-    apt install -y ./*.deb && \
-    apt update && DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
-    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
-
-# Run as non-root user
-USER 65532:65532
-
-ENTRYPOINT ["/agent"]
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

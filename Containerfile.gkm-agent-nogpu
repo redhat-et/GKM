@@ -1,4 +1,7 @@
-# Build the agent binary
+# ============================================================================
+# Stage 1: Builder (Shared across all agent variants)
+# See Containerfile.gkm-agent-base for the common base stages
+# ============================================================================
 FROM public.ecr.aws/docker/library/golang:1.25 AS builder
 
 WORKDIR /workspace
@@ -30,13 +33,18 @@ COPY Makefile Makefile
 # Build the agent binary
 RUN make build-gkm-agent
 
-# Use minimal Ubuntu base image for no-GPU environments
+# ============================================================================
+# Stage 2: No-GPU Runtime (minimal footprint)
+# ============================================================================
+
+# Use minimal Ubuntu base (no GPU libraries needed)
 FROM public.ecr.aws/docker/library/ubuntu:24.04
 
 # Copy the binary from the builder
 COPY --from=builder /workspace/bin/gkm-agent /agent
 
-# Install required runtime libraries for CGO
+# Install common runtime libraries (shared with other agent variants)
+# No GPU-specific dependencies required for this variant
 RUN apt-get update && \
     apt-get install -y \
         ca-certificates \

@@ -12,13 +12,15 @@ building GKM and description of how to deploy GKM.
 
 ### Automated Installation (RHEL 10 / CentOS Stream 10)
 
-For RHEL 10 or CentOS Stream 10 systems, you can install all dependencies (including go, podman, kubectl, and build packages) using:
+For RHEL 10 or CentOS Stream 10 systems, you can install all
+dependencies (including go, podman, kubectl, and build packages) using:
 
 ```sh
 make install-deps
 ```
 
 This will:
+
 - Install system development packages (gpgme-devel, libdrm-devel, hwloc-devel)
 - Install btrfs development headers
 - Install or upgrade Go to v1.25.0+ if needed
@@ -36,9 +38,11 @@ sudo dnf install -y gpgme-devel libdrm-devel libbtrfs btrfs-progs \
      btrfs-progs-devel hwloc hwloc-devel
 ```
 
-> **Note for RHEL 10**: Some packages may not be available in standard repositories.
-> Use `make install-deps` or see [hack/install_deps.sh](../hack/install_deps.sh) for the installation script
-> that sources packages from CentOS Stream 10 and Fedora repositories.
+> **Note for RHEL 10**: Some packages may not be available in standard
+> repositories. Use `make install-deps` or see
+> [hack/install_deps.sh](../hack/install_deps.sh) for the installation
+> script that sources packages from CentOS Stream 10 and Fedora
+> repositories.
 
 **For Debian/Ubuntu:**
 

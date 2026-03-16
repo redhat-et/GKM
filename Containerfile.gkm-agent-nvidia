@@ -1,4 +1,7 @@
-# Build the agent binary
+# ============================================================================
+# Stage 1: Builder (Shared across all agent variants)
+# See Containerfile.gkm-agent-base for the common base stages
+# ============================================================================
 FROM public.ecr.aws/docker/library/golang:1.25 AS builder
 
 WORKDIR /workspace
@@ -30,13 +33,17 @@ COPY Makefile Makefile
 # Build the agent binary
 RUN make build-gkm-agent
 
-# Use NVIDIA CUDA runtime base image for GPU support
+# ============================================================================
+# Stage 2: NVIDIA-specific Runtime
+# ============================================================================
+
+# Use NVIDIA CUDA runtime base image (includes NVML libraries)
 FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04
 
 # Copy the binary from the builder
 COPY --from=builder /workspace/bin/gkm-agent /agent
 
-# Install required runtime libraries for CGO
+# Install common runtime libraries (shared with other agent variants)
 RUN apt-get update && \
     apt-get install -y \
         ca-certificates \
@@ -59,8 +66,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# The NVIDIA CUDA base image already includes libnvidia-ml.so (NVML)
-# No additional NVIDIA packages needed
+# Note: NVIDIA CUDA base image already includes libnvidia-ml.so (NVML)
+# No additional GPU-specific packages needed
 
 # Run as non-root user
 USER 65532:65532

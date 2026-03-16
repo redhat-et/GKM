@@ -77,6 +77,7 @@ REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
+AGENT_BASE_IMG ?= $(REPO)/agent-base:$(IMAGE_TAG)
 AGENT_NVIDIA_IMG ?= $(REPO)/agent-nvidia:$(IMAGE_TAG)
 AGENT_AMD_IMG ?= $(REPO)/agent-amd:$(IMAGE_TAG)
 AGENT_NOGPU_IMG ?= $(REPO)/agent-nogpu:$(IMAGE_TAG)
@@ -222,6 +223,10 @@ build-image-operator:
 build-image-gkm-extract:
 	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${EXTRACT_IMG} .
 
+.PHONY: build-image-agent-base
+build-image-agent-base:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load --target base-runtime -f Containerfile.gkm-agent-base -t ${AGENT_BASE_IMG} .
+
 .PHONY: build-image-agent-nvidia
 build-image-agent-nvidia:
 	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load -f Containerfile.gkm-agent-nvidia -t ${AGENT_NVIDIA_IMG} .
@@ -236,9 +241,9 @@ build-image-agent-nogpu:
 
 .PHONY: build-image-agents
 ifeq ($(NO_GPU_BUILD),true)
-build-image-agents: build-image-agent-nogpu ## Build no-GPU agent only (NO_GPU_BUILD=true)
+build-image-agents: build-image-agent-base build-image-agent-nogpu ## Build base and no-GPU agent only (NO_GPU_BUILD=true)
 else
-build-image-agents: build-image-agent-nvidia build-image-agent-amd build-image-agent-nogpu ## Build all agent images (NVIDIA, AMD, and no-GPU)
+build-image-agents: build-image-agent-base build-image-agent-nvidia build-image-agent-amd build-image-agent-nogpu ## Build all agent images (base, NVIDIA, AMD, and no-GPU)
 endif
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
@@ -251,6 +256,7 @@ build-images: build-image-operator build-image-agents build-image-gkm-extract ##
 push-images: ## Push all container images.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_BASE_IMG}
 ifeq ($(NO_GPU_BUILD),true)
 	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
 else
@@ -261,10 +267,12 @@ endif
 
 .PHONY: push-images-agents
 ifeq ($(NO_GPU_BUILD),true)
-push-images-agents: ## Push no-GPU agent only (NO_GPU_BUILD=true)
+push-images-agents: ## Push base and no-GPU agent only (NO_GPU_BUILD=true)
+	$(CONTAINER_TOOL) push ${AGENT_BASE_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
 else
 push-images-agents: ## Push all agent images
+	$(CONTAINER_TOOL) push ${AGENT_BASE_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_NVIDIA_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_AMD_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_NOGPU_IMG}
