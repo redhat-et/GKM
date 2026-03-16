@@ -2,18 +2,18 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: gkm-test-ns-rwo-ds-2
+  name: gkm-test-rocm-rwo-ds-2
   namespace: gkm-test-ns-rocm-rwo-1
   labels:
     gkm.io/pvc-mutation: "true"
 spec:
   selector:
     matchLabels:
-      name: gkm-test-ns-rwo-ds-2
+      name: gkm-test-rocm-rwo-ds-2
   template:
     metadata:
       labels:
-        name: gkm-test-ns-rwo-ds-2
+        name: gkm-test-rocm-rwo-ds-2
         gkm.io/pvc-mutation: "true"
     spec:
       tolerations:
