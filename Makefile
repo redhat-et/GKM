@@ -527,8 +527,14 @@ undeploy-cert-manager: delete-webhook-secret-file
 ##@ Kyverno
 
 KYVERNO_VERSION ?= latest
+KYVERNO_NAMESPACE ?= kyverno
+KYVERNO_REPO ?= https://kyverno.github.io/kyverno/
 HELM_VERSION ?= v3.16.3
 HELM ?= $(LOCALBIN)/helm
+
+# Common Kyverno helm flags
+KYVERNO_HELM_FLAGS = --namespace $(KYVERNO_NAMESPACE) --create-namespace --repo $(KYVERNO_REPO) kyverno --wait
+KYVERNO_KIND_CONTEXT = --kube-context kind-$(KIND_CLUSTER_NAME)
 
 .PHONY: helm
 helm: $(HELM) ## Download helm locally if necessary.
@@ -538,36 +544,32 @@ $(HELM): $(LOCALBIN)
 		curl -sSL https://get.helm.sh/helm-$(HELM_VERSION)-$(GOOS)-$(GOARCH).tar.gz | tar xz -C $(LOCALBIN) --strip-components=1 $(GOOS)-$(GOARCH)/helm ; \
 	}
 
-.PHONY: deploy-kyverno
-deploy-kyverno: helm ## Deploy Kyverno with optional GPU tolerations for Kind cluster
-	@echo "Installing Kyverno to cluster $(KIND_CLUSTER_NAME)..."
+# Internal target for deploying Kyverno with configurable context
+.PHONY: _deploy-kyverno-base
+_deploy-kyverno-base: helm
+	@echo "Installing Kyverno..."
 ifeq ($(NO_GPU),true)
 	@echo "Using Kyverno configuration with GPU nodeSelector and tolerations (NO_GPU=true)..."
-	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
-		--kube-context kind-$(KIND_CLUSTER_NAME) \
-		--repo https://kyverno.github.io/kyverno/ kyverno \
-		--values config/kyverno/values-no-gpu.yaml \
-		--wait
+	$(HELM) upgrade --install kyverno $(KYVERNO_HELM_FLAGS) $(KYVERNO_CONTEXT) \
+		--values config/kyverno/values-no-gpu.yaml
 else
-	@echo "Using default Kyverno configuration for production GPU environments..."
-	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
-		--kube-context kind-$(KIND_CLUSTER_NAME) \
-		--repo https://kyverno.github.io/kyverno/ kyverno \
-		--values config/kyverno/values.yaml \
-		--wait
+	@echo "Using default Kyverno configuration..."
+	$(HELM) upgrade --install kyverno $(KYVERNO_HELM_FLAGS) $(KYVERNO_CONTEXT) \
+		--values config/kyverno/values.yaml
 endif
-	@echo "Kyverno deployed successfully to $(KIND_CLUSTER_NAME)."
+ifdef KYVERNO_WAIT
+	@echo "Waiting for Kyverno to be ready..."
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n $(KYVERNO_NAMESPACE) deployment/kyverno-admission-controller || true
+endif
+	@echo "Kyverno deployed successfully."
+
+.PHONY: deploy-kyverno
+deploy-kyverno: ## Deploy Kyverno for Kind cluster
+	@$(MAKE) _deploy-kyverno-base KYVERNO_CONTEXT="$(KYVERNO_KIND_CONTEXT)"
 
 .PHONY: deploy-kyverno-production
-deploy-kyverno-production: helm ## Deploy Kyverno for production clusters (no Kind context)
-	@echo "Installing Kyverno..."
-	$(HELM) upgrade --install kyverno --namespace kyverno --create-namespace \
-		--repo https://kyverno.github.io/kyverno/ kyverno \
-		--values config/kyverno/values.yaml \
-		--wait
-	@echo "Waiting for Kyverno to be ready..."
-	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
-	@echo "Kyverno deployed successfully."
+deploy-kyverno-production: ## Deploy Kyverno for production clusters
+	@$(MAKE) _deploy-kyverno-base KYVERNO_CONTEXT="" KYVERNO_WAIT=true
 
 .PHONY: deploy-kyverno-with-policies
 ifeq ($(NO_GPU),true)
@@ -576,8 +578,8 @@ else
 deploy-kyverno-with-policies: deploy-kyverno-production deploy-kyverno-policies ## Deploy Kyverno and its policies (uses production values)
 endif
 	@echo "Restarting Kyverno to discover GKM CRDs..."
-	@$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n kyverno
-	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
+	@$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n $(KYVERNO_NAMESPACE)
+	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n $(KYVERNO_NAMESPACE) deployment/kyverno-admission-controller || true
 	@echo "Kyverno and policies deployed successfully."
 
 .PHONY: deploy-kyverno-policies
@@ -592,21 +594,21 @@ undeploy-kyverno-policies: kustomize ## Undeploy Kyverno ClusterPolicies
 	$(KUSTOMIZE) build config/kyverno/policies | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	@echo "Kyverno policies undeployed."
 
+# Internal target for undeploying Kyverno with configurable context
+.PHONY: _undeploy-kyverno-base
+_undeploy-kyverno-base:
+	@echo "Uninstalling Kyverno..."
+	$(HELM) uninstall kyverno --namespace $(KYVERNO_NAMESPACE) $(KYVERNO_CONTEXT) --ignore-not-found || true
+	$(KUBECTL) delete namespace $(KYVERNO_NAMESPACE) --ignore-not-found=$(ignore-not-found)
+	@echo "Kyverno undeployed."
+
 .PHONY: undeploy-kyverno
-undeploy-kyverno: ## Undeploy Kyverno
-	@echo "Uninstalling Kyverno from cluster $(KIND_CLUSTER_NAME)..."
-	$(HELM) uninstall kyverno --namespace kyverno \
-		--kube-context kind-$(KIND_CLUSTER_NAME) \
-		--ignore-not-found || true
-	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
-	@echo "Kyverno undeployed from $(KIND_CLUSTER_NAME)."
+undeploy-kyverno: ## Undeploy Kyverno from Kind cluster
+	@$(MAKE) _undeploy-kyverno-base KYVERNO_CONTEXT="$(KYVERNO_KIND_CONTEXT)"
 
 .PHONY: undeploy-kyverno-production
 undeploy-kyverno-production: ## Undeploy Kyverno from production cluster
-	@echo "Uninstalling Kyverno..."
-	$(HELM) uninstall kyverno --namespace kyverno --ignore-not-found || true
-	$(KUBECTL) delete namespace kyverno --ignore-not-found=$(ignore-not-found)
-	@echo "Kyverno undeployed."
+	@$(MAKE) _undeploy-kyverno-base KYVERNO_CONTEXT=""
 
 ##@ Kind Cluster Management
 
