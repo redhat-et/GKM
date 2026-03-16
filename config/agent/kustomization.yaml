@@ -4,17 +4,17 @@ kind: Kustomization
 # Deploy GPU-specific agents based on node hardware
 # Requires Node Feature Discovery (NFD) to label nodes
 resources:
-- gkm-agent-nvidia.yaml  # NVIDIA GPU nodes
-- gkm-agent-amd.yaml     # AMD GPU nodes
-- gkm-agent-nogpu.yaml   # Nodes without GPUs
+- gkm-agent-nvidia.yaml
+- gkm-agent-amd.yaml
+- gkm-agent-nogpu.yaml
 
 images:
-- name: quay.io/gkm/agent-nvidia
-  newName: quay.io/gkm/agent-nvidia
-  newTag: latest
 - name: quay.io/gkm/agent-amd
   newName: quay.io/gkm/agent-amd
   newTag: latest
 - name: quay.io/gkm/agent-nogpu
   newName: quay.io/gkm/agent-nogpu
+  newTag: latest
+- name: quay.io/gkm/agent-nvidia
+  newName: quay.io/gkm/agent-nvidia
   newTag: latest

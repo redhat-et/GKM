@@ -570,7 +570,11 @@ deploy-kyverno-production: helm ## Deploy Kyverno for production clusters (no Ki
 	@echo "Kyverno deployed successfully."
 
 .PHONY: deploy-kyverno-with-policies
-deploy-kyverno-with-policies: deploy-kyverno-production deploy-kyverno-policies ## Deploy Kyverno and its policies
+ifeq ($(NO_GPU),true)
+deploy-kyverno-with-policies: deploy-kyverno deploy-kyverno-policies ## Deploy Kyverno and its policies (uses NO_GPU values for Kind)
+else
+deploy-kyverno-with-policies: deploy-kyverno-production deploy-kyverno-policies ## Deploy Kyverno and its policies (uses production values)
+endif
 	@echo "Restarting Kyverno to discover GKM CRDs..."
 	@$(KUBECTL) rollout restart deployment/kyverno-admission-controller -n kyverno
 	@$(KUBECTL) wait --for=condition=Available --timeout=120s -n kyverno deployment/kyverno-admission-controller || true
