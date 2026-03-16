@@ -1,69 +1,12 @@
 # ============================================================================
-# Stage 1: Builder (Shared across all agent variants)
-# See Containerfile.gkm-agent-base for the common base stages
-# ============================================================================
-FROM public.ecr.aws/docker/library/golang:1.25 AS builder
-
-WORKDIR /workspace
-
-# Install required system packages
-RUN apt-get update && \
-    apt-get install -y \
-        libgpgme-dev \
-        btrfs-progs \
-        libbtrfs-dev \
-        libgpgme11-dev \
-        libseccomp-dev \
-        pkg-config \
-        build-essential && \
-    apt-get clean
-
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-
-# Copy the go source
-COPY agent/main.go agent/main.go
-COPY api/ api/
-COPY pkg/ pkg/
-COPY internal/controller/ internal/controller/
-COPY vendor/ vendor/
-COPY Makefile Makefile
-
-# Build the agent binary
-RUN make build-gkm-agent
-
-# ============================================================================
-# Stage 2: AMD ROCm-specific Runtime
+# AMD ROCm Agent (extends nogpu agent)
+# Inherits binary and common packages from nogpu, adds ROCm support
 # ============================================================================
 
-# Start from Ubuntu base for AMD ROCm support
-FROM public.ecr.aws/docker/library/ubuntu:24.04
+FROM quay.io/gkm/gkm-agent-nogpu:latest
 
-# Copy the binary from the builder
-COPY --from=builder /workspace/bin/gkm-agent /agent
-
-# Install common runtime libraries (shared with other agent variants)
-RUN apt-get update && \
-    apt-get install -y \
-        ca-certificates \
-        libgpgme11 \
-        libbtrfs0 \
-        libffi8 \
-        libc6 \
-        wget \
-        pciutils \
-        hwdata \
-        gnupg2 \
-        python3-setuptools \
-        python3-wheel \
-        curl \
-        dialog \
-        rsync \
-        lsb-release \
-        software-properties-common \
-        libseccomp2 && \
-    apt-get clean
+# Switch to root to install ROCm packages
+USER root
 
 # AMD ROCm version configuration
 ARG ROCM_VERSION=6.3.1
@@ -78,7 +21,7 @@ RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/noble/amd
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
 
-# Run as non-root user
+# Switch back to non-root user
 USER 65532:65532
 
-ENTRYPOINT ["/agent"]
+# Binary and entrypoint are inherited from nogpu image

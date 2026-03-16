@@ -228,7 +228,7 @@ build-image-gkm-extract:
 
 .PHONY: build-image-agent-base
 build-image-agent-base:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load --target base-runtime -f Containerfile.gkm-agent-base -t ${AGENT_BASE_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --platform linux/amd64 --progress=plain --load --target builder -f Containerfile.gkm-agent-base -t ${AGENT_BASE_IMG} .
 
 .PHONY: build-image-agent-nvidia
 build-image-agent-nvidia:

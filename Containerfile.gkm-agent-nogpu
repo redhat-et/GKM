@@ -1,37 +1,8 @@
 # ============================================================================
-# Stage 1: Builder (Shared across all agent variants)
-# See Containerfile.gkm-agent-base for the common base stages
+# Stage 1: Builder (from base image)
+# See Containerfile.gkm-agent-base for the common builder stage
 # ============================================================================
-FROM public.ecr.aws/docker/library/golang:1.25 AS builder
-
-WORKDIR /workspace
-
-# Install required system packages
-RUN apt-get update && \
-    apt-get install -y \
-        libgpgme-dev \
-        btrfs-progs \
-        libbtrfs-dev \
-        libgpgme11-dev \
-        libseccomp-dev \
-        pkg-config \
-        build-essential && \
-    apt-get clean
-
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-
-# Copy the go source
-COPY agent/main.go agent/main.go
-COPY api/ api/
-COPY pkg/ pkg/
-COPY internal/controller/ internal/controller/
-COPY vendor/ vendor/
-COPY Makefile Makefile
-
-# Build the agent binary
-RUN make build-gkm-agent
+FROM quay.io/gkm/gkm-agent-base:latest AS builder
 
 # ============================================================================
 # Stage 2: No-GPU Runtime (minimal footprint)
