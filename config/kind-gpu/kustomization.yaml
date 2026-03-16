@@ -10,6 +10,3 @@ patches:
       kind: DaemonSet
       name: gkm-agent
     path: agent-patch.yaml
-  - path: agent-amd-patch.yaml
-  - path: agent-nvidia-patch.yaml
-  - path: agent-nogpu-patch.yaml

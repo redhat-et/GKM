@@ -19,6 +19,9 @@ CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 # NO_GPU flag for building without GPU support
 NO_GPU_BUILD ?= false
 
+# SKIP_NFD flag for skipping NFD deployment (e.g., Kind clusters)
+SKIP_NFD ?= false
+
 # KYVERNO_ENABLED flag for enabling/disabling Kyverno verification (runtime only)
 KYVERNO_ENABLED ?= true
 
@@ -385,8 +388,8 @@ ifneq ($(KYVERNO_ENABLED),true)
 endif
 
 .PHONY: deploy
-ifeq ($(NO_GPU),true)
-deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent to Kind cluster (skips NFD)
+ifeq ($(SKIP_NFD),true)
+deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager redeploy ## Deploy controller and agent (skips NFD for Kind)
 else
 deploy: manifests kustomize prepare-deploy webhook-secret-file deploy-cert-manager deploy-nfd redeploy ## Deploy controller and agent to the K8s cluster specified in ~/.kube/config
 endif
@@ -413,7 +416,7 @@ ifeq ($(KYVERNO_ENABLED),true)
 	-$(MAKE) undeploy-kyverno-policies
 	-$(MAKE) undeploy-kyverno-production
 endif
-ifneq ($(NO_GPU),true)
+ifneq ($(SKIP_NFD),true)
 	@echo "Undeploying NFD..."
 	-$(MAKE) undeploy-nfd
 endif
@@ -554,8 +557,8 @@ $(HELM): $(LOCALBIN)
 .PHONY: _deploy-kyverno-base
 _deploy-kyverno-base: helm
 	@echo "Installing Kyverno..."
-ifeq ($(NO_GPU),true)
-	@echo "Using Kyverno configuration with GPU nodeSelector and tolerations (NO_GPU=true)..."
+ifeq ($(SKIP_NFD),true)
+	@echo "Using Kyverno configuration with GPU nodeSelector and tolerations (SKIP_NFD=true for Kind)..."
 	$(HELM) upgrade --install kyverno $(KYVERNO_HELM_FLAGS) $(KYVERNO_CONTEXT) \
 		--values config/kyverno/values-no-gpu.yaml
 else
@@ -578,8 +581,8 @@ deploy-kyverno-production: ## Deploy Kyverno for production clusters
 	@$(MAKE) _deploy-kyverno-base KYVERNO_CONTEXT="" KYVERNO_WAIT=true
 
 .PHONY: deploy-kyverno-with-policies
-ifeq ($(NO_GPU),true)
-deploy-kyverno-with-policies: deploy-kyverno deploy-kyverno-policies ## Deploy Kyverno and its policies (uses NO_GPU values for Kind)
+ifeq ($(SKIP_NFD),true)
+deploy-kyverno-with-policies: deploy-kyverno deploy-kyverno-policies ## Deploy Kyverno and its policies (uses Kind values with GPU tolerations)
 else
 deploy-kyverno-with-policies: deploy-kyverno-production deploy-kyverno-policies ## Deploy Kyverno and its policies (uses production values)
 endif
@@ -660,17 +663,25 @@ deploy-on-kind: kind-load-images tmp-cleanup
 	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 	@echo "Add label gkm-test-node=false to node kind-gpu-sim-worker2."
 	$(KUBECTL) label node kind-gpu-sim-worker2 gkm-test-node=false --overwrite
-	## NOTE: config/kind-gpu is an overlay of config/default
-	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
+	@echo "Add NFD PCI device labels for $(GPU_TYPE) GPUs to worker nodes..."
+ifeq ($(GPU_TYPE),nvidia)
+	$(KUBECTL) label node kind-gpu-sim-worker feature.node.kubernetes.io/pci-0300_10de.present=true --overwrite
+	$(KUBECTL) label node kind-gpu-sim-worker2 feature.node.kubernetes.io/pci-0300_10de.present=true --overwrite
+else ifeq ($(GPU_TYPE),rocm)
+	$(KUBECTL) label node kind-gpu-sim-worker feature.node.kubernetes.io/pci-0300_1002.present=true --overwrite
+	$(KUBECTL) label node kind-gpu-sim-worker2 feature.node.kubernetes.io/pci-0300_1002.present=true --overwrite
+endif
+	## NOTE: config/kind-gpu is an overlay of config/kind-gpu
+	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu SKIP_NFD=true NO_GPU=true
 
 .PHONY: redeploy-on-kind
 redeploy-on-kind: ## Redeploy controller and agent to Kind GPU cluster after run-on-kind and undeploy-on-kind have been called. Skips some onetime steps in deploy.
-	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
+	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu SKIP_NFD=true
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy-on-kind
 undeploy-on-kind: ## Undeploy operator and agent from the Kind GPU cluster.
-	$(MAKE) undeploy FORCE=$(FORCE) DEPLOY_PATH=config/kind-gpu ignore-not-found=$(ignore-not-found)
+	$(MAKE) undeploy FORCE=$(FORCE) DEPLOY_PATH=config/kind-gpu SKIP_NFD=true ignore-not-found=$(ignore-not-found)
 	@echo "Undeployment from Kind GPU cluster $(KIND_CLUSTER_NAME) completed."
 
 .PHONY: undeploy-on-kind-force
