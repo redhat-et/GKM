@@ -2,18 +2,18 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: gkm-test-nvidia-rwo-ds-1
-  namespace: gkm-test-ns-nvidia-rwo-1
+  name: gkm-test-cuda-rwo-ds-1
+  namespace: gkm-test-ns-cuda-rwo-1
   labels:
     gkm.io/pvcMutation: "true"
 spec:
   selector:
     matchLabels:
-      name: gkm-test-nvidia-rwo-ds-1
+      name: gkm-test-cuda-rwo-ds-1
   template:
     metadata:
       labels:
-        name: gkm-test-nvidia-rwo-ds-1
+        name: gkm-test-cuda-rwo-ds-1
         gkm.io/pvc-mutation: "true"
     spec:
       tolerations:

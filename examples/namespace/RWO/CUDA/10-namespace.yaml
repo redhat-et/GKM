@@ -2,4 +2,4 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: gkm-test-ns-nvidia-rwo-1
+  name: gkm-test-ns-cuda-rwo-1

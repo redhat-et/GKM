@@ -3,7 +3,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: gkm-test-ns-rwo-ds-2
-  namespace: gkm-test-ns-rwo-1
+  namespace: gkm-test-ns-rocm-rwo-1
   labels:
     gkm.io/pvc-mutation: "true"
 spec:
@@ -51,4 +51,4 @@ spec:
       volumes:
         - name: kernel-volume
           persistentVolumeClaim:
-            claimName: vector-add-cache-rocm-v2-rwo
+            claimName: vector-add-cache-rocm-rwo

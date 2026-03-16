@@ -2,8 +2,8 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: gkm-test-nvidia-pod-1
-  namespace: gkm-test-ns-nvidia-rwo-1
+  name: gkm-test-cuda-pod-1
+  namespace: gkm-test-ns-cuda-rwo-1
 spec:
   tolerations:
     - key: nvidia.com/gpu

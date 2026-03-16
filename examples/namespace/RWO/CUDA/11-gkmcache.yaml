@@ -3,7 +3,7 @@ apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
   name: vector-add-cache-cuda-rwo
-  namespace: gkm-test-ns-nvidia-rwo-1
+  namespace: gkm-test-ns-cuda-rwo-1
   labels:
     gkm.io/signature-format: cosign-v2
 spec:
