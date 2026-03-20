@@ -38,6 +38,7 @@ import (
 // +kubebuilder:printcolumn:name="Node-Not-In-Use",type=string,JSONPath=`.status.counts.nodeNotInUseCnt`
 // +kubebuilder:printcolumn:name="Node-Error",type=string,JSONPath=`.status.counts.nodeErrorCnt`
 // +kubebuilder:printcolumn:name="Pod-Running",type=string,JSONPath=`.status.counts.podRunningCnt`
+// +kubebuilder:printcolumn:name="Pod-Deleting",type=string,JSONPath=`.status.counts.podDeletingCnt`
 // +kubebuilder:printcolumn:name="Pod-Outdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
 type ClusterGKMCacheNode struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -80,7 +81,7 @@ func (cacheNode ClusterGKMCacheNode) GetLabels() map[string]string {
 }
 
 func (cacheNode ClusterGKMCacheNode) GetStatus() *GKMCacheNodeStatus {
-	return &cacheNode.Status
+	return cacheNode.Status.DeepCopy()
 }
 
 func (cacheNode ClusterGKMCacheNode) GetNodeName() string {

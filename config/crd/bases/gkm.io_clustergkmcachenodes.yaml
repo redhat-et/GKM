@@ -30,6 +30,9 @@ spec:
     - jsonPath: .status.counts.podRunningCnt
       name: Pod-Running
       type: string
+    - jsonPath: .status.counts.podDeletingCnt
+      name: Pod-Deleting
+      type: string
     - jsonPath: .status.counts.podOutdatedCnt
       name: Pod-Outdated
       type: string
@@ -177,6 +180,11 @@ spec:
                                 - type
                                 type: object
                               type: array
+                            jobName:
+                              description: |-
+                                jobName contains the name of the Job that was created to perform the
+                                extraction GPU Kernel Cache.
+                              type: string
                             pvName:
                               description: |-
                                 pvName contains the name of the Persistent Volume that was created for the
@@ -186,6 +194,17 @@ spec:
                               description: |-
                                 pvcName contains the name of the Persistent Volume Claim that was created
                                 for the storage of the extract GPU Kernel Cache.
+                              type: string
+                            pvcOwner:
+                              default: Unknown
+                              description: |-
+                                pvcOwner is an indication of which process, Agent or Operator, manages the
+                                PVC used to store the extracted GPU Kernel Cache. Value of Agent indicates
+                                Agent manages the PVC, value of Operator indicates Operator manages the PVC.
+                              enum:
+                              - Unknown
+                              - Agent
+                              - Operator
                               type: string
                           type: object
                         description: |-
@@ -238,6 +257,11 @@ spec:
                       has been extracted and that the Kernel Cache is not currently being used by
                       a pod on that node.
                     type: integer
+                  podDeletingCnt:
+                    description: |-
+                      podDeletingCnt contains the total number of pods that the Kernel Cache is
+                      volume mounted but the GKMCache or ClusterGKMCache has been deleted.
+                    type: integer
                   podOutdatedCnt:
                     description: |-
                       podOutdatedCnt contains the total number of pods that the Kernel Cache is
@@ -255,6 +279,7 @@ spec:
                 - nodeErrorCnt
                 - nodeInUseCnt
                 - nodeNotInUseCnt
+                - podDeletingCnt
                 - podOutdatedCnt
                 - podRunningCnt
                 type: object
@@ -283,11 +308,6 @@ spec:
               nodeName:
                 description: nodeName is the name of the Kubernetes Node this instance
                   is created.
-                type: string
-              resolvedDigest:
-                description: |-
-                  resolvedDigest contains the digest of the image after it has been verified.
-                  This is a copy of the field in the GKMCache or ClusterGKMCache.
                 type: string
             required:
             - counts

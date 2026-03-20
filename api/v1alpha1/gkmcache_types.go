@@ -46,6 +46,7 @@ import (
 // +kubebuilder:printcolumn:name="Node-Error",type=string,JSONPath=`.status.counts.nodeErrorCnt`
 // +kubebuilder:printcolumn:name="Pod-Running",type=string,JSONPath=`.status.counts.podRunningCnt`
 // +kubebuilder:printcolumn:name="Pod-Outdated",type=string,JSONPath=`.status.counts.podOutdatedCnt`
+// +kubebuilder:printcolumn:name="Pod-Deleting",type=string,JSONPath=`.status.counts.podDeletingCnt`
 // +kubebuilder:printcolumn:name="Last=Updated",type=string,priority=1,JSONPath=".status.lastUpdated"
 type GKMCache struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -118,7 +119,7 @@ func (cache GKMCache) GetImage() string {
 }
 
 func (cache GKMCache) GetStatus() *GKMCacheStatus {
-	return &cache.Status
+	return cache.Status.DeepCopy()
 }
 
 func (cache GKMCache) GetClientObject() client.Object {

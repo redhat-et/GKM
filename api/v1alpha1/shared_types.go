@@ -49,6 +49,10 @@ type CacheCounts struct {
 	// volume mounted.
 	PodRunningCnt int `json:"podRunningCnt"`
 
+	// podDeletingCnt contains the total number of pods that the Kernel Cache is
+	// volume mounted but the GKMCache or ClusterGKMCache has been deleted.
+	PodDeletingCnt int `json:"podDeletingCnt"`
+
 	// podOutdatedCnt contains the total number of pods that the Kernel Cache is
 	// volume mounted, but a newer version of the extracted Kernel Cache has been
 	// extracted. This happens when a Kernel Cache is being used, but the
@@ -248,6 +252,16 @@ type PvcStatus struct {
 	// for the storage of the extract GPU Kernel Cache.
 	PvcName string `json:"pvcName,omitempty"`
 
+	// jobName contains the name of the Job that was created to perform the
+	// extraction GPU Kernel Cache.
+	JobName string `json:"jobName,omitempty"`
+
+	// pvcOwner is an indication of which process, Agent or Operator, manages the
+	// PVC used to store the extracted GPU Kernel Cache. Value of Agent indicates
+	// Agent manages the PVC, value of Operator indicates Operator manages the PVC.
+	// +kubebuilder:default:=Unknown
+	PvcOwner PvcOwner `json:"pvcOwner,omitempty"`
+
 	// conditions contains the summary state for the GPU Kernel Cache on the
 	// Kubernetes node referenced by status.nodeName.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -256,10 +270,6 @@ type PvcStatus struct {
 type GKMCacheNodeStatus struct {
 	// nodeName is the name of the Kubernetes Node this instance is created.
 	NodeName string `json:"nodeName"`
-
-	// resolvedDigest contains the digest of the image after it has been verified.
-	// This is a copy of the field in the GKMCache or ClusterGKMCache.
-	ResolvedDigest string `json:"resolvedDigest,omitempty"`
 
 	// counts contains statistics on the deployment of the GPU Kernel Cache for the
 	// Kubernetes node referenced in nodeName.
@@ -316,9 +326,17 @@ const (
 	// but a newer image digest exists.
 	GkmCondOutdated GkmConditionType = "Outdated"
 
+	// GkmCondDeleting indicates that the GKM Cache has been deleted but is
+	// being used by a Pod on the given node, so PVC not deleted yet.
+	GkmCondDeleting GkmConditionType = "Deleting"
+
 	// GkmCondError indicates that an error has occurred on the given
 	// node while attempting to apply the configuration described in the CRD.
 	GkmCondError GkmConditionType = "Error"
+
+	// GkmCondNoNamespace indicates that Namespace the workload will run in
+	// and PVC needs to be created in does not exist.
+	GkmCondNoNamespace GkmConditionType = "NoNamespace"
 
 	// GkmCondUnloadError indicates that the GKM Cache was marked
 	// for deletion, but removing GK Cache was unsuccessful on the
@@ -372,6 +390,14 @@ func (b GkmConditionType) Condition() metav1.Condition {
 			Reason:  "Outdated",
 			Message: "The Kernel Cache is in use by one or more pods but newer version exists",
 		}
+	case GkmCondDeleting:
+		condType := string(GkmCondDeleting)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "Deleting",
+			Message: "Cache instance has been deleted but PVC is still in use by one or more pods",
+		}
 	case GkmCondError:
 		condType := string(GkmCondError)
 		cond = metav1.Condition{
@@ -380,12 +406,20 @@ func (b GkmConditionType) Condition() metav1.Condition {
 			Reason:  "Error",
 			Message: "An error occurred trying to extract the Kernel Cache",
 		}
+	case GkmCondNoNamespace:
+		condType := string(GkmCondNoNamespace)
+		cond = metav1.Condition{
+			Type:    condType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "NoNamespace",
+			Message: "Workload Namespace does not exist",
+		}
 	case GkmCondUnloadError:
 		condType := string(GkmCondUnloadError)
 		cond = metav1.Condition{
 			Type:    condType,
 			Status:  metav1.ConditionTrue,
-			Reason:  "Unload Error",
+			Reason:  "UnloadError",
 			Message: "An error occurred trying to remove the extracted Kernel Cache",
 		}
 	}
@@ -409,7 +443,8 @@ func IsConditionDownloadSet(conditions []metav1.Condition) bool {
 	for _, condition := range conditions {
 		if condition.Type == string(GkmCondExtracted) ||
 			condition.Type == string(GkmCondRunning) ||
-			condition.Type == string(GkmCondOutdated) {
+			condition.Type == string(GkmCondOutdated) ||
+			condition.Type == string(GkmCondDeleting) {
 			return true
 		}
 	}

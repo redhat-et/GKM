@@ -170,6 +170,7 @@ func main() {
 		gkmv1alpha1.GKMCache,
 		gkmv1alpha1.GKMCacheList,
 		gkmv1alpha1.GKMCacheNode,
+		gkmv1alpha1.GKMCacheNodeList,
 	]{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
@@ -192,6 +193,7 @@ func main() {
 		gkmv1alpha1.ClusterGKMCache,
 		gkmv1alpha1.ClusterGKMCacheList,
 		gkmv1alpha1.ClusterGKMCacheNode,
+		gkmv1alpha1.ClusterGKMCacheNodeList,
 	]{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),

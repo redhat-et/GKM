@@ -88,7 +88,15 @@ type GKMNodeInstance interface {
 	GetClientObject() client.Object
 }
 
-type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] struct {
+// GKMNodeInstanceList is a generic interface that is a list of type N, which is a list
+// of GKMNodeInstance, which is either GKMCacheNode or ClusterGKMCacheNode.
+type GKMNodeInstanceList[N any] interface {
+	// gkmv1alpha1.GKMCacheNodeList | gkmv1alpha1.ClusterGKMCacheNodeList
+	GetItems() []N
+	GetItemsLen() int
+}
+
+type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance, NL GKMNodeInstanceList[N]] struct {
 	client.Client
 	Scheme          *runtime.Scheme
 	Logger          logr.Logger
@@ -104,7 +112,7 @@ type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstan
 // AgentReconciler is an interface that defines the methods needed to reconcile
 // a GKMCache or ClusterGKMCache object. The only difference between the two
 // object is that a Cluster object does not have a Namespace (which is just "").
-type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] interface {
+type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance, NL GKMNodeInstanceList[N]] interface {
 	// Reconcile is the main entry point to the reconciler. It will be called by
 	// the controller runtime when something happens that the reconciler is
 	// interested in. When Reconcile() is invoked, it initializes some state in
@@ -117,18 +125,24 @@ type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] in
 	SetupWithManager(mgr ctrl.Manager) error
 
 	// GetCacheList calls the Kubernetes API server to retrieve a list of GKMCache or ClusterGKMCache objects.
-	getCacheList(ctx context.Context, opts []client.ListOption) (*CL, error)
+	getCacheList(ctx context.Context, opts ...client.ListOption) (*CL, error)
+
+	// GetCacheNodeList calls the Kubernetes API server to retrieve a list of GKMCacheNode or ClusterGKMCacheNode objects.
+	getCacheNodeList(ctx context.Context, opts ...client.ListOption) (*NL, error)
 
 	getCacheNode(ctx context.Context, cacheNamespace string, cacheName string) (*N, error)
 	createCacheNode(ctx context.Context, cacheNamespace, cacheName string) error
 
-	cacheNodeUpdateStatus(ctx context.Context, gkmCacheNode *N, status *gkmv1alpha1.GKMCacheNodeStatus, reason string) error
+	cacheNodeUpdateStatus(ctx context.Context, gkmCacheNode *N, status *gkmv1alpha1.GKMCacheNodeStatus, reason string) (bool, error)
+
+	deleteCacheNode(ctx context.Context, gkmCacheNode *N) error
 
 	isBeingDeleted(gkmCache *C) bool
 	validExtractedCache(cacheNamespace string) bool
 
 	cacheNodeAddFinalizer(ctx context.Context, gkmCacheNode *N, cacheName string) (bool, error)
-	cacheNodeRemoveFinalizer(ctx context.Context, gkmCacheNode *N, cacheName string) (bool, error)
+	hasCacheNodeFinalizer(cacheName string, gkmCacheNode *N) bool
+	cacheNodeRemoveFinalizer(ctx context.Context, cacheName string, gkmCacheNode *N) (bool, error)
 
 	cacheNodeRecordEvent(
 		gkmCacheNode *N,
@@ -147,9 +161,9 @@ type AgentReconciler[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstance] in
 // and makes sure the intended state is applied. The Agent owns GKMCacheNode and
 // ClusterGKMCacheNode Objects, and calls KubeAPI Server to make sure they reflect
 // the current state of the GKMCache and ClusterGKMCache Objects on a given node.
-func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) reconcileCommonAgent(
 	ctx context.Context,
-	reconciler AgentReconciler[C, CL, N],
+	reconciler AgentReconciler[C, CL, N, NL],
 ) (ctrl.Result, error) {
 	errorHit := false
 	stillInUse := false
@@ -159,8 +173,10 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 
 	r.Logger.V(1).Info("Start reconcileCommonAgent()")
 
+	inUseGkmCacheNodeList := make(map[string]bool)
+
 	// Get the list of existing GKMCache or ClusterGKMCache objects from KubeAPI Server.
-	gkmCacheList, err := reconciler.getCacheList(ctx, []client.ListOption{})
+	gkmCacheList, err := reconciler.getCacheList(ctx)
 	if err != nil {
 		return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure},
 			fmt.Errorf("failed getting list of %s for full reconcile: %v",
@@ -171,7 +187,6 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 	if (*gkmCacheList).GetItemsLen() == 0 {
 		// KubeAPI doesn't have any GKMCache instances
 		r.Logger.Info("No GKMCache entries found")
-		return ctrl.Result{Requeue: false}, nil
 	} else {
 		// There are GKMCache instances created, so loop through each and reconcile each.
 		for _, gkmCache := range (*gkmCacheList).GetItems() {
@@ -181,6 +196,8 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 				"Name", gkmCache.GetName(),
 				"StorageClass", gkmCache.GetStorageClassName(),
 				"PvcOwner", gkmCache.GetPvcOwner())
+
+			cacheDeleting := reconciler.isBeingDeleted(&gkmCache)
 
 			// Call KubeAPI to Retrieve GKMCacheNode for this GKMCache
 			gkmCacheNode, err := reconciler.getCacheNode(ctx, gkmCache.GetNamespace(), gkmCache.GetName())
@@ -196,7 +213,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 			}
 
 			if gkmCacheNode == nil {
-				if reconciler.isBeingDeleted(&gkmCache) {
+				if cacheDeleting {
 					// If the GKMCacheNode doesn't exist and the GKMCache is being deleted,
 					// nothing to do. Just continue with the next GKMCache.
 					r.Logger.Info("Node object doesn't exist and Cache is being deleted",
@@ -213,263 +230,70 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 				} else {
 					// Creation of GKMCacheNode Object for this Namespace was successful.
 					// Return and Reconcile will be retriggered with the GKMCacheNode Object.
+					r.Logger.V(1).Info("Return after CacheNode Create")
 					return ctrl.Result{Requeue: false}, nil
 				}
 			}
+
+			inUseGkmCacheNodeList[(*gkmCacheNode).GetName()] = cacheDeleting
 
 			// GKMCacheNode and ClusterGKMCacheNode takes two steps to complete. The createCacheNode()
 			// call creates the Object, but r.currCacheNode.Status is not allowed to be updated in the
 			// KubeAPI Create call. So if the NodeName is not set, add the initial r.currCacheNode.Status
 			// data, which includes the NodeName and list of detected GPUs.
 			if (*gkmCacheNode).GetNodeName() != r.NodeName {
+				if cacheDeleting {
+					// If the GKMCacheNode hasn't been initialized and the GKMCache is being deleted,
+					// nothing to do. Just continue with the next GKMCache.
+					r.Logger.Info("Node hasn't been initialized and Cache is being deleted",
+						"Object", r.CrdCacheNodeStr,
+						"Namespace", gkmCache.GetNamespace(),
+						"Name", gkmCache.GetNamespace())
+					continue
+				}
+
+				// Make sure there is a GKMCache Finalizer added to the GKMCacheNode
+				if cacheNodeUpdated, err := r.addCacheFinalizerToCacheNode(ctx, reconciler, &gkmCache, gkmCacheNode); err != nil {
+					errorHit = true
+					continue
+				} else if cacheNodeUpdated {
+					r.Logger.Info("Finalizer added")
+					// GKMCacheNode Object was updated successfully.
+					// Return and Reconcile will be retriggered with the GKMCacheNode Object.
+					r.Logger.V(1).Info("Return after Finalizer Added")
+					return ctrl.Result{Requeue: false}, nil
+					//return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
+				}
+
 				// Add initial Status data to GKMCacheNode or ClusterGKMCacheNode object.
-				if err = r.addGpuToCacheNode(ctx, reconciler, gkmCacheNode); err != nil {
+				nodeStatus := gkmv1alpha1.GKMCacheNodeStatus{}
+				if err := r.addGpuToCacheNode(ctx, reconciler, &nodeStatus); err != nil {
 					errorHit = true
 					continue
 				} else {
-					// Creation of GKMCacheNode Object for this Namespace was successful.
-					// Return and Reconcile will be retriggered with the GKMCacheNode Object.
-					//return ctrl.Result{Requeue: false}, nil
-					return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
-				}
-			}
-
-			// Save a copy of GKMCacheNode. Use to determine if anything changes in processing.
-			//origCacheNode := r.currCacheNode.DeepCopy()
-
-			// See if Digest has been set (Webhook validated and image is allowed to be used).
-			annotations := gkmCache.GetAnnotations()
-			if resolvedDigest, digestFound := annotations[utils.GKMCacheAnnotationResolvedDigest]; digestFound {
-				capacity, capFound := annotations[utils.GKMCacheAnnotationCacheSizeBytes]
-				if !capFound {
-					capacity = "1Gi"
-					r.Logger.Info("Capacity NOT Found, setting to 1GB")
-				}
-
-				r.Logger.V(1).Info("Digest and Capacity Found",
-					"Object", r.CrdCacheStr,
-					"Namespace", gkmCache.GetNamespace(),
-					"Name", gkmCache.GetName(),
-					"Digest", resolvedDigest,
-					"Capacity", capacity,
-				)
-
-				// Before extracting and doing work on a given Cache, make sure it is not being deleted.
-				if reconciler.isBeingDeleted(&gkmCache) {
-					inUse, cacheNodeUpdated, err := r.removeCacheFromCacheNode(
-						ctx, reconciler, gkmCacheNode, gkmCache.GetNamespace(), gkmCache.GetName(), resolvedDigest)
+					changed, err := reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, &nodeStatus, "Update GPU list")
 					if err != nil {
 						errorHit = true
 						continue
-					} else if inUse {
-						// Remember that one on the Cache is still in use, so requeue can be set properly on return.
-						stillInUse = true
-					} else if cacheNodeUpdated {
-						// KubeAPI was called to update the GKMCacheNode Object. Return and Reconcile
-						// will be retriggered with the GKMCacheNode Object update.
-						//return ctrl.Result{Requeue: false}, nil
-						return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
-					}
+					} else {
+						reconciler.cacheNodeRecordEvent(gkmCacheNode, gkmv1alpha1.GkmCacheNodeEventReasonCreated, "", "", "", 0)
 
-					// Update counts for this GKMCache (or ClusterGKMCache).
-					// BILLY: Make sure counts get updated for deleting Caches
-					// nodeCnts[gkmCache.GetName()] = cnts
-
-					// No work done, so process next Cache instance
-					continue
-				}
-
-				// Check the Condition for this Cache and Digest to see if this Digest has
-				// been extracted.
-				nodeStatus := (*gkmCacheNode).GetStatus()
-				if nodeStatus != nil {
-					updated := false
-					updateReason := ""
-
-					cnts := gkmv1alpha1.CacheCounts{}
-					cnts.NodeCnt = 1
-
-					// Squirrel away the resolvedDigest in the CacheNode for the Webhook to access quickly
-					nodeStatus.ResolvedDigest = resolvedDigest
-
-					cacheStatus, cacheStatusExisted := nodeStatus.CacheStatuses[gkmCache.GetName()][resolvedDigest]
-					if !cacheStatusExisted {
-						r.Logger.Info("CacheStatus does NOT exist, add Finalizer now")
-						// This GKMCache/Digest has not been processed yet.
-						// Step 1: Make sure there is a GKMCache Finalizer added to the GKMCacheNode
-						if cacheNodeUpdated, err := r.addCacheFinalizerToCacheNode(ctx, reconciler, &gkmCache, gkmCacheNode); err != nil {
-							errorHit = true
-							continue
-						} else if cacheNodeUpdated {
-							// GKMCacheNode Object was updated successfully.
-							// Return and Reconcile will be retriggered with the GKMCacheNode Object.
-							//return ctrl.Result{Requeue: false}, nil
-							return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
-						}
-					}
-
-					// If the GKMCache or ClusterGKMCache Owner has not been set, just skip over this
-					// Cache and reevaluate on next pass.
-					if gkmCache.GetPvcOwner() == gkmv1alpha1.PvcOwnerUnknown ||
-						gkmCache.GetPvcOwner() == "" {
-						stillInUse = true
-						continue
-					}
-					// If the PVC AccessMode is ReadOnlyMany, then only one PVC per Namespace needs to be
-					// created and the storage backend will handle propagating the extracted cache to each
-					// node. Since there is only one, the Operator handles the creation. The Agent tracks
-					// the state. PVC AccessMode is ReadWriteOnce, the storage backend can not handle
-					// propagating the extracted cache so the Agent does it by creating a PVC per Namespace
-					// per Node. For GKMCache, it is the Namespace it is created in. For ClusterGKMCache,
-					// it is the Namespace of the workload (pod mounting the PVC), which must be provided
-					// in the ClusterGKMCache by the user.
-
-					// If the initial read of the Status failed and the initialization work was completed
-					// (Finalizer was added) and the PVC Owner is set, now the Agent can continue processing
-					// this GKMCache or ClusterGKMCache. Go ahead and allocate the memory need.
-					if !cacheStatusExisted {
-						r.Logger.Info("CacheStatus does NOT exist, and Finalizer was already added, so initialize CacheStatus now.")
-
-						// Build up GKMCacheNode.Status
-						if len(nodeStatus.CacheStatuses) == 0 {
-							r.Logger.Info("Allocating GKMCacheNode.Status.CacheStatuses",
-								"Namespace", gkmCache.GetNamespace(),
-								"Name", gkmCache.GetName(),
-								"CacheNodeName", (*gkmCacheNode).GetName(),
-								"Digest", resolvedDigest)
-							nodeStatus.CacheStatuses = make(map[string]map[string]gkmv1alpha1.CacheStatus)
-						}
-
-						nodeStatus.CacheStatuses[gkmCache.GetName()] = make(map[string]gkmv1alpha1.CacheStatus)
-
-						// Build up the first GKMCacheNode.Status.CacheStatuses[name][resolvedDigest]
-						cacheStatus = gkmv1alpha1.CacheStatus{}
-
-						// Make sure KubeAPI is called to write this GKMCacheNode or ClusterGKMCacheNode
-						// below once some work is done.
-						updated = true
-						updateReason = "Cache Allocation"
-					}
-
-					// Loop through the list of Namespaces. For GKMCache, it's just the namespace
-					// GKMCache is created in. For ClusterGKMCache, it's the Workload Namespace list
-					// that was provided in ClusterGKMCache.
-					namespaceList := gkmCache.GetWorkloadNamespaces()
-					if len(namespaceList) == 0 {
-						if gkmCache.GetNamespace() == "" {
-							r.Logger.Info("No namespaces in ClusterGKMCache Spec.WorkloadNamespaces, so no PVCs created",
-								"Namespace", gkmCache.GetNamespace(),
-								"Name", gkmCache.GetName(),
-							)
-						}
-					}
-					for _, pvcNamespace := range namespaceList {
-						// Get the PVC Status, which is the Per Namespace PV and PVC information.
-						if cacheStatus.PvcStatus == nil {
-							cacheStatus.PvcStatus = make(map[string]gkmv1alpha1.PvcStatus)
-							updated = true
-							updateReason = "PvcStatus Allocation"
-						}
-
-						pvcStatus, pvcStatusExisted := cacheStatus.PvcStatus[pvcNamespace]
-						if !pvcStatusExisted {
-							pvcStatus = gkmv1alpha1.PvcStatus{}
-							gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondPending.Condition())
-							updated = true
-							updateReason = "PvcStatus Initialization"
-						}
-
-						// Manage PV and PVC
-						// If updated is already true, still manage PV and PVCs, because up to this
-						// point, it's just been initialization and allocation of structures, no
-						// actual work on kube objects.
-						if pvcUpdated, pvcReason, err := r.managePVandPVC(
-							ctx,
-							reconciler,
-							&gkmCache,
-							gkmCacheNode,
-							&pvcStatus,
-							pvcNamespace,
-							resolvedDigest,
-							capacity,
-						); err != nil {
-							errorHit = true
-							continue
-						} else if pvcUpdated {
-							updated = true
-							updateReason = pvcReason
-						}
-
-						if !updated {
-							// Launch Job to Extract Cache
-							jobUpdated, pending, jobUpdateReason, err := r.manageJob(
-								ctx,
-								&gkmCache,
-								gkmCacheNode,
-								&cacheStatus,
-								&pvcStatus,
-								pvcNamespace,
-								resolvedDigest,
-							)
-							if err != nil {
-								errorHit = true
-								continue
-							}
-							if jobUpdated {
-								updated = true
-								updateReason = jobUpdateReason
-							}
-							if pending {
-								stillInUse = true
-							}
-						}
-
-						if !updated {
-							// Update counts for this Namespace.
-							updated, updateReason = r.addCounts(ctx, &cnts, pvcNamespace, &pvcStatus)
-						}
-
-						if updated {
-							// Update the Cache Status copy of the PVC Status before writing the data.
-							cacheStatus.PvcStatus[pvcNamespace] = pvcStatus
-							break
-						}
-					} // For each Namespace
-
-					// Update with the collected counts
-					nodeStatus.Counts = cnts
-					if !updated {
-						if !reflect.DeepEqual((*gkmCacheNode).GetStatus().DeepCopy(), nodeStatus) {
-							updated = true
-							updateReason = "Update Counts"
-						}
-					}
-
-					if updated {
-						// Update the Node Status copy of the Cache Status before writing the data.
-						cacheStatus.LastUpdated = metav1.Now()
-						nodeStatus.CacheStatuses[gkmCache.GetName()][resolvedDigest] = cacheStatus
-
-						err = reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, nodeStatus, updateReason)
-						if err != nil {
-							errorHit = true
-							continue
+						// Update to GKMCacheNode Object for this Namespace was successful.
+						// Return and Reconcile will be retriggered with the GKMCacheNode Object.
+						r.Logger.V(1).Info("Return after NodeStatus Write", "Reason", "Update GPU list", "changed", changed)
+						if changed {
+							return ctrl.Result{Requeue: false}, nil
 						} else {
-							// Update to GKMCacheNode Object for this Namespace was successful.
-							// Return and Reconcile will be retriggered with the GKMCacheNode Object.
-							//return ctrl.Result{Requeue: false}, nil
 							return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
 						}
 					}
-					nodeCnts[gkmCache.GetName()] = cnts
-				} else {
-					r.Logger.Info("Unable to retrieve Status for CacheNode, but Status should exist already",
-						"Namespace", gkmCache.GetNamespace(),
-						"Name", gkmCache.GetName(),
-						"Digest", resolvedDigest)
-					continue
 				}
-			} else {
+			}
+
+			// See if Digest has been set (Webhook validated and image is allowed to be used).
+			annotations := gkmCache.GetAnnotations()
+			resolvedDigest, digestFound := annotations[utils.GKMCacheAnnotationResolvedDigest]
+			if !digestFound {
 				// Webhook has not resolved image URL to a digest, so either Cosign failed
 				// or the image is invalid. This should never get here because Webhook should
 				// not let GKMCache get created without a valid image.
@@ -479,33 +303,362 @@ func (r *ReconcilerCommonAgent[C, CL, N]) reconcileCommonAgent(
 					"Name", gkmCache.GetName())
 
 				// ToDo: Update GKMCacheNode With Failure
+				continue
 			}
-		}
+
+			capacity, capacityFound := annotations[utils.GKMCacheAnnotationCacheSizeBytes]
+			if !capacityFound {
+				capacity = "1Gi"
+				r.Logger.Info("Capacity NOT Found, setting to 1GB")
+			}
+
+			r.Logger.V(1).Info("Digest and Capacity Found",
+				"Object", r.CrdCacheStr,
+				"Namespace", gkmCache.GetNamespace(),
+				"Name", gkmCache.GetName(),
+				"Digest", resolvedDigest,
+				"Capacity", capacity,
+			)
+
+			// Check the Condition for this Cache and Digest to see if this Digest has
+			// been extracted.
+			nodeStatus := (*gkmCacheNode).GetStatus()
+			if nodeStatus != nil {
+				updated := false
+				updateReason := ""
+				cacheInUse := false
+
+				cnts := gkmv1alpha1.CacheCounts{}
+				cnts.NodeCnt = 1
+
+				// Make sure the GKMCache or ClusterGKMCache Owner has been set, otherwise skip over this
+				// Cache and reevaluate on next pass.
+				if gkmCache.GetPvcOwner() != gkmv1alpha1.PvcOwnerUnknown && gkmCache.GetPvcOwner() != "" {
+					// If the PVC AccessMode is ReadOnlyMany, then only one PVC per Namespace needs to be
+					// created and the storage backend will handle propagating the extracted cache to each
+					// node. Since there is only one, the Operator handles the creation. The Agent tracks
+					// the state. IF PVC AccessMode is ReadWriteOnce, the storage backend can not handle
+					// propagating the extracted cache so the Agent does it by creating a PVC per Namespace
+					// per Node. For GKMCache, it is the Namespace it is created in. For ClusterGKMCache,
+					// it is the Namespace of the workload (pod mounting the PVC), which must be provided
+					// in the ClusterGKMCache by the user.
+
+					cacheStatus, cacheStatusExisted := nodeStatus.CacheStatuses[gkmCache.GetName()][resolvedDigest]
+
+					if cacheDeleting && !cacheStatusExisted {
+						r.Logger.Info("Cache Status doesn't exist and Cache being deleted",
+							"Namespace", gkmCache.GetNamespace(),
+							"Name", gkmCache.GetName(),
+							"CacheNodeName", (*gkmCacheNode).GetName(),
+							"Digest", resolvedDigest)
+					} else {
+						// If the initial read of the Status failed and the initialization work was completed
+						// (Finalizer was added) and the PVC Owner is set, now the Agent can continue processing
+						// this GKMCache or ClusterGKMCache. Go ahead and allocate the memory need.
+						if !cacheStatusExisted {
+							r.Logger.Info("CacheStatus does NOT exist, and Finalizer was already added, so initialize CacheStatus now.")
+
+							// Build up GKMCacheNode.Status
+							if len(nodeStatus.CacheStatuses) == 0 {
+								r.Logger.Info("Allocating GKMCacheNode.Status.CacheStatuses",
+									"Namespace", gkmCache.GetNamespace(),
+									"Name", gkmCache.GetName(),
+									"CacheNodeName", (*gkmCacheNode).GetName(),
+									"Digest", resolvedDigest)
+								nodeStatus.CacheStatuses = make(map[string]map[string]gkmv1alpha1.CacheStatus)
+							}
+
+							nodeStatus.CacheStatuses[gkmCache.GetName()] = make(map[string]gkmv1alpha1.CacheStatus)
+
+							// Build up the first GKMCacheNode.Status.CacheStatuses[name][resolvedDigest]
+							cacheStatus = gkmv1alpha1.CacheStatus{}
+
+							// Make sure KubeAPI is called to write this GKMCacheNode or ClusterGKMCacheNode
+							// below once some work is done.
+							updated = true
+							updateReason = "Cache Allocation"
+						}
+
+						// Loop through the list of Namespaces. For GKMCache, it's just the namespace
+						// GKMCache is created in. For ClusterGKMCache, it's the Workload Namespace list
+						// that was provided in ClusterGKMCache.
+						namespaceList := gkmCache.GetWorkloadNamespaces()
+						if len(namespaceList) == 0 {
+							if gkmCache.GetNamespace() == "" {
+								r.Logger.Info("No namespaces in ClusterGKMCache Spec.WorkloadNamespaces, so no PVCs created",
+									"Namespace", gkmCache.GetNamespace(),
+									"Name", gkmCache.GetName(),
+								)
+							}
+						}
+						for _, pvcNamespace := range namespaceList {
+							var pvcStatus gkmv1alpha1.PvcStatus
+							skipPvcCopy := false
+
+							// CREATE or UPDATE
+							if !cacheDeleting {
+								// Get the PVC Status, which is the Per Namespace PV and PVC information.
+								if cacheStatus.PvcStatus == nil {
+									cacheStatus.PvcStatus = make(map[string]gkmv1alpha1.PvcStatus)
+									updated = true
+									updateReason = "PvcStatus Allocation"
+								}
+
+								var pvcStatusExisted bool
+								pvcStatus, pvcStatusExisted = cacheStatus.PvcStatus[pvcNamespace]
+								if !pvcStatusExisted {
+									pvcStatus = gkmv1alpha1.PvcStatus{}
+									pvcStatus.PvcOwner = gkmCache.GetPvcOwner()
+									gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondPending.Condition())
+									updated = true
+									updateReason = "PvcStatus Initialization"
+								}
+
+								// Manage PV, PVC and Job used for extracted GPU Kernel Cache
+								if pvcUpdated, pvcUpdateReason, pending, err := r.managePvcStatusModify(
+									ctx,
+									reconciler,
+									&gkmCache,
+									gkmCacheNode,
+									&cacheStatus,
+									&pvcStatus,
+									pvcNamespace,
+									resolvedDigest,
+									capacity,
+								); err != nil {
+									errorHit = true
+									continue
+								} else if pvcUpdated {
+									updated = true
+									updateReason = pvcUpdateReason
+								} else if pending {
+									stillInUse = true
+									cacheInUse = true
+								}
+							} else {
+								// DELETE
+								pvcInUse := false
+
+								// Get the PVC Status, which is the Per Namespace PV and PVC information.
+								// If it doesn't exist for this Namespace, then move on to the next Namespace.
+								if cacheStatus.PvcStatus == nil {
+									continue
+								}
+
+								var pvcStatusExisted bool
+								pvcStatus, pvcStatusExisted = cacheStatus.PvcStatus[pvcNamespace]
+								if !pvcStatusExisted {
+									continue
+								}
+
+								nodeName := r.NodeName
+								// If there are more than one namespace associated with this Digest,
+								// use blank NodeName. When the delete looks to see if any Pods are using
+								// the PVC, it will not filter on just this node and will properly leave
+								// objects in place that are being used.
+								if len(cacheStatus.PvcStatus) > 1 {
+									nodeName = ""
+								}
+
+								// If Owner is Agent, then attempt to delete Job, PVC and PV. Otherwise,
+								// there is nothing to do here.
+								if gkmCache.GetPvcOwner() == gkmv1alpha1.PvcOwnerAgent {
+									var pvcDeleting bool
+									if updated, updateReason, pvcInUse, pvcDeleting, err = common.ManagePvcStatusDelete(
+										ctx,
+										r.Client,
+										gkmCache.GetNamespace(),
+										gkmCache.GetName(),
+										nodeName,
+										&pvcStatus,
+										gkmv1alpha1.PvcOwnerAgent,
+										pvcNamespace,
+										resolvedDigest,
+										r.Logger,
+									); err != nil {
+										errorHit = true
+										continue
+									} else if pvcInUse || pvcDeleting {
+										cacheInUse = true
+										stillInUse = true
+										if !gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
+											gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondDeleting.Condition())
+											updated = true
+											updateReason = "Update Condition to Deleting"
+										}
+									}
+								} else {
+									// For Operator managed, determine if still in use
+									podUseCnt := common.GetPvcUsedByList(
+										ctx,
+										r.Client,
+										"", // NodeName,
+										pvcNamespace,
+										pvcStatus.PvcName,
+										r.Logger,
+									)
+									if podUseCnt != 0 {
+										pvcInUse = true
+										cacheInUse = true
+										stillInUse = true
+										if !gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
+											gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondDeleting.Condition())
+											updated = true
+											updateReason = "Update Condition to Deleting"
+										}
+									}
+								}
+
+								// If nothing was updated, then this PVC Status can be removed.
+								if !updated && !pvcInUse {
+									delete(cacheStatus.PvcStatus, pvcNamespace)
+									updated = true
+									skipPvcCopy = true
+									updateReason = "Remove PVC Namespace entry"
+								}
+							}
+
+							if !updated {
+								// Update counts for this Namespace.
+								var cntPending bool
+								updated, updateReason, cntPending = r.addCounts(
+									ctx,
+									reconciler,
+									gkmCache.GetName(),
+									gkmCacheNode,
+									&cnts,
+									pvcNamespace,
+									&pvcStatus,
+								)
+								if cntPending {
+									stillInUse = true
+								}
+							}
+
+							if updated {
+								if !skipPvcCopy {
+									// Update the Cache Status copy of the PVC Status before writing the data.
+									cacheStatus.PvcStatus[pvcNamespace] = pvcStatus
+								}
+								break
+							}
+						} // For each Namespace
+
+						// Update with the collected counts
+						if !updated {
+							nodeStatus.Counts = cnts
+							if !reflect.DeepEqual((*gkmCacheNode).GetStatus(), nodeStatus) {
+								updated = true
+								updateReason = "Update Counts"
+							}
+						}
+
+						if updated {
+							// Update the Node Status copy of the Cache Status before writing the data.
+							cacheStatus.LastUpdated = metav1.Now()
+							nodeStatus.CacheStatuses[gkmCache.GetName()][resolvedDigest] = cacheStatus
+
+							changed, err := reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, nodeStatus, updateReason)
+							if err != nil {
+								errorHit = true
+								continue
+							} else {
+								// Update to GKMCacheNode Object for this Namespace was successful.
+								// Return and Reconcile will be retriggered with the GKMCacheNode Object.
+								r.Logger.V(1).Info("Return after NodeStatus Write", "Reason", updateReason, "changed", changed)
+								if changed {
+									return ctrl.Result{Requeue: false}, nil
+								} else {
+									return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
+								}
+							}
+						}
+						nodeCnts[gkmCache.GetName()] = cnts
+					}
+				} else {
+					// Owner (Operator or Agent) not set. Set a flag that work still needs to be done.
+					cacheInUse = true
+					stillInUse = true
+				}
+
+				// If the logic made it this far and GKMCache or ClusterGKMCache is being deleted,
+				// Then no more cleanup is needed and Finalizer can be removed.
+				if cacheDeleting {
+					cacheNodeUpdated, err := r.removeCacheFromCacheNode(
+						ctx,
+						reconciler,
+						gkmCacheNode,
+						nodeStatus,
+						gkmCache.GetNamespace(),
+						gkmCache.GetName(),
+						resolvedDigest,
+						cacheInUse,
+					)
+					if err != nil {
+						errorHit = true
+						continue
+					} else if cacheNodeUpdated {
+						// KubeAPI was called to update the GKMCacheNode Object. Return and Reconcile
+						// will be retriggered with the GKMCacheNode Object update.
+						r.Logger.V(1).Info("Return after NodeStatus Write - Delete Cache entry")
+						return ctrl.Result{Requeue: false}, nil
+						//return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
+					}
+
+					// Update counts for this GKMCache (or ClusterGKMCache).
+					// ToDo: Make sure counts get updated for deleting Caches
+					// nodeCnts[gkmCache.GetName()] = cnts
+
+					// No work done, so process next Cache instance
+					continue
+				}
+
+			} else {
+				r.Logger.Info("Unable to retrieve Status for CacheNode, but Status should exist already",
+					"Namespace", gkmCache.GetNamespace(),
+					"Name", gkmCache.GetName(),
+					"Digest", resolvedDigest)
+				continue
+			}
+		} // FOR EACH GKMCache or ClusterGKMCache
+	}
+
+	// Walk the GKMCacheNode or ClusterGKMCacheNode and determine if any PVCs are stranded.
+	// If so, see if the Pod using them is still active. If not, clean them up.
+	if strandedInUse, strandedErrFlag := r.manageStrandedPvcs(ctx, reconciler, inUseGkmCacheNodeList); strandedErrFlag {
+		errorHit = true
+	} else if strandedInUse {
+		stillInUse = true
 	}
 
 	// Return
 	if (*gkmCacheList).GetItemsLen() == 0 && !stillInUse {
 		// There are no extracted Caches on host, all cleaned up now, so nothing to do.
-		r.Logger.V(1).Info("Nothing to do")
+		r.Logger.Info("Nothing to do")
 		return ctrl.Result{Requeue: false}, nil
 	} else if errorHit {
-		r.Logger.V(1).Info("Error hit, requeue after 10 sec")
+		r.Logger.Info("Error hit, requeue after 10 sec")
 		// If an error was encountered during a single GKMCache instance, retry after a pause.
 		return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentFailure}, nil
-	} else {
-		r.Logger.V(1).Info("Need to recheck pod, requeue after 5 sec")
-		// GKMCache is Reconciled, so wake up to recheck Pod usage periodically.
+	} else if stillInUse {
+		r.Logger.Info("Processing still pending, requeue after 5 sec")
 		return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentUsagePoll}, nil
+	} else {
+		r.Logger.Info("Waiting for Pod Event ...")
+		return ctrl.Result{Requeue: false}, nil
+		//r.Logger.Info("Need to recheck pod, requeue after 5 sec")
+		// GKMCache is Reconciled, so wake up to recheck Pod usage periodically.
+		//return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentUsagePoll}, nil
 	}
 }
 
 // addGpuToCacheNode calls MCV to collect the set of detected GPUs and adds them to the
 // GKMCacheNode.Status.GpuStatuses field. This is only done once right after object creation
 // and is not refreshed.
-func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) addGpuToCacheNode(
 	ctx context.Context,
-	reconciler AgentReconciler[C, CL, N],
-	gkmCacheNode *N,
+	reconciler AgentReconciler[C, CL, N, NL],
+	nodeStatus *gkmv1alpha1.GKMCacheNodeStatus,
 ) error {
 	// Retrieve GPU Data
 	gpus, err := GetGpuList(r.NoGpu, r.Logger)
@@ -514,9 +667,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 	}
 
 	// Add GPU Data to Status
-	nodeStatus := gkmv1alpha1.GKMCacheNodeStatus{
-		NodeName: r.NodeName,
-	}
+	nodeStatus.NodeName = r.NodeName
 
 	if gpus != nil {
 		for _, gpu := range gpus.GPUs {
@@ -531,14 +682,8 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addGpuToCacheNode(
 			GpuType: "None Detected",
 		})
 	}
-	nodeStatus.Counts.NodeCnt = 1
 
-	// Build up GKMCacheNode
-	err = reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, &nodeStatus, "Update GPU list")
-	if err == nil {
-		// Record the creation of GKMCacheNode/ClusterGKMCacheNode
-		reconciler.cacheNodeRecordEvent(gkmCacheNode, gkmv1alpha1.GkmCacheNodeEventReasonCreated, "", "", "", 0)
-	}
+	nodeStatus.Counts.NodeCnt = 1
 
 	return err
 }
@@ -576,9 +721,9 @@ func GetGpuList(noGpu bool, log logr.Logger) (*mcvDevices.GPUFleetSummary, error
 // addCacheFinalizerToCacheNode determines if a GKMCache Finalizer has been added to the GKMCacheNode.
 // If a GKMCache is deleted, this keeps it from being completely deleted until all associated GKMCacheNodes
 // have been deleted.
-func (r *ReconcilerCommonAgent[C, CL, N]) addCacheFinalizerToCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) addCacheFinalizerToCacheNode(
 	ctx context.Context,
-	reconciler AgentReconciler[C, CL, N],
+	reconciler AgentReconciler[C, CL, N, NL],
 	gkmCache *C,
 	gkmCacheNode *N,
 ) (bool, error) {
@@ -605,12 +750,63 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addCacheFinalizerToCacheNode(
 	return updated, nil
 }
 
+// managePvcStatusModify handles Create and Update calls. If necessary, it will handle the creation
+// of a PV, PVC or Job to extract GPU Kernel Cache to the PVC, depending on the state.
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) managePvcStatusModify(
+	ctx context.Context,
+	reconciler AgentReconciler[C, CL, N, NL],
+	gkmCache *C,
+	gkmCacheNode *N,
+	cacheStatus *gkmv1alpha1.CacheStatus,
+	pvcStatus *gkmv1alpha1.PvcStatus,
+	pvcNamespace string,
+	resolvedDigest string,
+	capacity string,
+) (bool, string, bool, error) {
+	updated := false
+	updateReason := ""
+	pending := false
+	var err error
+
+	// Manage PV and PVC
+	// If updated is already true, still manage PV and PVCs, because up to this
+	// point, it's just been initialization and allocation of structures, no
+	// actual work on kube objects.
+	if updated, updateReason, err = r.managePVandPVC(
+		ctx,
+		reconciler,
+		gkmCache,
+		gkmCacheNode,
+		pvcStatus,
+		pvcNamespace,
+		resolvedDigest,
+		capacity,
+	); err != nil || updated {
+		return updated, updateReason, pending, err
+	}
+
+	// Launch Job to Extract Cache
+	if updated, updateReason, pending, err = r.manageJob(
+		ctx,
+		gkmCache,
+		gkmCacheNode,
+		cacheStatus,
+		pvcStatus,
+		pvcNamespace,
+		resolvedDigest,
+	); err != nil || updated {
+		return updated, updateReason, pending, err
+	}
+
+	return updated, updateReason, pending, err
+}
+
 // managePVandPVC manages the PV and PVC that the GPU Kernel Cache is extracted to. If PVC does not exist, then
 // this function calls KubeAPI to create the PVC. It MAY need to create the PV first. If both are created, this
 // function determines if the PVC is in a valid state to receive the extracted GPU Kernel Cache.
-func (r *ReconcilerCommonAgent[C, CL, N]) managePVandPVC(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) managePVandPVC(
 	ctx context.Context,
-	reconciler AgentReconciler[C, CL, N],
+	reconciler AgentReconciler[C, CL, N, NL],
 	gkmCache *C,
 	gkmCacheNode *N,
 	pvcStatus *gkmv1alpha1.PvcStatus,
@@ -630,7 +826,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) managePVandPVC(
 			// In a KIND cluster, there is not a true CSI driver for storage management, so the PV must be
 			// manually created.
 			if r.NoGpu {
-				found, updatedName, err := common.PvExists(
+				_, found, updatedName, err := common.PvExists(
 					ctx,
 					r.Client,
 					(*gkmCache).GetName(),
@@ -687,7 +883,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) managePVandPVC(
 
 			// If PV was not written above, then determine if PVC needs to be created.
 			if !pvCreated {
-				found, updatedName, err := common.PvcExists(
+				_ /* pvc */, found, updatedName, err := common.PvcExists(
 					ctx,
 					r.Client,
 					(*gkmCache).GetName(),
@@ -755,7 +951,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) managePVandPVC(
 // manageJob determines if the GPU Kernel Cache has been extracted. If not, checks the condition and either
 // Launches a Job to extract it, or calls KubeAPI Server to retrieve the list of Jobs that match the labels
 // for a given Cache and Digest and determines the state.
-func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) manageJob(
 	ctx context.Context,
 	gkmCache *C,
 	gkmCacheNode *N,
@@ -763,7 +959,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 	pvcStatus *gkmv1alpha1.PvcStatus,
 	jobNamespace string,
 	resolvedDigest string,
-) (bool, bool, string, error) {
+) (bool, string, bool, error) {
 	updated := false
 	updateReason := ""
 	stillPending := false
@@ -797,9 +993,9 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 				r.NodeName,
 				(*gkmCache).GetImage(),
 				resolvedDigest,
-				pvcStatus.PvcName,
 				r.NoGpu,
 				r.ExtractImage,
+				pvcStatus,
 				(*gkmCache).GetPodTemplate(),
 				r.Logger,
 			)
@@ -809,6 +1005,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 				r.Logger.Error(err, "unable to extract cache",
 					"Namespace", (*gkmCache).GetNamespace(),
 					"Job Namespace", jobNamespace,
+					"Job Name", jobName,
 					"Name", (*gkmCache).GetName(),
 					"Image", (*gkmCache).GetImage(),
 					"Digest", resolvedDigest)
@@ -827,7 +1024,14 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 					"Job Namespace", jobNamespace,
 					"Name", (*gkmCache).GetName(),
 					"Digest", resolvedDigest)
-				return updated, stillPending, updateReason, nil
+
+				if gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
+					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondRunning.Condition())
+					updated = true
+					updateReason = "Update Condition to Running"
+				}
+
+				return updated, updateReason, stillPending, nil
 			}
 
 			latestJob, err := common.GetLatestJob(
@@ -839,20 +1043,42 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 				r.NodeName,
 				r.Logger,
 			)
-			if err != nil {
-				return updated, stillPending, updateReason, err
+			if err != nil || latestJob == nil {
+				r.Logger.Info("Unable to get Latest Job",
+					"Namespace", (*gkmCache).GetNamespace(),
+					"Name", (*gkmCache).GetName(),
+					"Image", (*gkmCache).GetImage(),
+					"PVC Name", pvcStatus.PvcName,
+					"Job Namespace", jobNamespace,
+					"Job Name", pvcStatus.JobName,
+					"err", err,
+				)
+				if latestJob == nil {
+					stillPending = true
+				}
+				return updated, updateReason, stillPending, err
 			}
 
 			r.Logger.Info("Processing Latest Job",
 				"Namespace", (*gkmCache).GetNamespace(),
 				"Job Namespace", jobNamespace,
 				"Name", (*gkmCache).GetName(),
+				"Latest Job Name", latestJob.Name,
 				"Succeeded", latestJob.Status.Succeeded,
 				"Failed", latestJob.Status.Failed,
 				"Active", latestJob.Status.Active,
 				"Ready*", latestJob.Status.Ready,
 				"Conditions", pvcStatus.Conditions,
 			)
+
+			// Job Name is not saved on Create because the an additional hash
+			// is add to requested name. So wait to store the Job name until after
+			// a query.
+			if pvcStatus.JobName != latestJob.Name {
+				pvcStatus.JobName = latestJob.Name
+				updated = true
+				updateReason = "Set Job Name"
+			}
 
 			switch {
 			case latestJob.Status.Succeeded > 0:
@@ -874,6 +1100,8 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondDownloading.Condition())
 					updated = true
 					updateReason = "Update Condition to Downloading"
+				} else {
+					stillPending = true
 				}
 			default:
 				stillPending = true
@@ -906,7 +1134,7 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 		}
 	}
 
-	return updated, stillPending, updateReason, err
+	return updated, updateReason, stillPending, err
 }
 
 // removeCacheFromCacheNode removes a GKMCache status from the GKMCacheNode.Status.CacheStatuses field.
@@ -916,112 +1144,316 @@ func (r *ReconcilerCommonAgent[C, CL, N]) manageJob(
 //     needs to be exited and restarted on the next call.
 //
 // - error: err was encounter during processing.
-func (r *ReconcilerCommonAgent[C, CL, N]) removeCacheFromCacheNode(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) removeCacheFromCacheNode(
 	ctx context.Context,
-	reconciler AgentReconciler[C, CL, N],
+	reconciler AgentReconciler[C, CL, N, NL],
 	gkmCacheNode *N,
+	nodeStatus *gkmv1alpha1.GKMCacheNodeStatus,
 	cacheNamespace, cacheName, digest string,
-) (bool, bool, error) {
+	inUse bool,
+) (bool, error) {
 	// Removing the Cache takes two steps:
-	// - First, deleted the extracted Cache from the host. This cannot happen if the Cache is still
-	//   in use (being used by a pod). If cache exists on host and delete succeeds, remove the Cache
-	//   from this digest from the GKMCacheNode and call KubeAPI to apply the change.
-	// - Second, delete the GKMCache specific finalizer from the GKMCacheNode.
-	//
-	// r.currCache may not be set when cleaning up stranded Cache, so don't use in this function.
-	// r.currCacheNode should be set, but if it was not found, cleanup cache on the node and skip the
-	// GKMCacheNode object updates.
+	// - First, remove this digest from the Status.Caches for the GKMCacheNode and call KubeAPI to
+	//   apply the change. This step is skipped if the PVC is still in use.
+	// - Second, delete the GKMCache specific finalizer from the GKMCacheNode. This allows the GKMCache
+	//   to be deleted. This will be done, even if the PVC is still in use.
 	updated := false
 
 	// Delete Extracted Cache from host.
-	r.Logger.Info("Cache being deleted, removing extracted cache from host",
+	r.Logger.Info("Cache being deleted, remove status cache",
 		"namespace", cacheNamespace,
 		"name", cacheName,
-		"digest", digest)
-
-	inUse := false
-	/*
-		inUse, err := database.RemoveCache(
-			cacheNamespace,
-			cacheName,
-			digest,
-			r.Logger,
-		)
-		if inUse {
-			r.Logger.Info("Not deleted, extracted Cache still in use",
-				"namespace", cacheNamespace,
-				"name", cacheName,
-				"digest", digest)
-			return inUse, updated, nil
-		} else if err != nil {
-			r.Logger.Error(err, "failed to delete extracted cache from host",
-				"namespace", cacheNamespace,
-				"name", cacheName,
-				"digest", digest)
-			return inUse, updated, err
-		}
-	*/
+		"digest", digest,
+		"inUse", inUse,
+	)
 
 	// Extracted Cache deleted from host, remove the Cache data for this Digest from the GKMCacheNode.
 	if gkmCacheNode != nil {
-		nodeStatus := (*gkmCacheNode).GetStatus()
-		if nodeStatus != nil {
-			if _, ok := nodeStatus.CacheStatuses[cacheName][digest]; ok {
-				r.Logger.Info("Deleting CacheStatus via Digest",
-					"Object", r.CrdCacheNodeStr,
-					"Namespace", cacheNamespace,
-					"Name", cacheName,
-					"CacheNodeName", (*gkmCacheNode).GetName(),
-					"Digest", digest)
-				delete(nodeStatus.CacheStatuses[cacheName], digest)
-				updated = true
-			}
-
-			// If all the Digests are removed from the given Cache, remove the Cache entry from the GKMCacheNode.
-			if _, ok := nodeStatus.CacheStatuses[cacheName]; ok {
-				if len(nodeStatus.CacheStatuses[cacheName]) == 0 {
-					r.Logger.Info("Also Deleting CacheStatus via Name from GKMCacheNode",
+		if !inUse {
+			if nodeStatus != nil {
+				if cacheStatus, ok := nodeStatus.CacheStatuses[cacheName][digest]; ok {
+					if len(cacheStatus.PvcStatus) != 0 {
+						r.Logger.Info("PvcStatus in CacheStatus still remain",
+							"Object", r.CrdCacheNodeStr,
+							"Namespace", cacheNamespace,
+							"Name", cacheName,
+							"CacheNodeName", (*gkmCacheNode).GetName(),
+							"Digest", digest,
+							"Num PVC Status", len(cacheStatus.PvcStatus),
+						)
+						for namespace, pvcStatus := range cacheStatus.PvcStatus {
+							r.Logger.Info("Deleting PvcStatus from CacheStatus",
+								"Object", r.CrdCacheNodeStr,
+								"Namespace", cacheNamespace,
+								"Name", cacheName,
+								"CacheNodeName", (*gkmCacheNode).GetName(),
+								"Digest", digest,
+								"Namespace", namespace,
+								"PVC", pvcStatus.PvcName,
+								"PV", pvcStatus.PvName,
+								"Reason", pvcStatus.Conditions[0].Type,
+							)
+							delete(cacheStatus.PvcStatus, namespace)
+						}
+					}
+					r.Logger.Info("Deleting CacheStatus via Digest",
 						"Object", r.CrdCacheNodeStr,
 						"Namespace", cacheNamespace,
 						"Name", cacheName,
-						"CacheNodeName", (*gkmCacheNode).GetName())
-					delete(nodeStatus.CacheStatuses, cacheName)
+						"CacheNodeName", (*gkmCacheNode).GetName(),
+						"Digest", digest)
+					delete(nodeStatus.CacheStatuses[cacheName], digest)
 					updated = true
 				}
-			}
 
-			if updated {
-				if err := reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, nodeStatus, "Remove Cache"); err != nil {
-					return inUse, false, err
+				// If all the Digests are removed from the given Cache, remove the Cache entry from the GKMCacheNode.
+				if _, ok := nodeStatus.CacheStatuses[cacheName]; ok {
+					if len(nodeStatus.CacheStatuses[cacheName]) == 0 {
+						r.Logger.Info("Also Deleting CacheStatus via Name from GKMCacheNode",
+							"Object", r.CrdCacheNodeStr,
+							"Namespace", cacheNamespace,
+							"Name", cacheName,
+							"CacheNodeName", cacheName)
+						delete(nodeStatus.CacheStatuses, cacheName)
+						updated = true
+					}
 				}
 
-				return inUse, updated, nil
+				if updated {
+					changed, err := reconciler.cacheNodeUpdateStatus(ctx, gkmCacheNode, nodeStatus, "Remove Cache")
+					if err != nil {
+						return false, err
+					} else if changed {
+						return changed, nil
+					} else {
+						// If the write doesn't think anything has changed, then keep going.
+						updated = false
+					}
+				}
 			}
-
-			// Cache was already removed from GKMCacheNode, so delete the GKMCache specific
-			// finalizer from the GKMCacheNode.
-			changed, err := reconciler.cacheNodeRemoveFinalizer(ctx, gkmCacheNode, cacheName)
-			if err != nil {
-				r.Logger.Error(err, "failed to delete GKMCache Finalizer from GKMCacheNode")
-				return inUse, false, err
-			}
-			return inUse, changed, nil
 		}
+
+		// Delete the GKMCache specific finalizer from the GKMCacheNode.
+		changed, err := reconciler.cacheNodeRemoveFinalizer(ctx, cacheName, gkmCacheNode)
+		if err != nil {
+			r.Logger.Error(err, "failed to delete GKMCache Finalizer from GKMCacheNode")
+			return false, err
+		}
+		return changed, nil
 	}
 
-	return inUse, updated, nil
+	return updated, nil
 }
 
-func (r *ReconcilerCommonAgent[C, CL, N]) addCounts(
+// manageStrandedPvcs walks the GKMCacheNode or ClusterGKMCacheNode and determines if any PVCs are
+// stranded (GKMCache or ClusterGKMCache was deleted but Pod was still using).  If so, see if the Pod
+// using them is still active. If not, clean them up.
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) manageStrandedPvcs(
 	ctx context.Context,
+	reconciler AgentReconciler[C, CL, N, NL],
+	inUseGkmCacheNodeList map[string]bool,
+) (bool, bool) {
+	pending := false
+	errorHit := false
+	r.Logger.V(1).Info("ENTER manageStrandedPvcs()")
+
+	filters := []client.ListOption{
+		client.MatchingLabels{
+			utils.GKMCacheLabelHostname: r.NodeName,
+		},
+	}
+	gkmCacheNodeList, err := reconciler.getCacheNodeList(ctx, filters...)
+	if err != nil {
+		errorHit = true
+		return pending, errorHit
+	}
+
+	if (*gkmCacheNodeList).GetItemsLen() == 0 {
+		// KubeAPI doesn't have any GKMCacheNode instances
+		r.Logger.V(1).Info("No GKMCacheNode entries found")
+	} else {
+		// There are GKMCacheNode instances created, so loop through each and any check if PVCs are stranded.
+		for _, gkmCacheNode := range (*gkmCacheNodeList).GetItems() {
+			// Check to see if GKMCacheNode was processed above in main loop. If so, skip over.
+			if _, ok := inUseGkmCacheNodeList[gkmCacheNode.GetName()]; ok {
+				r.Logger.V(1).Info("Skipping Cache Node because Cache still exists",
+					"Object", r.CrdCacheStr,
+					"Namespace", gkmCacheNode.GetNamespace(),
+					"Name", gkmCacheNode.GetName(),
+				)
+				continue
+			}
+
+			r.Logger.Info("Verifying Cache Node",
+				"Object", r.CrdCacheStr,
+				"Namespace", gkmCacheNode.GetNamespace(),
+				"Name", gkmCacheNode.GetName(),
+			)
+			cnts := gkmv1alpha1.CacheCounts{}
+			updated := false
+			updateReason := ""
+			nodeStatus := gkmCacheNode.GetStatus()
+			if nodeStatus != nil {
+				if len(nodeStatus.CacheStatuses) == 0 {
+					// If there are not CacheStatus entries, GKMCacheNode can be deleted.
+					if err = reconciler.deleteCacheNode(ctx, &gkmCacheNode); err != nil {
+						r.Logger.Error(err, "failed to delete GKMCacheNode")
+						errorHit = true
+					}
+				} else {
+					for cacheName, digestList := range nodeStatus.CacheStatuses {
+						for digest, cacheStatus := range digestList {
+							nodeName := r.NodeName
+							// If there are more than one namespace associated with this Digest,
+							// use blank NodeName. When the delete looks to see if any Pods are using
+							// the PVC, it will not filter on just this node and will properly leave
+							// objects in place that are being used.
+							if len(cacheStatus.PvcStatus) > 1 {
+								nodeName = ""
+							}
+							for namespace, pvcStatus := range cacheStatus.PvcStatus {
+								if gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
+									r.Logger.Info("PVC is in Deleting State",
+										"Object", r.CrdCacheNodeStr,
+										"Name", cacheName,
+										"Digest", digest,
+										"Namespace", namespace,
+										"PVC", pvcStatus.PvcName,
+										"PV", pvcStatus.PvName,
+									)
+									pvcUpdated, pvcUpdateReason, pvcInUse, pvcDeleting, err := common.ManagePvcStatusDelete(
+										ctx,
+										r.Client,
+										namespace,
+										cacheName,
+										nodeName,
+										&pvcStatus,
+										gkmv1alpha1.PvcOwnerAgent,
+										namespace,
+										digest,
+										r.Logger,
+									)
+									if err != nil {
+										errorHit = true
+										continue
+									}
+									if pvcUpdated {
+										cacheStatus.PvcStatus[namespace] = pvcStatus
+										updated = true
+										updateReason = pvcUpdateReason
+									}
+									if pvcDeleting {
+										pending = true
+									}
+
+									// If nothing was updated and it's no longer being used, then this PVC Status can be removed.
+									if !updated && !pvcInUse && !pvcDeleting {
+										delete(cacheStatus.PvcStatus, namespace)
+										updated = true
+										updateReason = "Remove PVC Namespace entry"
+									}
+								}
+
+								// Update counts for this Namespace.
+								cntUpdated, cntUpdateReason, _ /* cntPending */ := r.addCounts(
+									ctx,
+									reconciler,
+									cacheName,
+									&gkmCacheNode,
+									&cnts,
+									namespace,
+									&pvcStatus,
+								)
+								if cntUpdated && !updated {
+									updated = true
+									updateReason = cntUpdateReason
+								}
+							}
+							if updated {
+								// If all the PVCs were deleted, delete this digest, otherwise updated it.
+								if len(cacheStatus.PvcStatus) == 0 {
+									r.Logger.Info("Deleting CacheStatus via Digest",
+										"Object", r.CrdCacheNodeStr,
+										"Name", cacheName,
+										"CacheNodeName", gkmCacheNode.GetName(),
+										"Digest", digest)
+									delete(nodeStatus.CacheStatuses[cacheName], digest)
+								} else {
+									// Update the Node Status copy of the Cache Status before writing the data.
+									cacheStatus.LastUpdated = metav1.Now()
+									nodeStatus.CacheStatuses[cacheName][digest] = cacheStatus
+								}
+							}
+						}
+						// If all the Digests are removed from the given Cache, remove the Cache entry from the GKMCacheNode.
+						if len(nodeStatus.CacheStatuses[cacheName]) == 0 {
+							// Delete the GKMCache specific finalizer from the GKMCacheNode.
+							updated, err := reconciler.cacheNodeRemoveFinalizer(ctx, cacheName, &gkmCacheNode)
+							if err != nil {
+								r.Logger.Error(err, "failed to delete GKMCache Finalizer from GKMCacheNode")
+								errorHit = true
+							} else if updated {
+								//pending = true
+								return pending, errorHit
+							} else {
+								r.Logger.Info("Also Deleting CacheStatus via Name from GKMCacheNode",
+									"Object", r.CrdCacheNodeStr,
+									"Name", cacheName,
+									"CacheNodeName", gkmCacheNode.GetName())
+								delete(nodeStatus.CacheStatuses, cacheName)
+								if !updated {
+									updated = true
+									updateReason = "Deleting CacheStatus"
+								}
+							}
+						}
+					}
+					nodeStatus.Counts = cnts
+					// Update with the collected counts
+					if !updated {
+						if !reflect.DeepEqual(gkmCacheNode.GetStatus(), nodeStatus) {
+							updated = true
+							updateReason = "Update Counts"
+						}
+					}
+					if updated {
+						changed, err := reconciler.cacheNodeUpdateStatus(ctx, &gkmCacheNode, nodeStatus, updateReason)
+						if err != nil {
+							errorHit = true
+							continue
+						} else if changed {
+							// Update to GKMCacheNode Object for this Namespace was successful.
+							// Return and Reconcile will be retriggered with the GKMCacheNode Object.
+							return pending, errorHit
+						}
+					}
+				}
+			}
+		}
+	}
+	return pending, errorHit
+}
+
+// addCounts examines a given PVC Status and increments counts based on the state of a given
+// PVC and if it is being used by any Pods. This function assumes that the counts were initialized
+// prior and this function is called for each PVC Status structure for a given GKMCacheNode or
+// ClusterGKMCacheNode.
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) addCounts(
+	ctx context.Context,
+	reconciler AgentReconciler[C, CL, N, NL],
+	cacheName string,
+	gkmCacheNode *N,
 	cnts *gkmv1alpha1.CacheCounts,
 	pvcNamespace string,
 	pvcStatus *gkmv1alpha1.PvcStatus,
-) (bool, string) {
-	cnts.NodeCnt = 1
-	podUseCnt := 0
+) (bool, string, bool) {
 	updated := false
 	updateReason := ""
+	pending := false
+
+	cnts.NodeCnt = 1
+	//podCnt := 0
+	podUseCnt := 0
 
 	if pvcStatus.PvcName != "" {
 		podUseCnt = common.GetPvcUsedByList(
@@ -1057,6 +1489,13 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addCounts(
 			cnts.NodeNotInUseCnt = 0
 			cnts.PodRunningCnt += podUseCnt
 		}
+	case string(gkmv1alpha1.GkmCondDeleting):
+		cnts.PodDeletingCnt += podUseCnt
+		cnts.NodeInUseCnt = 1
+		cnts.NodeNotInUseCnt = 0
+		if !reconciler.hasCacheNodeFinalizer(cacheName, gkmCacheNode) {
+			cnts.NodeCnt = 0
+		}
 	case string(gkmv1alpha1.GkmCondError):
 		cnts.NodeErrorCnt++
 	case string(gkmv1alpha1.GkmCondUnloadError):
@@ -1065,72 +1504,10 @@ func (r *ReconcilerCommonAgent[C, CL, N]) addCounts(
 		// PodOutdatedCnt is collected in the Garbage Collection portion of the Reconcile loop.
 	}
 
-	return updated, updateReason
+	return updated, updateReason, pending
 }
 
-// processPodListChanges is used to walk the list of pods in the usage data and the list
-// of pods for a given cache in the Node object. CSI Agent detects pods coming and going and
-// adds them to the usage data. The Agent periodically polls the usage data for changes.
-// Several pods could come and go in between the polling period, so this function walks
-// each list and publishes the changes in Events in the Node Object.
-func (r *ReconcilerCommonAgent[C, CL, N]) processPodListChanges(
-	reconciler AgentReconciler[C, CL, N],
-	gkmCache *C,
-	gkmCacheNode *N,
-	oldPodList, newPodList []gkmv1alpha1.PodData,
-) {
-	currPodCnt := len(oldPodList)
-
-	// Look for pods removed from Node Object by walking the OldPodList (which is currently
-	// in the Node Object) and see which pods aren't in the NewPodList (the usage data)
-	for _, currPod := range oldPodList {
-		found := false
-		for _, pod := range newPodList {
-			if currPod.PodNamespace == pod.PodNamespace &&
-				currPod.PodName == pod.PodName {
-				found = true
-				break
-			}
-		}
-		if !found {
-			currPodCnt--
-			reconciler.cacheNodeRecordEvent(
-				gkmCacheNode,
-				gkmv1alpha1.GkmCacheNodeEventReasonCacheReleased,
-				(*gkmCache).GetName(),
-				currPod.PodNamespace,
-				currPod.PodName,
-				currPodCnt,
-			)
-		}
-	}
-
-	// Look for pods added to Node Object by walking the NewPodList (the usage data)
-	// and see which pods aren't in the OldPodLis t(which is currently in the Node Object)
-	for _, currPod := range newPodList {
-		found := false
-		for _, pod := range oldPodList {
-			if currPod.PodNamespace == pod.PodNamespace &&
-				currPod.PodName == pod.PodName {
-				found = true
-				break
-			}
-		}
-		if !found {
-			currPodCnt++
-			reconciler.cacheNodeRecordEvent(
-				gkmCacheNode,
-				gkmv1alpha1.GkmCacheNodeEventReasonCacheUsed,
-				(*gkmCache).GetName(),
-				currPod.PodNamespace,
-				currPod.PodName,
-				currPodCnt,
-			)
-		}
-	}
-}
-
-func (r *ReconcilerCommonAgent[C, CL, N]) getImageToGpuList(
+func (r *ReconcilerCommonAgent[C, CL, N, NL]) getImageToGpuList(
 	gkmCache *C,
 	resolvedDigest string,
 	cacheStatus *gkmv1alpha1.CacheStatus,

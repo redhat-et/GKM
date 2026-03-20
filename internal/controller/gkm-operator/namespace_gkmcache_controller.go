@@ -20,18 +20,26 @@ package gkmOperator
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
+	"github.com/redhat-et/GKM/pkg/common"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=create;list;watch;delete
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=gkm.io,resources=gkmcaches,verbs=get;list;watch;create;update;patch;delete
@@ -74,7 +82,29 @@ func (r *GKMCacheOperatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&gkmv1alpha1.GKMCacheNode{},
 			&handler.EnqueueRequestForObject{},
 		).
+		Watches(
+			&corev1.Pod{},
+			handler.EnqueueRequestsFromMapFunc(r.enqueueGKMCache),
+			builder.WithPredicates(common.PodPredicate("" /* NodeName*/)),
+		).
 		Complete(r)
+}
+
+func (r *GKMCacheOperatorReconciler) enqueueGKMCache(ctx context.Context, obj client.Object) []reconcile.Request {
+	crList := &gkmv1alpha1.GKMCacheList{}
+	if err := r.List(ctx, crList); err != nil || len(crList.Items) == 0 {
+		return nil
+	}
+
+	cr := crList.Items[0]
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Name: cr.Name,
+			},
+		},
+	}
 }
 
 // GetCacheList gets the list of GKMCache objects from KubeAPI Server.
@@ -113,33 +143,43 @@ func (r *GKMCacheOperatorReconciler) cacheUpdateStatus(
 	gkmCache *gkmv1alpha1.GKMCache,
 	cacheStatus *gkmv1alpha1.GKMCacheStatus,
 	reason string,
-) error {
-	gkmCache.Status = *cacheStatus.DeepCopy()
+) (bool, error) {
+	changed := true
 
-	r.Logger.Info("Calling KubeAPI to Update GKMCache Status",
-		"reason", reason,
-		"Namespace", gkmCache.Namespace,
-		"CacheName", gkmCache.Name,
-	)
-	if err := r.Status().Update(ctx, gkmCache); err != nil {
-		if strings.Contains(err.Error(), "object has been modified") {
-			r.Logger.Info("failed to update GKMCache Status - outdated",
-				"reason", reason,
-				"Namespace", gkmCache.Namespace,
-				"CacheName", gkmCache.Name,
-				"Error", err,
-			)
-		} else {
-			r.Logger.Error(err, "failed to update GKMCache Status",
-				"reason", reason,
-				"Namespace", gkmCache.Namespace,
-				"CacheName", gkmCache.Name,
-			)
+	if !reflect.DeepEqual(gkmCache.GetStatus(), cacheStatus) {
+		gkmCache.Status = *cacheStatus.DeepCopy()
+
+		r.Logger.Info("Calling KubeAPI to Update GKMCache Status",
+			"reason", reason,
+			"Namespace", gkmCache.Namespace,
+			"CacheName", gkmCache.Name,
+		)
+		if err := r.Status().Update(ctx, gkmCache); err != nil {
+			if strings.Contains(err.Error(), "object has been modified") {
+				r.Logger.Info("failed to update GKMCache Status - outdated",
+					"reason", reason,
+					"Namespace", gkmCache.Namespace,
+					"CacheName", gkmCache.Name,
+					"Error", err,
+				)
+			} else {
+				r.Logger.Error(err, "failed to update GKMCache Status",
+					"reason", reason,
+					"Namespace", gkmCache.Namespace,
+					"CacheName", gkmCache.Name,
+				)
+			}
+			return changed, err
 		}
-		return err
+	} else {
+		changed = false
+		r.Logger.Info("cacheUpdateStatus() called but nothing changed",
+			"reason", reason,
+			"CacheName", gkmCache.Name,
+		)
 	}
 
-	return nil
+	return changed, nil
 }
 
 func (r *GKMCacheOperatorReconciler) isBeingDeleted(gkmCache *gkmv1alpha1.GKMCache) bool {

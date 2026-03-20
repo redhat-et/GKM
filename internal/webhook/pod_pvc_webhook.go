@@ -165,7 +165,24 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 				"CacheNodeName", gkmCacheNode.GetName(),
 				"Node", nodeName,
 			)
-			if gkmCacheNode.Status.ResolvedDigest == "" {
+
+			resolvedDigest := ""
+			var cacheStatus gkmv1alpha1.CacheStatus
+			for tmpCacheName, cacheList := range gkmCacheNode.Status.CacheStatuses {
+				if tmpCacheName == cacheName {
+					for digest, tmpCacheStatus := range cacheList {
+						// Use the first Digest found. Structure is setup to support multiple digests,
+						// but there is no way at the moment to add additional digests.
+						// TODO: resolvedDigest should be at a high level in the structure and the GKMCacheNode
+						// only supports one GKMCache.
+						resolvedDigest = digest
+						cacheStatus = tmpCacheStatus
+						break
+					}
+				}
+			}
+
+			if resolvedDigest == "" {
 				podWebhookLog.Info("ResolvedDigest NOT set",
 					"PodName", podName,
 					"Namespace", namespace,
@@ -183,22 +200,8 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 				"CacheName", cacheName,
 				"CacheNodeName", gkmCacheNode.GetName(),
 				"Node", nodeName,
-				"ResolvedDigest", gkmCacheNode.Status.ResolvedDigest,
+				"ResolvedDigest", resolvedDigest,
 			)
-			// Get Namespaced PVC
-			cacheStatus, cacheStatusExisted := gkmCacheNode.Status.CacheStatuses[cacheName][gkmCacheNode.Status.ResolvedDigest]
-			if !cacheStatusExisted {
-				podWebhookLog.Info("Can't get Cache Status",
-					"PodName", podName,
-					"Namespace", namespace,
-					"CacheName", cacheName,
-					"CacheNodeName", gkmCacheNode.GetName(),
-					"Node", nodeName,
-					"ResolvedDigest", gkmCacheNode.Status.ResolvedDigest,
-				)
-				err = fmt.Errorf("Cache not set yet")
-				return "", err
-			}
 
 			pvcStatus, pvcStatusExisted := cacheStatus.PvcStatus[namespace]
 			if !pvcStatusExisted {
@@ -208,7 +211,7 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 					"CacheName", cacheName,
 					"CacheNodeName", gkmCacheNode.GetName(),
 					"Node", nodeName,
-					"ResolvedDigest", gkmCacheNode.Status.ResolvedDigest,
+					"ResolvedDigest", resolvedDigest,
 				)
 				err = fmt.Errorf("PVC Status not set yet")
 				return "", err
@@ -221,7 +224,7 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 					"CacheName", cacheName,
 					"CacheNodeName", gkmCacheNode.GetName(),
 					"Node", nodeName,
-					"ResolvedDigest", gkmCacheNode.Status.ResolvedDigest,
+					"ResolvedDigest", resolvedDigest,
 				)
 				err = fmt.Errorf("PVC Name not set yet")
 				return "", err
@@ -280,7 +283,19 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 				"ClusterCacheNodeName", clusterGkmCacheNode.GetName(),
 				"Node", nodeName,
 			)
-			if clusterGkmCacheNode.Status.ResolvedDigest == "" {
+
+			resolvedDigest := ""
+			var cacheStatus gkmv1alpha1.CacheStatus
+			for tmpCacheName, cacheList := range clusterGkmCacheNode.Status.CacheStatuses {
+				if tmpCacheName == cacheName {
+					for digest, tmpCacheStatus := range cacheList {
+						resolvedDigest = digest
+						cacheStatus = tmpCacheStatus
+					}
+				}
+			}
+
+			if resolvedDigest == "" {
 				podWebhookLog.Info("ResolvedDigest NOT set",
 					"PodName", podName,
 					"Namespace", namespace,
@@ -298,22 +313,8 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 				"ClusterCacheName", cacheName,
 				"ClusterCacheNodeName", clusterGkmCacheNode.GetName(),
 				"Node", nodeName,
-				"ResolvedDigest", clusterGkmCacheNode.Status.ResolvedDigest,
+				"ResolvedDigest", resolvedDigest,
 			)
-			// Get Namespaced PVC
-			cacheStatus, cacheStatusExisted := clusterGkmCacheNode.Status.CacheStatuses[cacheName][clusterGkmCacheNode.Status.ResolvedDigest]
-			if !cacheStatusExisted {
-				podWebhookLog.Info("Can't get Cache Status",
-					"PodName", podName,
-					"Namespace", namespace,
-					"ClusterCacheName", cacheName,
-					"ClusterCacheNodeName", clusterGkmCacheNode.GetName(),
-					"Node", nodeName,
-					"ResolvedDigest", clusterGkmCacheNode.Status.ResolvedDigest,
-				)
-				err = fmt.Errorf("Cache not set yet")
-				return "", err
-			}
 
 			pvcStatus, pvcStatusExisted := cacheStatus.PvcStatus[namespace]
 			if !pvcStatusExisted {
@@ -323,7 +324,7 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 					"ClusterCacheName", cacheName,
 					"ClusterCacheNodeName", clusterGkmCacheNode.GetName(),
 					"Node", nodeName,
-					"ResolvedDigest", clusterGkmCacheNode.Status.ResolvedDigest,
+					"ResolvedDigest", resolvedDigest,
 				)
 				err = fmt.Errorf("PVC Status not set yet")
 				return "", err
@@ -336,7 +337,7 @@ func (m *PodMutator) getPvcName(ctx context.Context, podName, namespace, cacheNa
 					"ClusterCacheName", cacheName,
 					"ClusterCacheNodeName", clusterGkmCacheNode.GetName(),
 					"Node", nodeName,
-					"ResolvedDigest", clusterGkmCacheNode.Status.ResolvedDigest,
+					"ResolvedDigest", resolvedDigest,
 				)
 				err = fmt.Errorf("PVC Name not set yet")
 				return "", err
