@@ -21,11 +21,13 @@ package gkmAgent
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,8 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
+	"github.com/redhat-et/GKM/pkg/common"
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
@@ -50,7 +54,12 @@ import (
 
 // GKMCacheAgentReconciler reconciles a GKMCache object
 type GKMCacheAgentReconciler struct {
-	ReconcilerCommonAgent[gkmv1alpha1.GKMCache, gkmv1alpha1.GKMCacheList, gkmv1alpha1.GKMCacheNode]
+	ReconcilerCommonAgent[
+		gkmv1alpha1.GKMCache,
+		gkmv1alpha1.GKMCacheList,
+		gkmv1alpha1.GKMCacheNode,
+		gkmv1alpha1.GKMCacheNodeList,
+	]
 }
 
 // GKMCacheAgentReconciler reconciles/reads each GKMCache object (read-only) and creates and
@@ -65,12 +74,7 @@ func (r *GKMCacheAgentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 // SetupWithManager sets up the controller with the Manager.
 func (r *GKMCacheAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&gkmv1alpha1.GKMCache{},
-			builder.WithPredicates(predicate.And(
-				predicate.GenerationChangedPredicate{},
-				predicate.ResourceVersionChangedPredicate{},
-			)),
-		).
+		For(&gkmv1alpha1.GKMCache{}).
 		// Trigger reconciliation if the GKMCacheNode for this node is modified.
 		// Own() doesn't work because the GKMCacheNode is per Namespace and the
 		// GKMCache is not an ownerRef, because there may be multiple GKMCache
@@ -79,6 +83,11 @@ func (r *GKMCacheAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&gkmv1alpha1.GKMCacheNode{},
 			&handler.EnqueueRequestForObject{},
 			builder.WithPredicates((GkmCacheNodePredicate(r.NodeName))),
+		).
+		Watches(
+			&corev1.Pod{},
+			handler.EnqueueRequestsFromMapFunc(r.enqueueGKMCacheNode),
+			builder.WithPredicates(common.PodPredicate(r.NodeName)),
 		).
 		Complete(r)
 }
@@ -101,10 +110,28 @@ func GkmCacheNodePredicate(nodeName string) predicate.Funcs {
 	}
 }
 
+func (r *GKMCacheAgentReconciler) enqueueGKMCacheNode(ctx context.Context, obj client.Object) []reconcile.Request {
+	crList := &gkmv1alpha1.GKMCacheNodeList{}
+	if err := r.List(ctx, crList); err != nil || len(crList.Items) == 0 {
+		return nil
+	}
+
+	cr := crList.Items[0]
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Namespace: cr.Namespace,
+				Name:      cr.Name,
+			},
+		},
+	}
+}
+
 // GetCacheList gets the list of GKMCache objects from KubeAPI Server.
 func (r *GKMCacheAgentReconciler) getCacheList(
 	ctx context.Context,
-	opts []client.ListOption,
+	opts ...client.ListOption,
 ) (*gkmv1alpha1.GKMCacheList, error) {
 	// Get the list of existing GKMCache objects
 	cacheList := &gkmv1alpha1.GKMCacheList{}
@@ -114,6 +141,21 @@ func (r *GKMCacheAgentReconciler) getCacheList(
 	}
 
 	return cacheList, nil
+}
+
+// getCacheNodeList gets the list of GKMCacheNode objects from KubeAPI Server.
+func (r *GKMCacheAgentReconciler) getCacheNodeList(
+	ctx context.Context,
+	opts ...client.ListOption,
+) (*gkmv1alpha1.GKMCacheNodeList, error) {
+	// Get the list of existing GKMCache objects
+	cacheNodeList := &gkmv1alpha1.GKMCacheNodeList{}
+	if err := r.List(ctx, cacheNodeList, opts...); err != nil {
+		r.Logger.Error(err, "failed to list", "Object", r.CrdCacheStr)
+		return nil, err
+	}
+
+	return cacheNodeList, nil
 }
 
 // getCacheNode gets the GKMCacheNode object from KubeAPI Server for the current
@@ -193,29 +235,95 @@ func (r *GKMCacheAgentReconciler) cacheNodeUpdateStatus(
 	gkmCacheNode *gkmv1alpha1.GKMCacheNode,
 	nodeStatus *gkmv1alpha1.GKMCacheNodeStatus,
 	reason string,
-) error {
-	gkmCacheNode.Status = *nodeStatus.DeepCopy()
+) (bool, error) {
+	change := true
 
-	r.Logger.Info("Calling KubeAPI to Update GKMCacheNode Status",
-		"reason", reason,
-		"Namespace", gkmCacheNode.Namespace,
-		"CacheNodeName", gkmCacheNode.Name,
-	)
-	if err := r.Status().Update(ctx, gkmCacheNode); err != nil {
-		if strings.Contains(err.Error(), "object has been modified") {
-			r.Logger.Info("failed to update GKMCacheNode Status - outdated",
-				"reason", reason,
-				"Namespace", gkmCacheNode.Namespace,
-				"CacheNodeName", gkmCacheNode.Name,
-				"Error", err,
-			)
+	if !reflect.DeepEqual(gkmCacheNode.GetStatus().DeepCopy(), nodeStatus) {
+		gkmCacheNode.Status = *nodeStatus.DeepCopy()
+
+		r.Logger.Info("Calling KubeAPI to Update GKMCacheNode Status",
+			"reason", reason,
+			"Namespace", gkmCacheNode.Namespace,
+			"CacheNodeName", gkmCacheNode.Name,
+		)
+		if err := r.Status().Update(ctx, gkmCacheNode); err != nil {
+			if strings.Contains(err.Error(), "object has been modified") {
+				r.Logger.Info("failed to update GKMCacheNode Status - outdated",
+					"reason", reason,
+					"Namespace", gkmCacheNode.Namespace,
+					"CacheNodeName", gkmCacheNode.Name,
+					"Error", err,
+				)
+			} else {
+				r.Logger.Error(err, "failed to update GKMCacheNode Status",
+					"reason", reason,
+					"Namespace", gkmCacheNode.Namespace,
+					"CacheNodeName", gkmCacheNode.Name,
+				)
+			}
+			return change, err
+		}
+	} else {
+		change = false
+		r.Logger.Info("cacheNodeUpdateStatus() called but nothing changed",
+			"reason", reason,
+			"Namespace", gkmCacheNode.Namespace,
+			"CacheNodeName", gkmCacheNode.Name,
+		)
+		tmpNodeStatus := gkmCacheNode.GetStatus()
+		if tmpNodeStatus != nil {
+			if len(tmpNodeStatus.CacheStatuses) == 0 {
+				r.Logger.Info("cacheNodeUpdateStatus() - TMP No CacheStatuses",
+					"Namespace", gkmCacheNode.Namespace,
+					"CacheNodeName", gkmCacheNode.Name,
+				)
+			} else {
+				for cacheName, digestList := range tmpNodeStatus.CacheStatuses {
+					r.Logger.Info("cacheNodeUpdateStatus() - TMP", "cacheName", cacheName)
+					for digest, cacheStatus := range digestList {
+						r.Logger.Info("cacheNodeUpdateStatus() - TMP", "digest", digest)
+						for namespace, pvcStatus := range cacheStatus.PvcStatus {
+							r.Logger.Info("cacheNodeUpdateStatus() - TMP", "namespace", namespace, "pvcStatus", pvcStatus)
+						}
+					}
+				}
+			}
 		} else {
-			r.Logger.Error(err, "failed to update GKMCacheNode Status",
-				"reason", reason,
+			r.Logger.Info("cacheNodeUpdateStatus() - TMP - No Node Status",
 				"Namespace", gkmCacheNode.Namespace,
 				"CacheNodeName", gkmCacheNode.Name,
 			)
 		}
+
+		if len(nodeStatus.CacheStatuses) == 0 {
+			r.Logger.Info("cacheNodeUpdateStatus() - No CacheStatuses",
+				"Namespace", gkmCacheNode.Namespace,
+				"CacheNodeName", gkmCacheNode.Name,
+			)
+		} else {
+			for cacheName, digestList := range nodeStatus.CacheStatuses {
+				r.Logger.Info("cacheNodeUpdateStatus()", "cacheName", cacheName)
+				for digest, cacheStatus := range digestList {
+					r.Logger.Info("cacheNodeUpdateStatus()", "digest", digest)
+					for namespace, pvcStatus := range cacheStatus.PvcStatus {
+						r.Logger.Info("cacheNodeUpdateStatus()", "namespace", namespace, "pvcStatus", pvcStatus)
+					}
+				}
+			}
+		}
+	}
+
+	return change, nil
+}
+
+// deleteCacheNode deletes the GKMCacheNode Object for this Node.
+func (r *GKMCacheAgentReconciler) deleteCacheNode(ctx context.Context, gkmCacheNode *gkmv1alpha1.GKMCacheNode) error {
+	r.Logger.Info("Delete GKMCacheNode object",
+		"Namespace", gkmCacheNode.Namespace, "CacheNodeName", gkmCacheNode.Name)
+
+	if err := r.Delete(ctx, gkmCacheNode); err != nil {
+		r.Logger.Error(err, "failed to delete GKMCacheNode object",
+			"Namespace", gkmCacheNode.Namespace, "CacheNodeName", gkmCacheNode.Name)
 		return err
 	}
 
@@ -239,7 +347,7 @@ func (r *GKMCacheAgentReconciler) cacheNodeAddFinalizer(
 	gkmCacheNode *gkmv1alpha1.GKMCacheNode,
 	cacheName string,
 ) (bool, error) {
-	if changed := controllerutil.AddFinalizer(gkmCacheNode, r.getCacheNodeFinalizer(cacheName)); changed {
+	if changed := controllerutil.AddFinalizer(gkmCacheNode, r.getCacheNodeFinalizerName(cacheName)); changed {
 		r.Logger.Info("Calling KubeAPI to add GKMCache Finalizer to GKMCacheNode",
 			"Namespace", gkmCacheNode.Namespace,
 			"Name", cacheName,
@@ -258,17 +366,26 @@ func (r *GKMCacheAgentReconciler) cacheNodeAddFinalizer(
 	return false, nil
 }
 
-// getCacheNodeFinalizer returns the finalizer that is added to the GKMCacheNode object.
-func (r *GKMCacheAgentReconciler) getCacheNodeFinalizer(name string) string {
+// getCacheNodeFinalizerName returns the finalizer that is added to the GKMCacheNode object.
+func (r *GKMCacheAgentReconciler) getCacheNodeFinalizerName(name string) string {
 	return utils.GkmCacheNodeFinalizerPrefix + name + utils.GkmCacheNodeFinalizerSubstring
+}
+
+// hasCacheNodeFinalizer determines if GKMCacheNode object has a finalizer added.
+func (r *GKMCacheAgentReconciler) hasCacheNodeFinalizer(cacheName string, gkmCacheNode *gkmv1alpha1.GKMCacheNode) bool {
+	if controllerutil.ContainsFinalizer(gkmCacheNode, r.getCacheNodeFinalizerName(cacheName)) {
+		return true
+	} else {
+		return false
+	}
 }
 
 func (r *GKMCacheAgentReconciler) cacheNodeRemoveFinalizer(
 	ctx context.Context,
-	gkmCacheNode *gkmv1alpha1.GKMCacheNode,
 	cacheName string,
+	gkmCacheNode *gkmv1alpha1.GKMCacheNode,
 ) (bool, error) {
-	if changed := controllerutil.RemoveFinalizer(gkmCacheNode, r.getCacheNodeFinalizer(cacheName)); changed {
+	if changed := controllerutil.RemoveFinalizer(gkmCacheNode, r.getCacheNodeFinalizerName(cacheName)); changed {
 		r.Logger.Info("Calling KubeAPI to delete GKMCache Finalizer from GKMCacheNode",
 			"Namespace", gkmCacheNode.Namespace,
 			"Name", cacheName,
