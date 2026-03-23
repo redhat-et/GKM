@@ -3,6 +3,10 @@ kind: GKMCache
 metadata:
   name: llama-3-1-8b-instruct-rocm
   namespace: gkm-test-ns-scoped
-  annotations:
+  labels:
+    gkm.io/signature-format: cosign-v2
 spec:
-  image: quay.io/gkm/cache-examples:llama-3.1-8B-instruct-rocm
+  image: quay.io/gkm/cache-examples:llama-3.1-8B-instruct-rocm-v2
+  accessModes:
+    - ReadWriteOnce
+    - ReadOnlyMany
