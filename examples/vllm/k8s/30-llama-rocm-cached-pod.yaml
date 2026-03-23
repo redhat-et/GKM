@@ -52,8 +52,5 @@ spec:
     - name: model-hf-volume
       emptyDir: {}
     - name: model-cache-volume
-      csi:
-        driver: csi.gkm.io
-        volumeAttributes:
-          csi.gkm.io/GKMCache: llama-3-1-8b-instruct-rocm
-          csi.gkm.io/namespace: gkm-test-ns-scoped
+      persistentVolumeClaim:
+        claimName: llama-3-1-8b-instruct-rocm
