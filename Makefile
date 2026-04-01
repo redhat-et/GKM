@@ -351,9 +351,11 @@ deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/
 .PHONY: undeploy-examples
 undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.
 	@echo "Remove Namespace based GKMCache"
-	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/namespace/
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/namespace/RWO/
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/namespace/ROX/
 	@echo "Remove Cluster based ClusterGKMCache"
-	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/cluster/
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/cluster/RWO/
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f examples/cluster/ROX/
 
 ##@ Kind Cluster Management
 KIND_CLUSTER_NAME ?= kind-gpu-sim
