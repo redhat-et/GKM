@@ -571,7 +571,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 UNDEPLOY_SCRIPT ?= $(shell pwd)/hack/undeploy.sh
-KIND_GPU_SIM_SCRIPT_URL := https://raw.githubusercontent.com/maryamtahhan/kind-gpu-sim/refs/heads/main/kind-gpu-sim.sh
+KIND_GPU_SIM_SCRIPT_HACK := $(shell pwd)/hack/kind-gpu-sim.sh
 KIND_GPU_SIM_SCRIPT := $(LOCALBIN)/kind-gpu-sim.sh
 
 ## Tool Versions
@@ -602,12 +602,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
 
 .PHONY: kind-gpu-sim-script
-kind-gpu-sim-script: $(KIND_GPU_SIM_SCRIPT) ## Download  kind-gpu-sim-script locally if necessary.
+kind-gpu-sim-script: $(KIND_GPU_SIM_SCRIPT) ## Install kind-gpu-sim-script to bin from hack if necessary
 $(KIND_GPU_SIM_SCRIPT): $(LOCALBIN)
 	if [ ! -f $(KIND_GPU_SIM_SCRIPT) ]; then \
-		echo "Downloading $(KIND_GPU_SIM_SCRIPT)"; \
-		wget -P $(LOCALBIN) $(KIND_GPU_SIM_SCRIPT_URL); \
-		chmod +x $(KIND_GPU_SIM_SCRIPT); \
+		echo "Installing $(KIND_GPU_SIM_SCRIPT) to $(LOCALBIN)"; \
+		install -D -m 0775 -t $(LOCALBIN) $(KIND_GPU_SIM_SCRIPT_HACK); \
 	fi
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
