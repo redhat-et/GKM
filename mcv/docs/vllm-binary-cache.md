@@ -202,21 +202,27 @@ The `manifest.json` file contains comprehensive metadata:
 
 ## Hardware Detection
 
-MCV automatically extracts hardware information from the cache metadata:
+MCV automatically detects hardware information from the system and combines it with cache metadata:
 
 ### CUDA
 
 ```json
 {
   "backend": "cuda",
-  "arch": "sm_12.9",
-  "warp_size": 32
+  "arch": "75",
+  "warp_size": 32,
+  "ptx_version": 590,
+  "cuda_version": "12.9"
 }
 ```
 
-- **Backend**: Extracted from `VLLM_TARGET_DEVICE`
-- **Arch**: Derived from `VLLM_MAIN_CUDA_VERSION`
+- **Backend**: Extracted from `VLLM_TARGET_DEVICE` environment variable
+- **Arch**: **Detected from actual GPU** on the system as numerical compute capability (e.g., `75` for Tesla T4, `80` for A100, `89` for RTX 4090)
 - **Warp Size**: 32 (CUDA default)
+- **PTX Version**: PTX version from NVIDIA driver (e.g., 590 for driver 590.48.01)
+- **CUDA Version**: CUDA toolkit version from `VLLM_MAIN_CUDA_VERSION` (e.g., "12.9")
+
+**Important**: MCV detects the **actual GPU compute capability** from the system, not from environment variables. Compute capability is stored as a numerical value (e.g., `75` = sm_7.5 = Turing architecture). This ensures accurate compatibility checking between cached kernels and the target GPU.
 
 ### ROCm/HIP
 
@@ -228,9 +234,11 @@ MCV automatically extracts hardware information from the cache metadata:
 }
 ```
 
-- **Backend**: Extracted from `VLLM_TARGET_DEVICE`
-- **Arch**: Detected from ROCm environment variables
+- **Backend**: Extracted from `VLLM_TARGET_DEVICE` environment variable
+- **Arch**: **Detected from actual GPU** on the system (e.g., `gfx90a` for MI250, `gfx942` for MI300)
 - **Warp Size**: 64 (AMD wavefront size)
+
+**Note**: If GPU detection fails, MCV will warn that the cache may not be compatible with the current GPU. Always verify GPU compatibility before deployment.
 
 ## Format Detection
 
@@ -420,6 +428,284 @@ Key files in vLLM that implement binary cache:
 - `vllm/compilation/backends.py:245-346` - Compilation manager
 - `vllm/compilation/backends.py:904-935` - `cache_key_factors.json` creation
 - `vllm/compilation/backends.py:867-874` - Directory structure creation
+
+## Complete Workflow Example
+
+This section demonstrates the complete end-to-end workflow of capturing a vLLM cache, creating an OCI image, and extracting it on another system.
+
+### Prerequisites
+
+- Docker or Podman installed
+- MCV binary built (`make mcv`)
+- Access to a container registry (e.g., quay.io)
+- GPU available on the system (NVIDIA or AMD)
+
+### Step 1: Start vLLM Container
+
+Start a vLLM container with a model. This example uses NVIDIA GPU with CUDA:
+
+```bash
+# For NVIDIA GPUs with CUDA 13.0
+sudo podman run -d \
+    --name vllm-server \
+    --privileged \
+    --device /dev/nvidia0:/dev/nvidia0 \
+    --device /dev/nvidiactl:/dev/nvidiactl \
+    --device /dev/nvidia-uvm:/dev/nvidia-uvm \
+    --device /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools \
+    -v /usr/lib64:/usr/lib64:ro \
+    -v /usr/lib64:/usr/local/cuda-13.0/compat:ro \
+    -v /usr/local/cuda:/usr/local/cuda:ro \
+    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    --env 'LD_LIBRARY_PATH=/usr/lib64:/usr/local/cuda/lib64:/usr/local/cuda-13.0/compat' \
+    -e NVIDIA_VISIBLE_DEVICES=all \
+    -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    -p 8000:8000 \
+    --ipc=host \
+    docker.io/vllm/vllm-openai:latest-cu130 \
+    --model Qwen/Qwen3-0.6B
+```
+
+For AMD GPUs with ROCm, adjust the device mounts and environment variables accordingly.
+
+### Step 2: Wait for Cache Generation
+
+The vLLM server compiles kernels during model loading and warmup. Wait for the compilation to complete:
+
+```bash
+# Monitor vLLM logs to see compilation progress
+sudo podman logs -f vllm-server
+
+# Look for messages like:
+# INFO 04-02 13:08:05 [monitor.py:48] torch.compile took 53.19 s in total
+# INFO 04-02 13:08:28 [core.py:281] init engine (profile, create kv cache, warmup model) took 76.50 seconds
+# INFO 04-02 13:08:31 [api_server.py:580] Starting vLLM server on http://0.0.0.0:8000
+
+# Once you see "Starting vLLM server", the cache has been generated
+```
+
+The compiled kernels are stored in `/root/.cache/vllm/torch_compile_cache/` inside the container.
+
+**Optional**: You can also send a test request to verify the server is working:
+
+```bash
+# Send a test request (cache already compiled during startup)
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen3-0.6B",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "max_tokens": 50
+  }' | jq -r '.choices[0].message.content'
+```
+
+### Step 3: Capture Cache from Container
+
+Copy the generated cache from the running container to your host:
+
+```bash
+# Create directory for cache
+mkdir -p ~/vllm-qwen-cache
+
+# Copy cache from container
+sudo podman cp vllm-server:/root/.cache/vllm ~/vllm-qwen-cache/
+
+# Fix ownership
+sudo chown -R $(whoami):$(whoami) ~/vllm-qwen-cache/
+
+# Verify cache was captured
+du -sh ~/vllm-qwen-cache/vllm
+# Output: ~18M    /home/user/vllm-qwen-cache/vllm
+
+# Inspect cache structure
+ls -la ~/vllm-qwen-cache/vllm/torch_compile_cache/
+# Should show hash directories (e.g., fe20897a43/)
+```
+
+### Step 4: Build Cache Image with MCV
+
+Create an OCI container image containing the cache:
+
+```bash
+# Install buildah if not already installed
+sudo dnf install -y buildah
+
+# Build cache image
+mcv -c \
+    -i quay.io/myorg/vllm-qwen-cache:v1 \
+    -d ~/vllm-qwen-cache/vllm \
+    --builder buildah
+
+# Output:
+# INFO Using buildah to build the image
+# INFO Detected cache components: [vllm]
+# INFO Image built! 3cbede0b2cb5...
+# INFO OCI image created successfully.
+```
+
+### Step 5: Inspect Cache Image
+
+Verify the cache image metadata and labels:
+
+```bash
+# View image in buildah
+buildah images | grep vllm-qwen-cache
+
+# Inspect image labels
+buildah inspect quay.io/myorg/vllm-qwen-cache:v1 | \
+    jq -r '.OCIv1.config.Labels'
+
+# Expected output:
+# {
+#   "cache.vllm.image/cache-size-bytes": "18152945",
+#   "cache.vllm.image/entry-count": "2",
+#   "cache.vllm.image/format": "binary",
+#   "cache.vllm.image/summary": "{\"targets\":[{\"backend\":\"cuda\",\"arch\":\"75\",\"warp_size\":32,\"ptx_version\":590,\"cuda_version\":\"12.9\"}]}"
+# }
+```
+
+**Important**: Notice that the `arch` field shows the **actual GPU compute capability** (e.g., `75` for Tesla T4 which is sm_7.5), not the CUDA toolkit version.
+
+### Step 6: Push to Registry
+
+Push the cache image to a container registry:
+
+```bash
+# Login to registry
+buildah login quay.io
+
+# Push image
+buildah push quay.io/myorg/vllm-qwen-cache:v1
+
+# Verify push
+buildah images | grep vllm-qwen-cache
+```
+
+### Step 7: Extract Cache on Target System
+
+On another system with compatible GPU, extract the cache:
+
+```bash
+# Pull and extract cache
+mcv -e -i quay.io/myorg/vllm-qwen-cache:v1
+
+# MCV performs preflight checks:
+# 1. Fetches image and reads metadata
+# 2. Detects local GPU (e.g., Tesla T4 with sm_75)
+# 3. Compares with cache requirements
+# 4. Extracts cache to ~/.cache/vllm/ if compatible
+
+# Expected output on compatible GPU:
+# INFO Preflight GPU compatibility check passed.
+# INFO Preflight completed    matched="[0]" unmatched="[]"
+# INFO Extracting cache to directory: /home/user/.cache/vllm
+```
+
+**Preflight Check Failure**: If the GPU is incompatible, MCV will reject the extraction:
+
+```bash
+# Example: Trying to use A100 (sm_80) cache on T4 (sm_75)
+mcv -e -i quay.io/myorg/vllm-a100-cache:v1
+
+# Output:
+# ERRO Preflight check failed: no compatible GPU found
+# WARN No compatible GPUs found for the image.
+```
+
+### Step 8: Verify Cache with GPU Compatibility Check
+
+Check compatibility without extracting:
+
+```bash
+# Check if current GPU is compatible with cached kernels
+mcv --check-compat -i quay.io/myorg/vllm-qwen-cache:v1
+
+# On compatible GPU (Tesla T4):
+# No output means compatible
+
+# On incompatible GPU:
+# ERRO Preflight check failed: no compatible GPU found
+# WARN No compatible GPUs found for the image.
+```
+
+### Step 9: View Detailed GPU Information
+
+Get detailed information about system GPUs:
+
+```bash
+# Display GPU fleet information
+mcv --gpu-info
+
+# Output:
+# INFO Detected 1 accelerator(s)
+# GPU Fleet:
+#   - GPU Type: TU104GL [Tesla T4]
+#     Driver Version: 590.48.01
+#     IDs: [0]
+```
+
+### Step 10: Use Cache with vLLM
+
+Start vLLM with the extracted cache:
+
+```bash
+# The cache is now in ~/.cache/vllm/
+# Start vLLM normally - it will automatically use the cache
+podman run -d \
+    --name vllm-with-cache \
+    ... # same mounts and settings as before
+    -v ~/.cache/vllm:/root/.cache/vllm \
+    docker.io/vllm/vllm-openai:latest-cu130 \
+    --model Qwen/Qwen3-0.6B
+
+# vLLM will skip compilation and use cached kernels
+# First request will be much faster!
+```
+
+### Workflow Summary
+
+```
+┌─────────────────────────┐
+│  1. Start vLLM          │
+│     Container           │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  2. Run Inference       │
+│     (Generate Cache)    │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  3. Copy Cache from     │
+│     Container to Host   │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  4. Build OCI Image     │
+│     with MCV            │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  5. Push to Registry    │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  6. Pull & Extract on   │
+│     Target System       │
+│     (Preflight Checks)  │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  7. Use Cache with      │
+│     vLLM on Target      │
+└─────────────────────────┘
+```
 
 ## Best Practices
 

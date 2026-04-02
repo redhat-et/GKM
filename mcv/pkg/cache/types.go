@@ -1,9 +1,11 @@
 package cache
 
 type SummaryTargetInfo struct {
-	Backend  string `json:"backend"`
-	Arch     string `json:"arch"`
-	WarpSize int    `json:"warp_size"`
+	Backend     string `json:"backend"`
+	Arch        string `json:"arch"`
+	WarpSize    int    `json:"warp_size"`
+	PTXVersion  int    `json:"ptx_version,omitempty"`  // CUDA PTX version (for CUDA backend)
+	CUDAVersion string `json:"cuda_version,omitempty"` // CUDA toolkit version (e.g., "12.9")
 }
 
 type Summary struct {

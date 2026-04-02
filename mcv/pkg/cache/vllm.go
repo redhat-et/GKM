@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 )
@@ -426,6 +428,77 @@ func (v *VLLMCache) Summary() string {
 	return string(jsonData)
 }
 
+// detectActualGPUInfo detects the actual GPU architecture from the current system
+// This is called during cache image creation to detect the real hardware,
+// regardless of what VLLM_TARGET_DEVICE says in the cache metadata.
+// Returns backend, arch, warpSize, and ptxVersion
+func detectActualGPUInfo() (backend string, arch string, warpSize int, ptxVersion int) {
+	// Initialize config if not already done
+	if !config.IsInitialized() {
+		if _, err := config.Initialize(config.ConfDir); err != nil {
+			logging.WithError(err).Debug("Failed to initialize config for GPU detection")
+			return "unknown", "unknown", 0, 0
+		}
+	}
+
+	// Get device registry
+	registry := devices.GetRegistry()
+	if registry == nil {
+		logging.Debug("Failed to get device registry")
+		return "unknown", "unknown", 0, 0
+	}
+
+	// Try to start GPU device - this will auto-detect CUDA/ROCm
+	device := devices.Startup(config.GPU, registry)
+	if device == nil {
+		logging.Debug("No GPU detected on system")
+		return "unknown", "unknown", 0, 0
+	}
+
+	// Initialize the device to ensure GPU info is populated
+	// This is important when the device was restored from cache
+	if err := device.Init(); err != nil {
+		logging.WithError(err).Debug("Failed to initialize device")
+		return "unknown", "unknown", 0, 0
+	}
+
+	// Get GPU info for the first GPU (index 0)
+	gpuInfo, err := device.GetGPUInfo(0)
+	if err != nil {
+		logging.WithError(err).Debug("Failed to get GPU info from device")
+		return "unknown", "unknown", 0, 0
+	}
+
+	// Determine backend and warp size from the detected GPU
+	detectedBackend := gpuInfo.Backend
+	if detectedBackend == "" {
+		// Fallback: try to infer from device type
+		switch device.DevType() {
+		case devices.NVML:
+			detectedBackend = "cuda"
+		case devices.ROCM, devices.AMD:
+			detectedBackend = "rocm"
+		default:
+			detectedBackend = "unknown"
+		}
+	}
+
+	detectedWarpSize := gpuInfo.WarpSize
+	if detectedWarpSize == 0 {
+		// Fallback to defaults
+		if detectedBackend == "cuda" {
+			detectedWarpSize = 32
+		} else if detectedBackend == "rocm" || detectedBackend == "hip" {
+			detectedWarpSize = 64
+		}
+	}
+
+	logging.Infof("Detected GPU: backend=%s, arch=%s, warpSize=%d, PTX=%d",
+		detectedBackend, gpuInfo.Arch, detectedWarpSize, gpuInfo.PTXVersion)
+
+	return detectedBackend, gpuInfo.Arch, detectedWarpSize, gpuInfo.PTXVersion
+}
+
 // buildBinaryCacheSummary builds a summary from binary cache metadata
 func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 	targetMap := make(map[string]SummaryTargetInfo)
@@ -435,46 +508,79 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 			continue
 		}
 
+		// Detect actual GPU from the system once per metadata entry
+		// NOTE: We detect the actual system GPU rather than trusting VLLM_TARGET_DEVICE
+		// because caches may be copied from other systems
+		detectedBackend, detectedArch, detectedWarpSize, detectedPTX := detectActualGPUInfo()
+
 		for i := range meta.BinaryCacheEntries {
 			binaryCache := &meta.BinaryCacheEntries[i]
-			// Extract target info from the stored environment variables
-			backend := binaryCache.TargetDevice
-			if backend == "" {
-				backend = CUDABackend // Default if not specified
+
+			// Use detected GPU info from actual system
+			backend := detectedBackend
+			arch := detectedArch
+			warpSize := detectedWarpSize
+			ptxVersion := detectedPTX
+
+			// Extract toolkit versions from cache environment for reference
+			cudaVersion := ""
+			rocmVersion := ""
+
+			// Handle special cases where no GPU is detected
+			if backend == "unknown" {
+				logging.Warn("Could not detect GPU on system, using cache metadata as fallback")
+				// Fallback to cache metadata if GPU detection failed
+				backend = binaryCache.TargetDevice
+				if backend == "" {
+					backend = CUDABackend // Default if not specified
+				}
+				// Set default warp sizes
+				switch backend {
+				case "rocm", "hip":
+					warpSize = 64
+				case "cuda":
+					warpSize = 32
+				case "tpu":
+					warpSize = 128
+				case "cpu":
+					warpSize = 1
+				}
 			}
 
-			// Determine arch and warpSize based on backend and env vars
-			arch := "unknown"
-			warpSize := 32 // Default for CUDA
-
+			// Extract toolkit version info from environment
 			switch backend {
-			case "rocm", "hip":
-				warpSize = 64 // AMD GPUs use 64-wide wavefronts
-				// Try to extract GPU architecture from env
-				if env, ok := binaryCache.Env["VLLM_ROCM_CUSTOM_PAGED_ATTN"]; ok && env != nil {
-					// ROCm is being used
-					arch = "gfx90a" // Common MI250/MI300 arch, could be extracted more precisely
-				}
 			case "cuda":
-				// Try to extract CUDA architecture
-				if mainVersion, ok := binaryCache.Env["VLLM_MAIN_CUDA_VERSION"]; ok {
-					if version, ok := mainVersion.(string); ok {
-						arch = "sm_" + version
+				if cudaVer, ok := binaryCache.Env["VLLM_MAIN_CUDA_VERSION"]; ok {
+					if ver, ok := cudaVer.(string); ok {
+						cudaVersion = ver
+						logging.Debugf("CUDA toolkit version from cache: %s", cudaVersion)
 					}
 				}
-			case "tpu":
-				warpSize = 128 // TPU uses different parallelism model
-			case "cpu":
-				warpSize = 1 // CPU doesn't have warp concept
+			case "rocm", "hip":
+				if rocmVer, ok := binaryCache.Env["ROCM_VERSION"]; ok {
+					if ver, ok := rocmVer.(string); ok {
+						rocmVersion = ver
+						logging.Debugf("ROCm version from cache: %s", rocmVersion)
+					}
+				}
 			}
 
-			key := fmt.Sprintf("%s-%s-%d", backend, arch, warpSize)
+			// Create unique key including version info for better cache matching
+			key := fmt.Sprintf("%s-%s-%d-%s-%s", backend, arch, warpSize, cudaVersion, rocmVersion)
 			if _, exists := targetMap[key]; !exists {
-				targetMap[key] = SummaryTargetInfo{
+				targetInfo := SummaryTargetInfo{
 					Backend:  backend,
 					Arch:     arch,
 					WarpSize: warpSize,
 				}
+				// Add version info if available
+				if ptxVersion > 0 {
+					targetInfo.PTXVersion = ptxVersion
+				}
+				if cudaVersion != "" {
+					targetInfo.CUDAVersion = cudaVersion
+				}
+				targetMap[key] = targetInfo
 			}
 		}
 	}
