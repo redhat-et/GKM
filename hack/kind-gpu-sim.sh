@@ -1,10 +1,10 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 REGISTRY_PORT=5000
 ECR_REGISTRY_IMAGE=public.ecr.aws/docker/library/registry:2
 CLUSTER_NAME=kind-gpu-sim
-LOAD_IMAGE_NAME=not-set
+
 # Detect OS
 OS_TYPE=$(uname -s)
 if [[ "$OS_TYPE" == "Darwin" ]]; then
@@ -385,13 +385,18 @@ function usage() {
 }
 
 function load_image() {
-  if [ "$CONTAINER_RUNTIME" = "docker" ]; then
-    echo "Running: load docker-image ${LOAD_IMAGE_NAME} --name ${CLUSTER_NAME}"
-    kind load docker-image "${LOAD_IMAGE_NAME}" --name "${CLUSTER_NAME}"
+  if [ -n "${LOAD_IMAGE_NAME:-}" ]; then
+    if [ "$CONTAINER_RUNTIME" = "docker" ]; then
+      echo "Running: load docker-image ${LOAD_IMAGE_NAME} --name ${CLUSTER_NAME}"
+      kind load docker-image "${LOAD_IMAGE_NAME}" --name "${CLUSTER_NAME}"
+    else
+      cr save "${LOAD_IMAGE_NAME}" -o /tmp/image.tar
+      kind load image-archive /tmp/image.tar --name "${CLUSTER_NAME}"
+      rm -f /tmp/image.tar
+    fi
   else
-    cr save "${LOAD_IMAGE_NAME}" -o /tmp/image.tar
-    kind load image-archive /tmp/image.tar --name "${CLUSTER_NAME}"
-    rm -f /tmp/image.tar
+    echo "ERROR: --image-name is required for load command" >&2
+    exit 1
   fi
 }
 
