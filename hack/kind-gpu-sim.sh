@@ -180,6 +180,9 @@ patch_dockerfile() {
 function build_and_push_images() {
   gpu_type="$1"
 
+  # Remove any latent /tmp/image.tar as cr save fails instead of overwriting
+  rm -f /tmp/image.tar
+
   if [ "$gpu_type" = "nvidia" ]; then
     echo " Building NVIDIA device plugin locally..."
     [ ! -d k8s-device-plugin-nvidia ] && git clone https://github.com/NVIDIA/k8s-device-plugin.git k8s-device-plugin-nvidia
