@@ -275,11 +275,18 @@ spec:
             privileged: true
 EOF
 
-  sleep 5
-  kubectl wait --for=condition=Ready -n kube-system pod -l app=amdgpu-device-plugin --timeout=60s || {
-    echo >&2 "ERROR: ROCm plugin pods not ready in time"
-    exit 1
-  }
+  retry=3
+  until kubectl wait --for=condition=Ready -n kube-system pod -l app=amdgpu-device-plugin --timeout=60s; do
+    if [[ $retry -eq 0 ]]; then
+      echo >&2 "ERROR: ROCm plugin pods not ready in time"
+      exit 1
+    else
+      ((retry--))
+    fi
+
+    echo "Waiting for pod amdgpu-device-plugin to be ready ..."
+    sleep 5
+  done
 }
 
 function deploy_nvidia_plugin() {
