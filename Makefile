@@ -365,6 +365,17 @@ CERT_MGR_VERSION = v1.19.4
 # In a KIND Cluster, NO_GPU is true and GPU_TYPE is the simulated GPU type.
 GPU_TYPE ?= rocm
 
+LOCALBIN ?= $(shell pwd)/bin
+## Location to install dependencies to
+$(LOCALBIN):
+	mkdir -p $@
+
+KIND_GPU_SIM_SCRIPT_HACK := $(shell pwd)/hack/kind-gpu-sim.sh
+KIND_GPU_SIM_SCRIPT := $(LOCALBIN)/kind-gpu-sim.sh
+$(KIND_GPU_SIM_SCRIPT): $(KIND_GPU_SIM_SCRIPT_HACK) | $(LOCALBIN)
+	@echo "Installing $(KIND_GPU_SIM_SCRIPT) to $(LOCALBIN)"
+	install -m 0775 $< $@
+
 # This Makefile may use docker, but when running the KIND cluster with a
 # simulated GPU, KIND requires podman. The KIND_GPU_SIM_SCRIPT sets up the
 # following podman environment variables to allow podman with KIND.
@@ -373,7 +384,7 @@ GPU_TYPE ?= rocm
 # export KIND_EXPERIMENTAL_PROVIDER=podman
 # export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
 .PHONY: get-example-images
-get-example-images:
+get-example-images: $(KIND_GPU_SIM_SCRIPT)
 	$(CONTAINER_TOOL) pull quay.io/gkm/cache-examples:vector-add-cache-rocm-v2
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=quay.io/gkm/cache-examples:vector-add-cache-rocm-v2 --cluster-name=$(KIND_CLUSTER_NAME)
 	$(CONTAINER_TOOL) pull quay.io/gkm/cache-examples:vector-add-cache-rocm
@@ -400,7 +411,7 @@ rotate-webhook-secret:
 	$(KUSTOMIZE) build config/secret | $(KUBECTL) apply -f -
 
 .PHONY: get-cert-manager-images
-get-cert-manager-images: kind-gpu-sim-script
+get-cert-manager-images: $(KIND_GPU_SIM_SCRIPT)
 	@echo "Getting Images ..."
 	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-controller:$(CERT_MGR_VERSION)
 	$(CONTAINER_TOOL) pull quay.io/jetstack/cert-manager-cainjector:$(CERT_MGR_VERSION)
@@ -493,13 +504,13 @@ undeploy-kyverno: ## Undeploy Kyverno
 ##@ Kind Cluster Management
 
 .PHONY: setup-kind
-setup-kind: kind-gpu-sim-script
+setup-kind: $(KIND_GPU_SIM_SCRIPT)
 	@echo "Creating Kind GPU cluster with GPU type: $(GPU_TYPE) and cluster name: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s create $(GPU_TYPE) --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) created successfully."
 
 .PHONY: kind-load-images
-kind-load-images: kind-gpu-sim-script get-example-images
+kind-load-images: $(KIND_GPU_SIM_SCRIPT) get-example-images
 	@echo "Loading operator image ${OPERATOR_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
@@ -552,17 +563,12 @@ undeploy-on-kind-force: ## Same as "make undeploy-on-kind" but also delete any d
 	$(MAKE) undeploy-on-kind FORCE=--force
 
 .PHONY: destroy-kind
-destroy-kind: kind-gpu-sim-script ## Delete the Kind GPU cluster
+destroy-kind: $(KIND_GPU_SIM_SCRIPT) ## Delete the Kind GPU cluster
 	@echo "Deleting Kind GPU cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s delete --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Kind GPU cluster $(KIND_CLUSTER_NAME) deleted successfully."
 
 ##@ Dependencies
-
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
 KUBECTL ?= kubectl
@@ -571,8 +577,6 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 UNDEPLOY_SCRIPT ?= $(shell pwd)/hack/undeploy.sh
-KIND_GPU_SIM_SCRIPT_HACK := $(shell pwd)/hack/kind-gpu-sim.sh
-KIND_GPU_SIM_SCRIPT := $(LOCALBIN)/kind-gpu-sim.sh
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
@@ -600,14 +604,6 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
-
-.PHONY: kind-gpu-sim-script
-kind-gpu-sim-script: $(KIND_GPU_SIM_SCRIPT) ## Install kind-gpu-sim-script to bin from hack if necessary
-$(KIND_GPU_SIM_SCRIPT): $(LOCALBIN)
-	if [ ! -f $(KIND_GPU_SIM_SCRIPT) ]; then \
-		echo "Installing $(KIND_GPU_SIM_SCRIPT) to $(LOCALBIN)"; \
-		install -D -m 0775 -t $(LOCALBIN) $(KIND_GPU_SIM_SCRIPT_HACK); \
-	fi
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
