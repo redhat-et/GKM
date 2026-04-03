@@ -22,10 +22,10 @@ fi
 # Detect the available `sed` tool
 if command -v gsed &>/dev/null; then
   USE_GSED=true
-  SED=gsed  # Use `gsed` if available
+  SED="gsed"  # Use `gsed` if available
 else
   USE_GSED=false
-  SED=sed   # Fallback to default `sed`
+  SED="sed"   # Fallback to default `sed`
 fi
 
 for arg in "$@"; do
@@ -190,17 +190,17 @@ function build_and_push_images() {
       patch_dockerfile "$gpu_type"
       grep FROM deployments/container/Dockerfile
       BUILDAH_FORMAT=docker cr build \
-      -t localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev \
+      -t "localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev" \
       -f deployments/container/Dockerfile .
-      cr tag localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev localhost/nvidia-device-plugin:dev
+      cr tag "localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev" localhost/nvidia-device-plugin:dev
       cr save localhost/nvidia-device-plugin:dev -o /tmp/image.tar
       kind load image-archive /tmp/image.tar --name "$CLUSTER_NAME"
       rm -f /tmp/image.tar
     else
       cr build \
-        -t localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev \
+        -t "localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev" \
         -f deployments/container/Dockerfile .
-      cr push localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev
+      cr push "localhost:${REGISTRY_PORT}/nvidia-device-plugin:dev"
 
     fi
 
@@ -214,12 +214,12 @@ function build_and_push_images() {
 
   patch_dockerfile "$gpu_type"
 
-  cr build -t localhost:${REGISTRY_PORT}/amdgpu-dp:dev -f Dockerfile .
+  cr build -t "localhost:${REGISTRY_PORT}/amdgpu-dp:dev" -f Dockerfile .
 
   if [ "$CONTAINER_RUNTIME" = "docker" ]; then
-    cr push localhost:${REGISTRY_PORT}/amdgpu-dp:dev
+    cr push "localhost:${REGISTRY_PORT}/amdgpu-dp:dev"
   else
-    cr tag localhost:${REGISTRY_PORT}/amdgpu-dp:dev localhost/amdgpu-dp:dev
+    cr tag "localhost:${REGISTRY_PORT}/amdgpu-dp:dev" localhost/amdgpu-dp:dev
     cr save localhost/amdgpu-dp:dev -o /tmp/image.tar
     kind load image-archive /tmp/image.tar --name "$CLUSTER_NAME"
     rm -f /tmp/image.tar
@@ -371,7 +371,7 @@ function load_image() {
     echo "Running: load docker-image ${LOAD_IMAGE_NAME} --name ${CLUSTER_NAME}"
     kind load docker-image "${LOAD_IMAGE_NAME}" --name "${CLUSTER_NAME}"
   else
-    cr save ${LOAD_IMAGE_NAME} -o /tmp/image.tar
+    cr save "${LOAD_IMAGE_NAME}" -o /tmp/image.tar
     kind load image-archive /tmp/image.tar --name "${CLUSTER_NAME}"
     rm -f /tmp/image.tar
   fi
