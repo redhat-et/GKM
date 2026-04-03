@@ -209,7 +209,7 @@ function build_and_push_images() {
   fi
 
   echo " Building ROCm plugin images locally..."
-  [ ! -d k8s-device-plugin-rocm ] && git clone https://github.com/RadeonOpenCompute/k8s-device-plugin.git k8s-device-plugin-rocm
+  [ ! -d k8s-device-plugin-rocm ] && git clone https://github.com/ROCm/k8s-device-plugin.git k8s-device-plugin-rocm
   cd k8s-device-plugin-rocm
 
   patch_dockerfile "$gpu_type"
