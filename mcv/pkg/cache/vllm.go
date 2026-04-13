@@ -306,19 +306,17 @@ func detectBinaryCache(hashDir string) ([]BinaryCacheMetadata, error) {
 }
 
 // detectMegaAOTEntries walks torch_aot_compile/ and returns metadata for
-// each child hash dir that contains a mega-AOT bundle. The second return
-// value is the number of hash directories considered (whether or not they
+// each child hash dir that contains a mega-AOT bundle. The count return
+// is the number of hash directories considered (whether or not they
 // yielded valid metadata), so the caller can keep its entry count in sync.
-func detectMegaAOTEntries(aotDir string) ([]VLLMCacheMetadata, int) {
-	entries, err := os.ReadDir(aotDir)
+func detectMegaAOTEntries(aotDir string) (entries []VLLMCacheMetadata, count int) {
+	dirEntries, err := os.ReadDir(aotDir)
 	if err != nil {
 		logging.Warnf("Failed to read %s: %v", aotDir, err)
 		return nil, 0
 	}
 
-	var out []VLLMCacheMetadata
-	count := 0
-	for _, entry := range entries {
+	for _, entry := range dirEntries {
 		if !entry.IsDir() {
 			continue
 		}
@@ -330,13 +328,13 @@ func detectMegaAOTEntries(aotDir string) ([]VLLMCacheMetadata, int) {
 			continue
 		}
 		logging.Debugf("Detected mega-AOT cache for hash: %s", entry.Name())
-		out = append(out, VLLMCacheMetadata{
+		entries = append(entries, VLLMCacheMetadata{
 			VllmHash:           entry.Name(),
 			CacheFormat:        BinaryCacheFormat,
 			BinaryCacheEntries: megaData,
 		})
 	}
-	return out, count
+	return entries, count
 }
 
 // detectMegaAOTCache detects the mega-AOT bundle layout in a hash directory.
