@@ -219,12 +219,12 @@ func TranslateGPUToArch(productName string) string {
 		return "gfx906" // Vega 20 (Vega Frontier Edition, Radeon Pro WX)
 	case strings.Contains(productName, "Navi 10"):
 		return "gfx908" // Navi 10 (RX 5000 series)
-	case strings.Contains(productName, "RDNA"):
-		return "gfx1010" // RDNA (Radeon RX 6000 series)
-	case strings.Contains(productName, "RDNA 2"):
-		return "gfx1030" // RDNA 2 (Radeon RX 6000 series)
 	case strings.Contains(productName, "RDNA 3"):
 		return "gfx1100" // RDNA 3 (future models)
+	case strings.Contains(productName, "RDNA 2"):
+		return "gfx1030" // RDNA 2 (Radeon RX 6000 series)
+	case strings.Contains(productName, "RDNA"):
+		return "gfx1010" // RDNA (Radeon RX 6000 series)
 	default:
 		return "Unknown architecture for this GPU"
 	}
