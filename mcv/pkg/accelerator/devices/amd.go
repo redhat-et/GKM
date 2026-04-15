@@ -47,13 +47,41 @@ func (d *gpuAMD) SetHwType(hwType string) {
 }
 
 // SetTritonInfo sets the Triton GPU information for the AMD device.
+// When restoring from cache, this also populates the devices map.
 func (d *gpuAMD) SetTritonInfo(info []TritonGPUInfo) {
 	d.tritonInfo = info
+
+	// Rebuild devices map from cached triton info
+	if d.devices == nil {
+		d.devices = make(map[int]GPUDevice)
+	}
+	for _, tritonInfo := range info {
+		d.devices[tritonInfo.ID] = GPUDevice{
+			ID:         tritonInfo.ID,
+			TritonInfo: tritonInfo,
+			// Summary will be set by SetSummaries
+		}
+	}
 }
 
 // SetSummaries sets the summaries for the AMD device.
+// When restoring from cache, this also updates the Summary field in devices map.
 func (d *gpuAMD) SetSummaries(summaries []DeviceSummary) {
 	d.summaries = summaries
+
+	// Update Summary in devices map if it exists
+	if d.devices != nil {
+		for _, summary := range summaries {
+			// Parse GPU ID from summary.ID (which is a string like "0", "1", etc.)
+			var gpuID int
+			if _, err := fmt.Sscanf(summary.ID, "%d", &gpuID); err == nil {
+				if dev, exists := d.devices[gpuID]; exists {
+					dev.Summary = summary
+					d.devices[gpuID] = dev
+				}
+			}
+		}
+	}
 }
 
 type AMDGPUInfo struct {
