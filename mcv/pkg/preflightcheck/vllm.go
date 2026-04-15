@@ -62,7 +62,7 @@ func CompareVLLMCacheManifestToGPU(manifestPath string, devInfo []devices.Triton
 
 // compareAOTCompileCacheEntriesToGPU validates AOT compile cache entries against GPU hardware
 // AOT compile caches have limited metadata, so this primarily relies on the summary-based check
-func compareAOTCompileCacheEntriesToGPU(entries []cache.AOTCompileCacheMetadata, devInfo []devices.TritonGPUInfo) error {
+func compareAOTCompileCacheEntriesToGPU(entries []cache.AOTCompileCacheMetadata, _ []devices.TritonGPUInfo) error {
 	// AOT compile cache entries don't contain cache_key_factors.json with env vars,
 	// so we can't extract detailed hardware requirements from the manifest.
 	// The summary label (created during image build) contains the actual GPU info
@@ -100,9 +100,9 @@ func compareBinaryCacheEntriesToGPU(entries []cache.BinaryCacheMetadata, devInfo
 		// Basic warp size validation based on backend
 		expectedWarpSize := 32 // Default for CUDA
 		switch backend {
-		case "rocm", "hip":
+		case cache.ROCmBackend, cache.HIPBackend:
 			expectedWarpSize = 64 // AMD GPUs use 64-wide wavefronts
-		case "cuda":
+		case cache.CUDABackend:
 			expectedWarpSize = 32 // NVIDIA GPUs use 32-wide warps
 		case "tpu":
 			expectedWarpSize = 128 // TPU uses different parallelism model
