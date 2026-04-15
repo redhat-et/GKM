@@ -623,6 +623,12 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 			warpSize := detectedWarpSize
 			ptxVersion := detectedPTX
 
+			// For vLLM binary cache, CUDA uses sm_ prefix (e.g., sm_75)
+			// AMD/ROCm already has gfx prefix (e.g., gfx1151)
+			if backend == CUDABackend {
+				arch = fmt.Sprintf("sm_%s", arch)
+			}
+
 			// Extract toolkit versions from cache environment for reference
 			cudaVersion := ""
 			rocmVersion := ""
