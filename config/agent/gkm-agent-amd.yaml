@@ -18,6 +18,10 @@ spec:
         gpu-vendor: amd
     spec:
       serviceAccountName: gkm-agent
+      # ROCm GPU access requires video group membership
+      # Common GIDs: 44 (Ubuntu/Debian), 986 (RHEL/Fedora)
+      securityContext:
+        supplementalGroups: [44, 986]
       # Deploy only on nodes with AMD GPUs
       # AMD vendor ID is 1002, with class codes:
       # 0300: VGA controller, 0302: 3D controller, 0380: Display controller
