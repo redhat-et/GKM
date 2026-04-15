@@ -222,7 +222,7 @@ func getNVMLTritonGPUInfo(device nvml.Device) (TritonGPUInfo, error) {
 		Name:              name,
 		UUID:              uuid,
 		ComputeCapability: fmt.Sprintf("%d.%d", major, minor), // Formatting the compute capability
-		Arch:              strconv.Itoa(major*10 + minor),     // TODO double check this
+		Arch:              fmt.Sprintf("sm_%d%d", major, minor),
 		WarpSize:          warpSize,
 		MemoryTotalMB:     mem.Total / (1024 * 1024),
 		PTXVersion:        ptxVersion,
