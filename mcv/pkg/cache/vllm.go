@@ -48,10 +48,11 @@ type VLLMCache struct {
 }
 
 type VLLMCacheMetadata struct {
-	VllmHash           string                `json:"vllmHash"`
-	CacheFormat        string                `json:"cacheFormat"` // "triton" or "binary"
-	TritonCacheEntries []CacheEntry          `json:"triton,omitempty"`
-	BinaryCacheEntries []BinaryCacheMetadata `json:"binary,omitempty"`
+	VllmHash           string                    `json:"vllmHash"`
+	CacheFormat        string                    `json:"cacheFormat"` // "triton", "binary", or "aot_compile"
+	TritonCacheEntries []CacheEntry              `json:"triton,omitempty"`
+	BinaryCacheEntries []BinaryCacheMetadata     `json:"binary,omitempty"`
+	AOTCompileEntries  []AOTCompileCacheMetadata `json:"aot_compile,omitempty"`
 }
 
 // DetectVLLMCache walks the given root directory to detect whether VLLM-style cache artifacts exist
@@ -166,6 +167,35 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 
 				logging.Debugf("Adding VLLM triton cache metadata: %+v", vllmMetadata)
 				metadata = append(metadata, vllmMetadata)
+			}
+
+			// Check for AOT compile cache at torch_compile_cache/torch_aot_compile/
+			aotCompilePath := filepath.Join(torchCompileCachePath, "torch_aot_compile")
+			if _, err := os.Stat(aotCompilePath); err == nil {
+				logging.Debugf("Detecting AOT compile cache at: %s", aotCompilePath)
+				aotCacheData, aotErr := detectAOTCompileCache(aotCompilePath)
+				if aotErr == nil && len(aotCacheData) > 0 {
+					logging.Debugf("Detected AOT compile cache format with %d entries", len(aotCacheData))
+					// Group AOT cache entries by hash
+					aotByHash := make(map[string][]AOTCompileCacheMetadata)
+					for _, aotCache := range aotCacheData {
+						aotByHash[aotCache.Hash] = append(aotByHash[aotCache.Hash], aotCache)
+					}
+
+					// Create metadata entries for each hash
+					for hash, entries := range aotByHash {
+						vllmMetadata := VLLMCacheMetadata{
+							VllmHash:          hash,
+							CacheFormat:       "aot_compile",
+							AOTCompileEntries: entries,
+						}
+						logging.Debugf("Adding VLLM AOT compile cache metadata: %+v", vllmMetadata)
+						metadata = append(metadata, vllmMetadata)
+						count++
+					}
+				} else if aotErr != nil {
+					logging.Debugf("No AOT compile cache detected: %v", aotErr)
+				}
 			}
 		}
 	}
@@ -372,6 +402,73 @@ func detectMegaAOTCache(hashDir string) ([]BinaryCacheMetadata, error) {
 		return nil, fmt.Errorf("no mega-AOT artifacts detected")
 	}
 	return out, nil
+}
+
+// detectAOTCompileCache detects AOT compile cache format
+// These are created when VLLM_USE_AOT_COMPILE=1 and stored at:
+// torch_compile_cache/torch_aot_compile/{hash}/rank_{rank}_{dp_rank}/model
+func detectAOTCompileCache(aotPath string) ([]AOTCompileCacheMetadata, error) {
+	var aotCaches []AOTCompileCacheMetadata
+
+	if _, err := os.Stat(aotPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("AOT compile cache path does not exist: %s", aotPath)
+	}
+
+	// Walk the torch_aot_compile directory looking for {hash}/rank_X_Y/model files
+	entries, err := os.ReadDir(aotPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read AOT compile directory: %w", err)
+	}
+
+	for _, hashEntry := range entries {
+		if !hashEntry.IsDir() {
+			continue
+		}
+
+		hashDir := filepath.Join(aotPath, hashEntry.Name())
+		logging.Debugf("Inspecting AOT hash directory: %s", hashDir)
+
+		// Look for rank_X_Y directories
+		rankEntries, err := os.ReadDir(hashDir)
+		if err != nil {
+			logging.Warnf("Failed to read AOT hash directory %s: %v", hashDir, err)
+			continue
+		}
+
+		rankDirRegex := regexp.MustCompile(`^rank_\d+_\d+$`)
+		for _, rankEntry := range rankEntries {
+			if !rankEntry.IsDir() {
+				continue
+			}
+			if !rankDirRegex.MatchString(rankEntry.Name()) {
+				continue
+			}
+
+			// Check for model file
+			modelPath := filepath.Join(hashDir, rankEntry.Name(), "model")
+			stat, err := os.Stat(modelPath)
+			if err != nil {
+				logging.Debugf("No model file found at %s: %v", modelPath, err)
+				continue
+			}
+
+			aotCache := AOTCompileCacheMetadata{
+				Hash:      hashEntry.Name(),
+				Rank:      rankEntry.Name(),
+				ModelFile: "model",
+				FileSize:  stat.Size(),
+			}
+
+			logging.Debugf("Found AOT compile cache: %+v", aotCache)
+			aotCaches = append(aotCaches, aotCache)
+		}
+	}
+
+	if len(aotCaches) == 0 {
+		return nil, fmt.Errorf("no AOT compile cache detected")
+	}
+
+	return aotCaches, nil
 }
 
 func (v *VLLMCache) Name() string { return constants.VLLM }
