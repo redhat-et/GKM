@@ -29,6 +29,9 @@ const (
 	// Cache format constants
 	BinaryCacheFormat = "binary"
 	CUDABackend       = "cuda"
+	ROCmBackend       = "rocm"
+	HIPBackend        = "hip"
+	UnknownBackend    = "UnknownBackend"
 
 	// torchAOTCompileDirName is the extra directory vLLM introduces above
 	// the per-model hash dir when VLLM_USE_AOT_COMPILE is enabled.
@@ -529,12 +532,12 @@ func (v *VLLMCache) Summary() string {
 // This is called during cache image creation to detect the real hardware,
 // regardless of what VLLM_TARGET_DEVICE says in the cache metadata.
 // Returns backend, arch, warpSize, and ptxVersion
-func detectActualGPUInfo() (backend string, arch string, warpSize int, ptxVersion int) {
+func detectActualGPUInfo() (backend, arch string, warpSize, ptxVersion int) {
 	// Initialize config if not already done
 	if !config.IsInitialized() {
 		if _, err := config.Initialize(config.ConfDir); err != nil {
 			logging.WithError(err).Debug("Failed to initialize config for GPU detection")
-			return "unknown", "unknown", 0, 0
+			return UnknownBackend, UnknownBackend, 0, 0
 		}
 	}
 
@@ -542,28 +545,28 @@ func detectActualGPUInfo() (backend string, arch string, warpSize int, ptxVersio
 	registry := devices.GetRegistry()
 	if registry == nil {
 		logging.Debug("Failed to get device registry")
-		return "unknown", "unknown", 0, 0
+		return UnknownBackend, UnknownBackend, 0, 0
 	}
 
 	// Try to start GPU device - this will auto-detect CUDA/ROCm
 	device := devices.Startup(config.GPU, registry)
 	if device == nil {
 		logging.Debug("No GPU detected on system")
-		return "unknown", "unknown", 0, 0
+		return UnknownBackend, UnknownBackend, 0, 0
 	}
 
 	// Initialize the device to ensure GPU info is populated
 	// This is important when the device was restored from cache
 	if err := device.Init(); err != nil {
 		logging.WithError(err).Debug("Failed to initialize device")
-		return "unknown", "unknown", 0, 0
+		return UnknownBackend, UnknownBackend, 0, 0
 	}
 
 	// Get GPU info for the first GPU (index 0)
 	gpuInfo, err := device.GetGPUInfo(0)
 	if err != nil {
 		logging.WithError(err).Debug("Failed to get GPU info from device")
-		return "unknown", "unknown", 0, 0
+		return UnknownBackend, UnknownBackend, 0, 0
 	}
 
 	// Determine backend and warp size from the detected GPU
@@ -572,20 +575,21 @@ func detectActualGPUInfo() (backend string, arch string, warpSize int, ptxVersio
 		// Fallback: try to infer from device type
 		switch device.DevType() {
 		case devices.NVML:
-			detectedBackend = "cuda"
+			detectedBackend = CUDABackend
 		case devices.ROCM, devices.AMD:
-			detectedBackend = "rocm"
+			detectedBackend = ROCmBackend
 		default:
-			detectedBackend = "unknown"
+			detectedBackend = UnknownBackend
 		}
 	}
 
 	detectedWarpSize := gpuInfo.WarpSize
 	if detectedWarpSize == 0 {
 		// Fallback to defaults
-		if detectedBackend == "cuda" {
+		switch detectedBackend {
+		case CUDABackend:
 			detectedWarpSize = 32
-		} else if detectedBackend == "rocm" || detectedBackend == "hip" {
+		case ROCmBackend, HIPBackend:
 			detectedWarpSize = 64
 		}
 	}
@@ -624,7 +628,7 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 			rocmVersion := ""
 
 			// Handle special cases where no GPU is detected
-			if backend == "unknown" {
+			if backend == UnknownBackend {
 				logging.Warn("Could not detect GPU on system, using cache metadata as fallback")
 				// Fallback to cache metadata if GPU detection failed
 				backend = binaryCache.TargetDevice
@@ -633,9 +637,9 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 				}
 				// Set default warp sizes
 				switch backend {
-				case "rocm", "hip":
+				case ROCmBackend, HIPBackend:
 					warpSize = 64
-				case "cuda":
+				case CUDABackend:
 					warpSize = 32
 				case "tpu":
 					warpSize = 128
@@ -646,14 +650,14 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 
 			// Extract toolkit version info from environment
 			switch backend {
-			case "cuda":
+			case CUDABackend:
 				if cudaVer, ok := binaryCache.Env["VLLM_MAIN_CUDA_VERSION"]; ok {
 					if ver, ok := cudaVer.(string); ok {
 						cudaVersion = ver
 						logging.Debugf("CUDA toolkit version from cache: %s", cudaVersion)
 					}
 				}
-			case "rocm", "hip":
+			case ROCmBackend, HIPBackend:
 				if rocmVer, ok := binaryCache.Env["ROCM_VERSION"]; ok {
 					if ver, ok := rocmVer.(string); ok {
 						rocmVersion = ver
