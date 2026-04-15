@@ -11,11 +11,15 @@ MCV supports three vLLM cache formats:
 3. **vLLM Mega AOT Artifact Format** (PyTorch 2.12+) - Uses
    `VLLM_USE_MEGA_AOT_ARTIFACT=true` for enhanced AOT serialization
 
-**Not Currently Supported**: MCV does **not** support the `VLLM_USE_AOT_COMPILE=1`
-workflow, which creates a separate `torch_compile_cache/torch_aot_compile/` cache
-structure with single `model` files instead of multiple artifacts.
+**AOT Compile Support**: MCV **supports** the `VLLM_USE_AOT_COMPILE=1` workflow,
+which creates a separate cache structure at
+`torch_compile_cache/torch_aot_compile/{hash}/rank_{rank}_{dp_rank}/model`.
+AOT compile caches store ahead-of-time compiled models as single binary files
+rather than multiple compilation artifacts. During preflight checks, AOT cache
+compatibility is validated primarily via the summary label, as the cache metadata
+contains limited hardware information.
 
-All MCV-supported formats share the same cache structure:
+Standard cache formats share the structure:
 `torch_compile_cache/{hash}/rank_{rank}_{dp_rank}/{prefix}/`
 
 The key differences are **inside the prefix directory**:
@@ -744,7 +748,7 @@ podman run -d \
 
 ### Workflow Summary
 
-```
+```text
 ┌─────────────────────────┐
 │  1. Start vLLM          │
 │     Container           │

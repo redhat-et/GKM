@@ -7,6 +7,7 @@ import (
 
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
 	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	logging "github.com/sirupsen/logrus"
 )
 
 // CompareVLLMCacheManifestToGPU compares VLLM manifest entries to GPU info
@@ -40,12 +41,18 @@ func CompareVLLMCacheManifestToGPU(manifestPath string, devInfo []devices.Triton
 		case "triton":
 			if len(entry.TritonCacheEntries) > 0 {
 				// Handle triton cache format (legacy)
+				// TritonCacheEntries contains JSON-unmarshalled map[string]interface{} values,
+				// so we need to re-marshal and unmarshal to get proper cache.TritonCacheMetadata structs
 				convertedEntries := make([]cache.TritonCacheMetadata, len(entry.TritonCacheEntries))
 				for i, e := range entry.TritonCacheEntries {
-					if metadata, ok := e.(cache.TritonCacheMetadata); ok {
-						convertedEntries[i] = metadata
-					} else {
-						return fmt.Errorf("failed to assert type cache.TritonCacheMetadata for entry: %v", e)
+					// Re-marshal the entry to JSON
+					jsonData, err := json.Marshal(e)
+					if err != nil {
+						return fmt.Errorf("failed to marshal triton cache entry: %w", err)
+					}
+					// Unmarshal into proper struct
+					if err := json.Unmarshal(jsonData, &convertedEntries[i]); err != nil {
+						return fmt.Errorf("failed to unmarshal triton cache entry: %w", err)
 					}
 				}
 				if err := CompareTritonEntriesToGPU(convertedEntries, devInfo); err != nil {
@@ -75,7 +82,7 @@ func compareAOTCompileCacheEntriesToGPU(entries []cache.AOTCompileCacheMetadata,
 
 	// Log the AOT cache entries for debugging
 	for _, entry := range entries {
-		fmt.Printf("AOT compile cache: hash=%s, rank=%s, size=%d bytes\n",
+		logging.Debugf("AOT compile cache: hash=%s, rank=%s, size=%d bytes",
 			entry.Hash, entry.Rank, entry.FileSize)
 	}
 
@@ -119,7 +126,7 @@ func compareBinaryCacheEntriesToGPU(entries []cache.BinaryCacheMetadata, devInfo
 			if backendMatches && warpMatches {
 				matched = true
 				// For detailed arch compatibility, rely on Summary label check
-				fmt.Printf("Binary cache entry matches GPU: backend=%s, warpSize=%d\n",
+				logging.Debugf("Binary cache entry matches GPU: backend=%s, warpSize=%d",
 					backend, expectedWarpSize)
 				break
 			}
