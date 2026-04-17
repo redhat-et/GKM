@@ -71,7 +71,7 @@ type AMDCardInfo struct {
 	RAS              AMDRAS         `json:"ras"`
 	Partition        AMDPartition   `json:"partition"`
 	SOCPState        string         `json:"soc_pstate"`
-	XGMIPlpd         AMDXGMIPlpd    `json:"xgmi_plpd"`
+	XGMIPlpd         interface{}    `json:"xgmi_plpd"` // Can be AMDXGMIPlpd or "N/A" string
 	ProcessIsolation string         `json:"process_isolation"`
 	NUMA             AMDNUMA        `json:"numa"`
 	VRAM             AMDVRAM        `json:"vram"`
@@ -93,10 +93,11 @@ type AMDASIC struct {
 }
 
 type AMDBus struct {
-	BDF                  string `json:"bdf"`
-	MaxPCIeWidth         int    `json:"max_pcie_width"`
-	PCIeInterfaceVersion string `json:"pcie_interface_version"`
-	SlotType             string `json:"slot_type"`
+	BDF                  string      `json:"bdf"`
+	MaxPCIeWidth         interface{} `json:"max_pcie_width"` // Can be int or "N/A" string
+	MaxPCIeSpeed         interface{} `json:"max_pcie_speed"` // Can be int or "N/A" string
+	PCIeInterfaceVersion string      `json:"pcie_interface_version"`
+	SlotType             string      `json:"slot_type"`
 }
 
 type AMDVBIOS struct {
@@ -120,12 +121,12 @@ type AMDBoard struct {
 }
 
 type AMDRAS struct {
-	EEPROMVersion   string            `json:"eeprom_version"`
-	ParitySchema    string            `json:"parity_schema"`
-	SingleBitSchema string            `json:"single_bit_schema"`
-	DoubleBitSchema string            `json:"double_bit_schema"`
-	PoisonSchema    string            `json:"poison_schema"`
-	ECCBlockState   map[string]string `json:"ecc_block_state"`
+	EEPROMVersion   string      `json:"eeprom_version"`
+	ParitySchema    string      `json:"parity_schema"`
+	SingleBitSchema string      `json:"single_bit_schema"`
+	DoubleBitSchema string      `json:"double_bit_schema"`
+	PoisonSchema    string      `json:"poison_schema"`
+	ECCBlockState   interface{} `json:"ecc_block_state"` // Can be map[string]string or "N/A" string
 }
 
 type AMDPartition struct {
@@ -218,12 +219,12 @@ func TranslateGPUToArch(productName string) string {
 		return "gfx906" // Vega 20 (Vega Frontier Edition, Radeon Pro WX)
 	case strings.Contains(productName, "Navi 10"):
 		return "gfx908" // Navi 10 (RX 5000 series)
-	case strings.Contains(productName, "RDNA"):
-		return "gfx1010" // RDNA (Radeon RX 6000 series)
-	case strings.Contains(productName, "RDNA 2"):
-		return "gfx1030" // RDNA 2 (Radeon RX 6000 series)
 	case strings.Contains(productName, "RDNA 3"):
 		return "gfx1100" // RDNA 3 (future models)
+	case strings.Contains(productName, "RDNA 2"):
+		return "gfx1030" // RDNA 2 (Radeon RX 6000 series)
+	case strings.Contains(productName, "RDNA"):
+		return "gfx1010" // RDNA (Radeon RX 6000 series)
 	default:
 		return "Unknown architecture for this GPU"
 	}

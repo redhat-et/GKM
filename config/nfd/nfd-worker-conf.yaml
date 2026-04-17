@@ -1,0 +1,33 @@
+# Optional NFD Worker Configuration
+# This file customizes NFD to ensure PCI device detection is enabled
+# Uncomment in kustomization.yaml to use
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nfd-worker-conf
+  namespace: node-feature-discovery
+data:
+  nfd-worker.conf: |
+    core:
+      labelWhiteList: [".*"]  # Enable all labels
+      noPublish: false
+      sleepInterval: 60s
+      sources:
+        - pci  # Ensure PCI device detection is enabled
+        - cpu
+        - kernel
+        - memory
+        - network
+        - storage
+        - system
+        - usb
+    sources:
+      pci:
+        deviceClassWhitelist:
+          - "03"      # Display controllers (GPUs are in this class)
+          - "0300"    # VGA compatible controller
+          - "0301"    # XGA compatible controller
+          - "0302"    # 3D controller
+        deviceLabelFields:
+          - vendor    # Will create labels like feature.node.kubernetes.io/pci-10de.present

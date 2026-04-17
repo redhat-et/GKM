@@ -2,18 +2,18 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: gkm-test-ns-rwo-ds-1
-  namespace: gkm-test-ns-rwo-1
+  name: gkm-test-rocm-rwo-ds-3
+  namespace: gkm-test-ns-rocm-rwo-1
   labels:
     gkm.io/pvcMutation: "true"
 spec:
   selector:
     matchLabels:
-      name: gkm-test-ns-rwo-ds-1
+      name: gkm-test-rocm-rwo-ds-3
   template:
     metadata:
       labels:
-        name: gkm-test-ns-rwo-ds-1
+        name: gkm-test-rocm-rwo-ds-3
         gkm.io/pvc-mutation: "true"
     spec:
       tolerations:
@@ -21,6 +21,8 @@ spec:
           operator: Equal
           effect: NoSchedule
           value: "true"
+      nodeSelector:
+        gkm-test-node: "false"
 
       # Init-Container is only needed for KIND clusters.
       initContainers:
@@ -46,8 +48,7 @@ spec:
           volumeMounts:
             - name: kernel-volume
               mountPath: /cache
-              readOnly: true
       volumes:
         - name: kernel-volume
           persistentVolumeClaim:
-            claimName: vector-add-cache-rocm-v2-rwo
+            claimName: vector-add-cache-rocm-rwo

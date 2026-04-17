@@ -1,23 +1,45 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: agent
+  name: agent-nogpu
   namespace: gkm-system
   labels:
     app: gkm-agent
+    gpu-vendor: none
 spec:
   selector:
     matchLabels:
       app: gkm-agent
+      gpu-vendor: none
   template:
     metadata:
       labels:
         app: gkm-agent
+        gpu-vendor: none
     spec:
       serviceAccountName: gkm-agent
+      # Deploy on nodes without GPUs (nodes that don't have NVIDIA or AMD PCI labels)
+      # and exclude control-plane nodes in multi-node clusters
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_10de.present
+                operator: DoesNotExist
+              - key: feature.node.kubernetes.io/pci-0302_10de.present
+                operator: DoesNotExist
+              - key: feature.node.kubernetes.io/pci-0300_1002.present
+                operator: DoesNotExist
+              - key: feature.node.kubernetes.io/pci-0302_1002.present
+                operator: DoesNotExist
+              - key: feature.node.kubernetes.io/pci-0380_1002.present
+                operator: DoesNotExist
+              - key: node-role.kubernetes.io/control-plane
+                operator: DoesNotExist
       containers:
       - name: gkm-agent
-        image: quay.io/gkm/agent:latest
+        image: quay.io/gkm/gkm-agent-nogpu:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsUser: 0
@@ -28,20 +50,12 @@ spec:
             type: Unconfined
         env:
           - name: NO_GPU
-            valueFrom:
-              configMapKeyRef:
-                name: gkm-config
-                key: gkm.nogpu
+            value: "true"
           - name: GO_LOG
             valueFrom:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.agent.log.level
-          - name: EXTRACT_IMAGE
-            valueFrom:
-              configMapKeyRef:
-                name: gkm-config
-                key: gkm.extract.image
           - name: KUBE_NODE_NAME
             valueFrom:
               fieldRef:

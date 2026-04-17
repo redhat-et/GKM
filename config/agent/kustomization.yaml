@@ -1,11 +1,29 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
+# Deploy GPU-specific agents based on node hardware
+# Requires Node Feature Discovery (NFD) to label nodes
 resources:
-- gkm-agent.yaml
+- gkm-agent-nvidia.yaml
+- gkm-agent-amd.yaml
+- gkm-agent-nogpu.yaml
+
 images:
-- name: agent
-  newName: quay.io/gkm/agent
+- name: quay.io/gkm/agent-amd
+  newName: quay.io/gkm/gkm-agent-amd
   newTag: latest
-- name: quay.io/gkm/agent
-  newName: quay.io/gkm/agent
+- name: quay.io/gkm/agent-nogpu
+  newName: quay.io/gkm/gkm-agent-nogpu
+  newTag: latest
+- name: quay.io/gkm/agent-nvidia
+  newName: quay.io/gkm/gkm-agent-nvidia
+  newTag: latest
+- name: quay.io/gkm/gkm-agent-amd
+  newName: quay.io/gkm/gkm-agent-amd
+  newTag: latest
+- name: quay.io/gkm/gkm-agent-nogpu
+  newName: quay.io/gkm/gkm-agent-nogpu
+  newTag: latest
+- name: quay.io/gkm/gkm-agent-nvidia
+  newName: quay.io/gkm/gkm-agent-nvidia
   newTag: latest

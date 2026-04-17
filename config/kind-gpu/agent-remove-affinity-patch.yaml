@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gkm-agent-nogpu
+  namespace: gkm-system
+spec:
+  template:
+    spec:
+      # Remove node affinity for Kind - schedule on all worker nodes
+      affinity: null

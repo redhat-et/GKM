@@ -1,0 +1,41 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: gkm-test-cuda-pod-1
+  namespace: gkm-test-ns-cuda-rwo-1
+spec:
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+  # Node affinity to schedule only on NVIDIA GPU nodes
+  # NVIDIA vendor ID is 10de, class code 0300 (VGA) or 0302 (3D controller)
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_10de.present
+                operator: Exists
+          - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0302_10de.present
+                operator: Exists
+
+  containers:
+    - name: test
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      volumeMounts:
+        - name: kernel-volume
+          mountPath: /cache
+          readOnly: true
+      resources:
+        limits:
+          nvidia.com/gpu: 1  # Request 1 NVIDIA GPU
+  volumes:
+    - name: kernel-volume
+      persistentVolumeClaim:
+        claimName: vector-add-cache-cuda-rwo

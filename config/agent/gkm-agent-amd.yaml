@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: agent-amd
+  namespace: gkm-system
+  labels:
+    app: gkm-agent
+    gpu-vendor: amd
+spec:
+  selector:
+    matchLabels:
+      app: gkm-agent
+      gpu-vendor: amd
+  template:
+    metadata:
+      labels:
+        app: gkm-agent
+        gpu-vendor: amd
+    spec:
+      serviceAccountName: gkm-agent
+      # ROCm GPU access requires video and render group membership
+      # Common GIDs: 44 (Ubuntu/Debian video), 105 (render), 986 (RHEL/Fedora video)
+      securityContext:
+        supplementalGroups: [44, 105, 986]
+      # Deploy only on nodes with AMD GPUs
+      # AMD vendor ID is 1002, with class codes:
+      # 0300: VGA controller, 0302: 3D controller, 0380: Display controller
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_1002.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0302_1002.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0380_1002.present
+                operator: Exists
+      containers:
+      - name: gkm-agent
+        image: quay.io/gkm/gkm-agent-amd:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+          privileged: true
+          capabilities:
+            add: ["CAP_DAC_OVERRIDE", "CAP_FOWNER"]
+          seccompProfile:
+            type: Unconfined
+        env:
+          - name: NO_GPU
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.nogpu
+          - name: GO_LOG
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.agent.log.level
+          - name: EXTRACT_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.extract.image
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: LD_LIBRARY_PATH
+            value: /opt/rocm/lib:/usr/lib64
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+            amd.com/gpu: "0"  # Request 0 GPUs (agent only monitors, doesn't use GPU)
+        volumeMounts:
+          - name: gkm-state
+            mountPath: /var/lib/gkm
+            mountPropagation: Bidirectional
+          - name: gkm-runtime
+            mountPath: /run/gkm
+            mountPropagation: Bidirectional
+          - name: sys
+            mountPath: /sys
+            readOnly: true
+          - name: dev
+            mountPath: /dev
+          - name: rocm-libs
+            mountPath: /opt/rocm
+            readOnly: true
+          - name: system-libs
+            mountPath: /usr/lib64
+            readOnly: true
+
+      volumes:
+        # This volume is the GKM State directory. This is where GPU Kernel Cache
+        # will be extracted.
+        - name: gkm-state
+          hostPath:
+            path: /var/lib/gkm
+            type: DirectoryOrCreate
+        # This volume is the GKM Runtime directory. This is where the Usage data
+        # will tracked which pods are using which cache.
+        - name: gkm-runtime
+          hostPath:
+            path: /run/gkm
+            type: DirectoryOrCreate
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+        # ROCm libraries needed for AMD GPU management
+        - name: rocm-libs
+          hostPath:
+            path: /opt/rocm
+            type: DirectoryOrCreate
+        # System libraries for GPU access
+        - name: system-libs
+          hostPath:
+            path: /usr/lib64
+            type: Directory

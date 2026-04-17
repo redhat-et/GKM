@@ -2,12 +2,12 @@
 apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
-  name: vector-add-cache-rocm-v3-rwo
-  namespace: gkm-test-ns-rwo-1
+  name: vector-add-cache-rocm-rwo
+  namespace: gkm-test-ns-rocm-rwo-1
   labels:
-    gkm.io/signature-format: cosign-v3
+    gkm.io/signature-format: cosign-v2
 spec:
-  image: quay.io/gkm/cache-examples:vector-add-cache-rocm
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm-v2
 
   # Toleration is specific to the KIND cluster being deployed.
   podTemplate:
