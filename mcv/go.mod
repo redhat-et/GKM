@@ -4,19 +4,20 @@ go 1.25.5
 
 require (
 	github.com/NVIDIA/go-nvml v0.13.0-1
-	github.com/containers/buildah v1.42.1
-	github.com/containers/podman/v5 v5.7.0
+	github.com/containers/buildah v1.43.1
+	github.com/containers/podman/v5 v5.8.2
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/google/go-containerregistry v0.20.7
 	github.com/jaypipes/ghw v0.17.0
 	github.com/jaypipes/pcidb v1.0.1
+	github.com/moby/go-archive v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	go.podman.io/common v0.66.1-0.20251111134650-36964d15757a
-	go.podman.io/image/v5 v5.38.1-0.20251111134650-36964d15757a
-	go.podman.io/storage v1.61.1-0.20251111134650-36964d15757a
+	go.podman.io/common v0.67.1
+	go.podman.io/image/v5 v5.39.2
+	go.podman.io/storage v1.62.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 )
 
@@ -61,7 +62,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fsouza/go-dockerclient v1.12.2 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -85,11 +86,12 @@ require (
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
-	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
+	github.com/mistifyio/go-zfs/v3 v3.1.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/buildkit v0.28.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/go-archive v0.2.0 // indirect
+	github.com/moby/moby/api v1.54.0 // indirect
+	github.com/moby/moby/client v0.3.0 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
@@ -104,7 +106,7 @@ require (
 	github.com/opencontainers/cgroups v0.0.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/opencontainers/runc v1.3.3 // indirect
+	github.com/opencontainers/runc v1.3.4 // indirect
 	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116 // indirect
 	github.com/opencontainers/selinux v1.13.1 // indirect
@@ -140,8 +142,8 @@ require (
 	golang.org/x/mod v0.33.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
-	golang.org/x/term v0.40.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/term v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
@@ -154,3 +156,6 @@ require (
 	tags.cncf.io/container-device-interface v1.1.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
+
+// Fix incompatibility between go-dockerclient and moby/go-archive v0.2.0
+replace github.com/fsouza/go-dockerclient => github.com/fsouza/go-dockerclient v1.13.1
