@@ -32,3 +32,5 @@ kind-config.yaml
 k8s-device-plugin-rocm/
 k8s-device-plugin-nvidia/
 config/secret/mutation.env
+
+mcv/_output/
