@@ -7,5 +7,5 @@ images:
   newName: quay.io/gkm/operator
   newTag: latest
 - name: quay.io/gkm/operator
-  newName: quay.io/gkm/operator
+  newName: quay.io/billy99/operator
   newTag: latest
