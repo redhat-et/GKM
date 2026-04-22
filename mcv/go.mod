@@ -4,8 +4,8 @@ go 1.25.5
 
 require (
 	github.com/NVIDIA/go-nvml v0.13.0-1
-	github.com/containers/buildah v1.43.1
-	github.com/containers/podman/v5 v5.8.2
+	github.com/containers/buildah v1.42.2
+	github.com/containers/podman/v5 v5.7.1
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/google/go-containerregistry v0.20.7
 	github.com/jaypipes/ghw v0.17.0
@@ -15,9 +15,9 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	go.podman.io/common v0.67.1
-	go.podman.io/image/v5 v5.39.2
-	go.podman.io/storage v1.62.0
+	go.podman.io/common v0.66.1
+	go.podman.io/image/v5 v5.38.0
+	go.podman.io/storage v1.61.1-0.20251111134650-36964d15757a
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 )
 
@@ -50,7 +50,7 @@ require (
 	github.com/containers/psgo v1.9.1-0.20250826150930-4ae76f200c86 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 // indirect
-	github.com/cyphar/filepath-securejoin v0.6.0 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/disiqueira/gotree/v3 v3.0.2 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
@@ -86,7 +86,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
-	github.com/mistifyio/go-zfs/v3 v3.1.0 // indirect
+	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/buildkit v0.28.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
