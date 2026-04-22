@@ -88,6 +88,8 @@ tidy-vendor:
 	@echo
 	go mod tidy -v
 	go mod vendor
+	@# Patch vendored go.podman.io/storage to use pathrs-lite for OpenInRoot/Reopen
+	@sed -i.bak 's|securejoin "github.com/cyphar/filepath-securejoin"|securejoin "github.com/cyphar/filepath-securejoin/pathrs-lite"|g' vendor/go.podman.io/storage/userns.go && rm -f vendor/go.podman.io/storage/userns.go.bak
 	@echo
 	@echo
 
