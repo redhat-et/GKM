@@ -36,8 +36,7 @@ jobs:
       - name: Prepare vendored dependencies
         working-directory: mcv
         run: |
-          go mod tidy
-          go mod vendor
+          make tidy-vendor
 
       - name: Run golangci-lint
         working-directory: mcv
