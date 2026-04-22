@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
@@ -13,6 +14,15 @@ import (
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 )
+
+// normalizeArchForComparison normalizes architecture strings for comparison
+// Strips sm_ prefix from CUDA architectures to handle both "75" and "sm_75" formats
+func normalizeArchForComparison(backend, arch string) string {
+	if backend == "cuda" {
+		return strings.TrimPrefix(arch, "sm_")
+	}
+	return arch
+}
 
 func CompareCacheSummaryLabelToGPU(img v1.Image, labels map[string]string, devInfo []devices.TritonGPUInfo) (matched, unmatched []devices.TritonGPUInfo, err error) {
 	logging.Debug("Starting cache summary label preflight check...")
@@ -40,12 +50,29 @@ func CompareCacheSummaryLabelToGPU(img v1.Image, labels map[string]string, devIn
 		return nil, nil, fmt.Errorf("failed to parse summary label: %w", err)
 	}
 
+	logging.Debugf("Preflight check: devInfo has %d GPUs, summary has %d targets", len(devInfo), len(summary.Targets))
+	for i, gpu := range devInfo {
+		logging.Debugf("GPU[%d]: backend=%s, arch=%s, warp=%d", i, gpu.Backend, gpu.Arch, gpu.WarpSize)
+	}
+	for i, target := range summary.Targets {
+		logging.Debugf("Target[%d]: backend=%s, arch=%s, warp=%d", i, target.Backend, target.Arch, target.WarpSize)
+	}
+
 	for _, gpu := range devInfo {
 		isMatch := false
 		for _, target := range summary.Targets {
 			backendMatches := target.Backend == gpu.Backend
-			archMatches := target.Arch == gpu.Arch
+			// Normalize architectures for comparison (handles "75" vs "sm_75" for CUDA)
+			normalizedTargetArch := normalizeArchForComparison(target.Backend, target.Arch)
+			normalizedGPUArch := normalizeArchForComparison(gpu.Backend, gpu.Arch)
+			archMatches := normalizedTargetArch == normalizedGPUArch
 			warpMatches := target.WarpSize == gpu.WarpSize
+
+			logging.Debugf("Comparing cache target vs GPU: backend=%s vs %s, arch=%s(%s) vs %s(%s), warp=%d vs %d",
+				target.Backend, gpu.Backend,
+				target.Arch, normalizedTargetArch,
+				gpu.Arch, normalizedGPUArch,
+				target.WarpSize, gpu.WarpSize)
 
 			if backendMatches && archMatches && warpMatches {
 				isMatch = true
