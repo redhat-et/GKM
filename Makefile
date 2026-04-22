@@ -12,7 +12,9 @@ else
 SED ?= gsed
 endif
 
+MAKEFLAGS += --no-print-directory
 ARCH=$(shell go env GOARCH)
+
 # Define CONTAINER_FLAGS and include ARCH as an argument
 CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 
@@ -339,14 +341,51 @@ undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent fr
 undeploy-force: ## Same as "make undeploy" but also delete any dependencies.
 	$(MAKE) undeploy FORCE=--force
 
-.PHONY: deploy-examples
-deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/config.
-	@echo "Create Namespace based GKMCache"
-	$(KUBECTL) apply -f examples/namespace/RWO/
-	$(KUBECTL) apply -f examples/namespace/ROX/
-	@echo "Create Cluster based ClusterGKMCache"
-	$(KUBECTL) apply -f examples/cluster/RWO/
-	$(KUBECTL) apply -f examples/cluster/ROX/
+.PHONY: gen-apply-example
+gen-apply-example: kustomize
+	@cd examples; \
+	if ! EXAMPLE_YAML=$$(DEBUG=false ./generate-files.sh $(EXAMPLE_ACCESS) $(EXAMPLE_SCOPE) $(EXAMPLE_GPU) $(EXAMPLE_VER) $(EXAMPLE_ENV)); then \
+		echo; \
+		echo "FAILED: ./generate-files.sh $(EXAMPLE_ACCESS) $(EXAMPLE_SCOPE) $(EXAMPLE_GPU) $(EXAMPLE_VER) $(EXAMPLE_ENV)"; \
+		echo; \
+		exit 1; \
+	fi; \
+	$(KUBECTL) $$EXAMPLE_CMD -f $$EXAMPLE_YAML
+
+.PHONY: deploy-examples-kind
+deploy-examples-kind: ## Deploy the examples to a KIND K8s cluster
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
+
+.PHONY: deploy-examples-nfd-cuda
+deploy-examples-nfd-cuda: ## Deploy the examples to a K8s cluster running NFD and CUDA, AccessMode=ReadWriteOnce
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=cuda EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=cuda EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
+
+.PHONY: deploy-examples-nfd-rocm
+deploy-examples-nfd-rocm: ## Deploy the examples to a K8s cluster running NFD and ROCm, AccessMode=ReadWriteOnce
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
+
+.PHONY: undeploy-examples-kind
+undeploy-examples-kind: ## Undeploy the examples to a KIND K8s cluster
+	@echo "Remove Namespace based GKMCache"
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+
+.PHONY: undeploy-examples-nfd-cuda
+undeploy-examples-nfd-cuda: ## Undeploy the examples to a K8s cluster running NFD and CUDA, AccessMode=ReadWriteOnce
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=cuda EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=cuda EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+
+.PHONY: undeploy-examples-nfd-rocm
+undeploy-examples-nfd-rocm: ## Undeploy the examples to a K8s cluster running NFD and ROCm, AccessMode=ReadWriteOnce
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
 
 .PHONY: undeploy-examples
 undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.

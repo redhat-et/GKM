@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ds-1.yaml
+  - ds-2.yaml
+  - ds-3.yaml

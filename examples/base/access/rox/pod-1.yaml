@@ -1,0 +1,25 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: gkm-test-pod-1
+  namespace: gkm-test-ns-1
+spec:
+  securityContext:
+    fsGroup: 1000
+  containers:
+    - name: test
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 1000
+      volumeMounts:
+        - name: kernel-volume
+          mountPath: /cache
+  volumes:
+    - name: kernel-volume
+      persistentVolumeClaim:
+        claimName: gkm-test-obj

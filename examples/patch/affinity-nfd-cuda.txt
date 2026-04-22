@@ -1,0 +1,9 @@
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0300_10de.present
+                operator: Exists
+            - matchExpressions:
+              - key: feature.node.kubernetes.io/pci-0302_10de.present
+                operator: Exists

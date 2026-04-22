@@ -1,0 +1,4 @@
+        key: gpu
+        operator: Equal
+        effect: NoSchedule
+        value: "true"

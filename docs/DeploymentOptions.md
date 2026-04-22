@@ -43,7 +43,7 @@ So the storage backing the PVC dictates a lot of the options.
 The most straight forward deployment is the GKM namespace scoped CRD, GKMCache,
 and a Kubernetes StorageClass that supports an AccessMode of `ReadOnlyMany`.
 
-![GKM Flowchart](images/GKM_Namespace_ReadOnlyMany.png)
+![GKM Namespace ReadOnlyMany](images/GKM_Namespace_ReadOnlyMany.png)
 
 The user creates a GKMCache with the OCI Image.
 There is no way to query KubeAPI Server to determine if an AccessMode of
@@ -105,7 +105,7 @@ The extracted GPU Kernel Cache is then mounted in the application Pod.
 
 Many Kubernetes Clusters are not deployed by default with a Kubernetes
 StorageClass that supports an AccessMode of `ReadOnlyMany`.
-In AWS this is a special request.
+For example, in AWS this is a special request.
 A default KIND Cluster does not support it.
 If a given cluster doesn't support `ReadOnlyMany`, either to save money or
 using a test cluster without the support, GKM will handle the PVC distribution
@@ -113,7 +113,7 @@ to Nodes.
 However, GKM will be fighting the Kubernetes Scheduler, so some concessions need
 to made to allow the Operator to distribute the extracted GPU Kernel Cache.
 
-![GKM Flowchart](images/GKM_Namespace_ReadWriteOnce.png)
+![GKM Namespace ReadWriteOnce](images/GKM_Namespace_ReadWriteOnce.png)
 
 Still namespace scoped, the user creates a GKMCache with the OCI Image.
 Unlike the previous example, there is no need to provide the optional AccessMode
@@ -149,7 +149,8 @@ Scheduler is run.
 So the Node has not been selected at the time the Mutating Webhook runs, which
 is needed to set the correct PVC in the Volume.
 To get around this, GKM requires the application to be launched in a Kubernetes
-DaemonSet when `ReadOnlyMany` is not supported.
+DaemonSet when `ReadOnlyMany` is not supported, because Pods associated with a
+DaemonSet do provide the selected Node at the time the Mutating Webhook runs.
 
 So the user then creates a Kubernetes DaemonSet with a `volume:` of type
 `persistentVolumeClaim:` and a `claimName:` set to the GKMCache name with the
@@ -197,14 +198,14 @@ As with GKMCache, a Kubernetes StorageClass that supports an AccessMode of
 `ReadOnlyMany` is simpler in deployment because the storage backend is managing
 distribution to each Node.
 
-![GKM Flowchart](images/GKM_Cluster_ReadOnlyMany.png)
+![GKM Cluster ReadOnlyMany](images/GKM_Cluster_ReadOnlyMany.png)
 
 The user creates a ClusterGKMCache with the OCI Image.
 As before, there is no way to query KubeAPI Server to determine if an
 AccessMode of `ReadOnlyMany` is supported, so that must be passed in via the
 CRD.
 
-PVCs are namespace scoped so must be created in the same namespace and the Pod
+PVCs are namespace scoped so must be created in the same namespace as the Pod
 they are being mounted.
 Since ClusterGKMCache is cluster scoped, the User must specify which Namespaces
 the PVCs need to be created in.
@@ -286,7 +287,7 @@ This scenario covers when a given cluster doesn't support `ReadOnlyMany`, and
 the GPU Kernel Cache needs to be loaded in multiple Pods that run in different
 Namespaces.
 
-![GKM Flowchart](images/GKM_Cluster_ReadWriteOnce.png)
+![GKM Cluster ReadWriteOnce](images/GKM_Cluster_ReadWriteOnce.png)
 
 The user creates a ClusterGKMCache with the OCI Image.
 As with the previous ClusterGKMCache, the User must specify which Namespaces the
@@ -380,7 +381,7 @@ The extracted GPU Kernel Cache is then mounted in the application Pods.
 
 ## KIND Clusters
 
-Running GKM in  KIND Cluster needs some special consideration.
+Running GKM in KIND Cluster needs some special consideration.
 For Kubernetes Operator functionality testing, a GPU is not needed, so GPUs are
 simulated.
 See [Getting Started Guide](docs/GettingStartedGuide.md) for more details on
@@ -397,7 +398,7 @@ mounted directory are not setup in a way that allows the Pod to access the
 mounted directory.
 A workaround is to include a init container in each Pod or DaemonSet that is
 volume mounting the PVC which adjusts the directory permissions properly.
-The following init container is included in all the examples in
+The following init container is patched in all the examples in
 [./examples/](https://github.com/redhat-et/GKM/tree/main/examples):
 
 ```yaml

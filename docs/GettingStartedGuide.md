@@ -73,9 +73,9 @@ Check the GKM installed pods:
 ```sh
 $ kubectl get pods -n gkm-system
 NAME                            READY   STATUS    RESTARTS   AGE
-gkm-agent-85lqg                 1/1     Running   0          5m7s
-gkm-agent-kzx6j                 1/1     Running   0          5m7s
-gkm-operator-7dc756c84b-2w74z   3/3     Running   0          5m7s
+gkm-agent-7hvdw                 1/1     Running   0          3m28s
+gkm-agent-jk2l9                 1/1     Running   0          3m28s
+gkm-operator-6f4b9df6f6-p648s   1/1     Running   0          3m28s
 ```
 
 To delete a `kind` cluster with a simulated GPU:
@@ -84,113 +84,133 @@ To delete a `kind` cluster with a simulated GPU:
 make destroy-kind
 ```
 
-## Install Test Pod Using GKM
+## Install Test Pod Using GKM on KIND Cluster
 
-There are example yamls that creates `GKMCache` and `ClusterGKMCache` custom
-resource (CR) instances, each of which points to an OCI Image with GPU Kernel
-Cache.
-See [./examples/](https://github.com/redhat-et/GKM/tree/main/examples).
-Sample:
+There are example yaml files that create `GKMCache` and `ClusterGKMCache`
+custom resource (CR) instances, each of which points to an OCI Image with GPU
+Kernel Cache.
+([Examples Directory](./Examples.md)) explains in detail the layout of the
+[./examples/](https://github.com/redhat-et/GKM/tree/main/examples) files and how
+to properly deploy them in different environments.
+
+Example (`cat examples/base/scope/namespace/gkmcache.yaml`):
 
 ```yaml
 apiVersion: gkm.io/v1alpha1
 kind: GKMCache
 metadata:
-  name: vector-add-cache-rocm-v2
-  namespace: gkm-test-ns-scoped-1
-  labels:
-    gkm.io/signature-format: cosign-v2
+  name: gkm-test-obj
+  namespace: gkm-test-ns-1
 spec:
   image: quay.io/gkm/cache-examples:vector-add-cache-rocm-v2
-  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
 ```
 
-The example yaml also includes a test pod that references the `PVC` that is
-create via GKM, which is just the same name as the `GKMCache` CR instance.
-Example:
+The example yaml also includes several test pod that references the `PVC` that
+is create via GKM, which is just the same name as the `GKMCache` CR instance.
+
+Example (`cat examples/base/access/rox/pod-1.yaml`):
 
 ```yaml
 kind: Pod
 apiVersion: v1
 metadata:
   name: gkm-test-pod-1
-  namespace: gkm-test-ns-scoped-1
+  namespace: gkm-test-ns-1
 spec:
-  tolerations:
-    - key: gpu
-      operator: Equal
-      effect: NoSchedule
-      value: "true"
+  securityContext:
+    fsGroup: 1000
   containers:
-  - name: test
-    :
-    volumeMounts:
-    - name: kernel-volume
-      mountPath: "/cache"
-  volumes:
-      volumes:
+    - name: test
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 1000
+      volumeMounts:
         - name: kernel-volume
-          persistentVolumeClaim:
-            claimName: vector-add-cache-rocm-v2
+          mountPath: /cache
+  volumes:
+    - name: kernel-volume
+      persistentVolumeClaim:
+        claimName: gkm-test-obj
 ```
 
 Pod Spec Highlights:
 
 - The `volumes:` named `kernel-volume` references a PVC via
   `persistentVolumeClaim:` and references the GKM Cache CR via
-  `claimName: vector-add-cache-rocm-v2`.
+  `claimName: gkm-test-obj`.
 - The `volumeMounts:` named `kernel-volume` maps the GPU Kernel Cache to the
   directory `/cache` within the pod.
 
-Because of the Node Selector, the test pod will be launched on node
-`kind-gpu-sim-worker`. Determine the GKM Agent instant running on this node:
-
-<!-- markdownlint-disable  MD013 -->
-<!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
-```sh
-$ kubectl get pods -n gkm-system -o wide
-NAME                            READY   STATUS    RESTARTS   AGE    IP           NODE
-gkm-agent-85lqg                 1/1     Running   0          5m7s   10.244.2.4   kind-gpu-sim-worker    <-- HERE
-gkm-agent-kzx6j                 1/1     Running   0          5m7s   10.244.1.5   kind-gpu-sim-worker2
-gkm-operator-7dc756c84b-2w74z   3/3     Running   0          5m7s   10.244.0.5   kind-gpu-sim-control-plane
-```
-<!-- markdownlint-enable  MD013 -->
-
-Now the example yaml can be applied:
+Now the example yamls can be applied:
 
 ```sh
-make deploy-examples
+make deploy-examples-kind
 ```
 
-The test pods `gkm-test-pod-*` should be running and the cache should be volume
-mounted in the pods:
+The test pods `gkm-test-ns-*` should be running and the cache should be volume
+mounted in the pods.
+Note: The `Completed` pods are Kubernetes Jobs that GKM created to download and
+extract the OCI Image into a PVC.
 
 <!-- markdownlint-disable  MD013 -->
 <!-- Temporarily disable MD013 - Line length to keep the block formatting  -->
 ```sh
 $ kubectl get pods -A
-NAMESPACE              NAME                            READY   STATUS    RESTARTS   AGE
+NAMESPACE                             NAME                                                     READY   STATUS      RESTARTS   AGE
+cert-manager                          cert-manager-7d75c44448-dsz84                            1/1     Running     0          5m44s
+cert-manager                          cert-manager-cainjector-798687f777-phhld                 1/1     Running     0          5m43s
+cert-manager                          cert-manager-webhook-6b7cdfdf8b-5lr5q                    1/1     Running     0          5m43s
+gkm-system                            gkm-agent-7hvdw                                          1/1     Running     0          5m31s
+gkm-system                            gkm-agent-jk2l9                                          1/1     Running     0          5m31s
+gkm-system                            gkm-operator-6f4b9df6f6-p648s                            1/1     Running     0          5m31s
+gkm-test-ns-1-rox-cluster-rocm-v2     gkm-test-obj-rox-cluster-rocm-v29x4md-lvntz              0/1     Completed   0          96s
+gkm-test-ns-1-rox-cluster-rocm-v2     gkm-test-pod-1-rox-cluster-rocm-v2                       1/1     Running     0          98s
+gkm-test-ns-1-rox-cluster-rocm-v2     gkm-test-pod-2-rox-cluster-rocm-v2                       1/1     Running     0          98s
+gkm-test-ns-1-rox-namespace-rocm-v3   gkm-test-obj-rox-namespace-rocm-v37pbpx-szc2q            0/1     Completed   0          100s
+gkm-test-ns-1-rox-namespace-rocm-v3   gkm-test-pod-1-rox-namespace-rocm-v3                     1/1     Running     0          100s
+gkm-test-ns-1-rox-namespace-rocm-v3   gkm-test-pod-2-rox-namespace-rocm-v3                     1/1     Running     0          100s
+gkm-test-ns-1-rox-namespace-rocm-v3   gkm-test-pod-3-rox-namespace-rocm-v3                     1/1     Running     0          100s
+gkm-test-ns-1-rwo-cluster-rocm-v3     gkm-test-ds-1-rwo-cluster-rocm-v3-gtk5x                  1/1     Running     0          101s
+gkm-test-ns-1-rwo-cluster-rocm-v3     gkm-test-ds-1-rwo-cluster-rocm-v3-j8lmk                  1/1     Running     0          101s
+gkm-test-ns-1-rwo-cluster-rocm-v3     gkm-test-ds-2-rwo-cluster-rocm-v3-bf8w9                  1/1     Running     0          102s
+gkm-test-ns-1-rwo-cluster-rocm-v3     gkm-test-obj-rwo-cluster-rocm-v3-286ba108chcrl-dnwzb     0/1     Completed   0          102s
+gkm-test-ns-1-rwo-cluster-rocm-v3     gkm-test-obj-rwo-cluster-rocm-v3-c6f37497qjl5g-l9cbl     0/1     Completed   0          102s
+gkm-test-ns-1-rwo-namespace-rocm-v2   gkm-test-ds-1-rwo-namespace-rocm-v2-bnn8r                1/1     Running     0          104s
+gkm-test-ns-1-rwo-namespace-rocm-v2   gkm-test-ds-1-rwo-namespace-rocm-v2-srd2f                1/1     Running     0          104s
+gkm-test-ns-1-rwo-namespace-rocm-v2   gkm-test-ds-2-rwo-namespace-rocm-v2-dm7jb                1/1     Running     0          104s
+gkm-test-ns-1-rwo-namespace-rocm-v2   gkm-test-ds-3-rwo-namespace-rocm-v2-r54df                1/1     Running     0          104s
+gkm-test-ns-1-rwo-namespace-rocm-v2   gkm-test-obj-rwo-namespace-rocm-v2-7529441aghdw5-pdblk   0/1     Completed   0          104s
+gkm-test-ns-1-rwo-namespace-rocm-v2   gkm-test-obj-rwo-namespace-rocm-v2-b6c984234brgh-tk6q7   0/1     Completed   0          104s
+gkm-test-ns-2-rox-cluster-rocm-v2     gkm-test-obj-rox-cluster-rocm-v2wdgn4-rsrm6              0/1     Completed   0          96s
+gkm-test-ns-2-rox-cluster-rocm-v2     gkm-test-pod-3-rox-cluster-rocm-v2                       1/1     Running     0          98s
+gkm-test-ns-2-rwo-cluster-rocm-v3     gkm-test-ds-3-rwo-cluster-rocm-v3-7j82t                  1/1     Running     0          101s
+gkm-test-ns-2-rwo-cluster-rocm-v3     gkm-test-obj-rwo-cluster-rocm-v3-8724a7b7vjg8h-plxfk     0/1     Completed   0          101s
+gkm-test-ns-2-rwo-cluster-rocm-v3     gkm-test-obj-rwo-cluster-rocm-v3-9dde6ea5lhtwj-hxh5h     0/1     Completed   0          102s
 :
-gkm-system             gkm-agent-85lqg                 1/1     Running   0          41s
-gkm-system             gkm-agent-kzx6j                 1/1     Running   0          41s
-gkm-system             gkm-operator-7dc756c84b-2w74z   3/3     Running   0          41s
-gkm-test-cl-scoped     gkm-test-pod-1                  1/1     Running   0          19s
-gkm-test-cl-scoped     gkm-test-pod-2                  1/1     Running   0          19s
-gkm-test-cl-scoped     gkm-test-pod-3                  1/1     Running   0          19s
-gkm-test-ns-scoped-1   gkm-test-pod-1                  1/1     Running   0          22s
-gkm-test-ns-scoped-1   gkm-test-pod-2                  1/1     Running   0          22s
-gkm-test-ns-scoped-1   gkm-test-pod-3                  1/1     Running   0          22s
-gkm-test-ns-scoped-2   gkm-test-pod-1                  1/1     Running   0          21s
-gkm-test-ns-scoped-2   gkm-test-pod-2                  1/1     Running   0          21s
-gkm-test-ns-scoped-2   gkm-test-pod-3                  1/1     Running   0          21s
+kyverno                               kyverno-admission-controller-578c64df84-gm9x9            1/1     Running     0          4m50s
+kyverno                               kyverno-background-controller-66cb87dd88-p852k           1/1     Running     0          5m18s
+kyverno                               kyverno-cleanup-controller-65b4494b5f-6rjlx              1/1     Running     0          5m18s
+kyverno                               kyverno-reports-controller-db4986dc-2dq6w                1/1     Running     0          5m18s
 :
 
-$ kubectl exec -it -n gkm-test-ns-scoped-1 gkm-test-pod-1  -- sh
-sh-5.2# ls /cache
+$ kubectl exec -it -n gkm-test-ns-1-rox-cluster-rocm-v2 gkm-test-pod-1-rox-cluster-rocm-v2 -c test -- sh
+sh-5.3$ ls /cache
 CETLGDE7YAKGU4FRJ26IM6S47TFSIUU7KWBWDR3H2K3QRNRABUCA  MCELTMXFCSPAMZYLZ3C3WPPYYVTVR4QOYNE52X3X6FIH7Z6N6X5A
 CHN6BLIJ7AJJRKY2IETERW2O7JXTFBUD3PH2WE3USNVKZEKXG64Q  c4d45c651d6ac181a78d8d2f3ead424b8b8f07dd23dc3de0a99f425d8a633fc6
 ```
 <!-- markdownlint-enable  MD013 -->
+
+To remove, the example yamls:
+
+```sh
+make undeploy-examples-kind
+```
 
 ## Build and Run Private GKM Build
 

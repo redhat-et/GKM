@@ -127,6 +127,9 @@ topics:
 - [Deployment Options](docs/DeploymentOptions.md):
   Details on the GKM Custom Resource Definitions, and how to tailor the
   different optional fields for different environments.
+- [Examples Directory](docs/Examples.md):
+  Details on the layout of the examples directory and how to apply the examples
+  to a Kubernetes cluster.
 - [MCV Overview](mcv/README.md):
   Overview of Model Cache Vault (MCV).
   List of prerequisites to build, instructions on building MCV and usage guide.

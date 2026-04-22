@@ -1,0 +1,12 @@
+---
+apiVersion: gkm.io/v1alpha1
+kind: ClusterGKMCache
+metadata:
+  name: gkm-test-obj
+spec:
+  image: quay.io/gkm/cache-examples:replace
+  workloadNamespaces:
+    - gkm-test-ns-1
+    - gkm-test-ns-2
+  accessModes:
+    - ReadWriteOnce
