@@ -144,6 +144,8 @@ help: ## Display this help.
 vendors: ## Refresh vendors directory.
 	@echo "### Checking vendors"
 	go mod tidy && go mod vendor
+	@# Patch vendored go.podman.io/storage to use pathrs-lite for OpenInRoot/Reopen
+	@sed -i.bak 's|securejoin "github.com/cyphar/filepath-securejoin"|securejoin "github.com/cyphar/filepath-securejoin/pathrs-lite"|g' vendor/go.podman.io/storage/userns.go && rm -f vendor/go.podman.io/storage/userns.go.bak
 
 .PHONY: explain
 explain: ## Run "kubectl explain" on all CRDs.
