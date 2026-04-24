@@ -7,5 +7,5 @@ images:
   newName: quay.io/gkm/agent
   newTag: latest
 - name: quay.io/gkm/agent
-  newName: quay.io/gkm/agent
+  newName: quay.io/billy99/agent
   newTag: latest

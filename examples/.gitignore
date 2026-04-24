@@ -1,0 +1,10 @@
+# Ignore generated yaml files
+base/common/namespace-1.yaml
+base/scope/cluster/namespace-2.yaml
+overlays/access/*.yaml
+overlays/scope/*.yaml
+output/*.yaml
+variants/access/rox/*.yaml
+variants/access/rwo/*.yaml
+variants/scope/cluster/*.yaml
+variants/scope/namespace/*.yaml

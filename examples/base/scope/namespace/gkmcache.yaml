@@ -1,0 +1,10 @@
+---
+apiVersion: gkm.io/v1alpha1
+kind: GKMCache
+metadata:
+  name: gkm-test-obj
+  namespace: gkm-test-ns-1
+spec:
+  image: quay.io/gkm/cache-examples:vector-add-cache-rocm-v2
+  accessModes:
+    - ReadWriteOnce
