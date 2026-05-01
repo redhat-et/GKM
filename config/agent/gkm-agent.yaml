@@ -32,6 +32,11 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.nogpu
+          - name: KIND_CLUSTER
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.kindcluster
           - name: GO_LOG
             valueFrom:
               configMapKeyRef:
@@ -51,36 +56,12 @@ spec:
             memory: "128Mi"
             cpu: "100m"
         volumeMounts:
-          - name: gkm-state
-            mountPath: /var/lib/gkm
-            mountPropagation: Bidirectional
-          - name: gkm-runtime
-            mountPath: /run/gkm
-            mountPropagation: Bidirectional
-          - name: sys
-            mountPath: /sys
-            readOnly: true
-          - name: dev
-            mountPath: /dev
+          - mountPath: /mnt/kernel-caches
+            name: kernel-caches
+            readOnly: false
 
       volumes:
-        # This volume is the GKM State directory. This is where GPU Kernel Cache
-        # will be extracted.
-        - name: gkm-state
+        - name: kernel-caches
           hostPath:
-            path: /var/lib/gkm
+            path: /kernel-caches
             type: DirectoryOrCreate
-        # This volume is the GKM Runtime directory. This is where the Usage data
-        # will tracked which pods are using which cache.
-        - name: gkm-runtime
-          hostPath:
-            path: /run/gkm
-            type: DirectoryOrCreate
-        - name: sys
-          hostPath:
-            path: /sys
-            type: Directory
-        - name: dev
-          hostPath:
-            path: /dev
-            type: Directory

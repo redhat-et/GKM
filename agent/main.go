@@ -49,11 +49,24 @@ func main() {
 		setupLog.Info("No-GPU set to true")
 	}
 
+	extractLogLevel := os.Getenv("EXTRACT_GO_LOG")
+	if extractLogLevel == "" {
+		extractLogLevel = "info"
+		setupLog.Info("Extract Job Log Level set to info")
+	}
+
+	kindCluster := false
+	if os.Getenv("KIND_CLUSTER") == "true" {
+		kindCluster = true
+		setupLog.Info("KIND Cluster set to true")
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName == "" {
 		setupLog.Error(fmt.Errorf("KUBE_NODE_NAME env var not set"), "Couldn't determine current node")
 		os.Exit(1)
 	}
+	setupLog.Info("KUBE_NODE_NAME processing", "Node", nodeName)
 
 	extractImage := utils.JobExtractImage
 	tmpExtractImage := os.Getenv("EXTRACT_IMAGE")
@@ -175,12 +188,13 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		Recorder:        mgr.GetEventRecorderFor("GKM-Agent-NS"),
-		CacheDir:        utils.DefaultCacheDir,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
+		KindCluster:     kindCluster,
+		ExtractLogLevel: extractLogLevel,
 		ExtractImage:    extractImage,
-		CrdCacheStr:     "GKMCache",
-		CrdCacheNodeStr: "GKMCacheNode",
+		CrdCacheStr:     utils.CrdGKMCache,
+		CrdCacheNodeStr: utils.CrdGKMCacheNode,
 	}
 	if err = (&gkmAgent.GKMCacheAgentReconciler{
 		ReconcilerCommonAgent: commonNs,
@@ -198,12 +212,13 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		Recorder:        mgr.GetEventRecorderFor("GKM-Agent-CL"),
-		CacheDir:        utils.DefaultCacheDir,
 		NodeName:        nodeName,
 		NoGpu:           noGpu,
+		KindCluster:     kindCluster,
+		ExtractLogLevel: extractLogLevel,
 		ExtractImage:    extractImage,
-		CrdCacheStr:     "ClusterGKMCache",
-		CrdCacheNodeStr: "ClusterGKMCacheNode",
+		CrdCacheStr:     utils.CrdClusterGKMCache,
+		CrdCacheNodeStr: utils.CrdClusterGKMCacheNode,
 	}
 	if err = (&gkmAgent.ClusterGKMCacheAgentReconciler{
 		ReconcilerCommonAgent: commonCl,

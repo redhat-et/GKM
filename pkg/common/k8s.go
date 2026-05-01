@@ -11,8 +11,10 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -63,8 +65,21 @@ func PodPredicate(nodeName string) predicate.Funcs {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			pod := e.Object.(*corev1.Pod)
 
-			// Pod deleted → definitely stopped using PVC
-			return pod.Spec.NodeName == nodeName && hasPVC(pod)
+			logger := log.Log.WithName("pod-predicate")
+			logger.Info("Delete:",
+				"Pod Name", pod.Name,
+				"Pod Namespace", pod.Namespace,
+				"Pod Phase", pod.Status.Phase,
+				"Pod PVC", hasPVC(pod),
+			)
+
+			// Pod deleted, stopped using PVC
+			nodeMatch := false
+			if nodeName == "" || pod.Spec.NodeName == nodeName {
+				nodeMatch = true
+			}
+
+			return nodeMatch && hasPVC(pod)
 		},
 	}
 }
@@ -209,10 +224,11 @@ func CreatePv(
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pvName,
 			Labels: map[string]string{
-				utils.PvLabelCache:        gkmCacheName,
-				utils.PvLabelPvcNamespace: pvcNamespace,
-				utils.PvLabelNode:         nodeName,
-				utils.PvLabelDigest:       trimDigest[:utils.MaxLabelValueLength],
+				utils.PvLabelCache:           gkmCacheName,
+				utils.PvcLabelCacheNamespace: gkmCacheNamespace,
+				utils.PvLabelPvcNamespace:    pvcNamespace,
+				utils.PvLabelNode:            nodeName,
+				utils.PvLabelDigest:          trimDigest[:utils.MaxLabelValueLength],
 			},
 		},
 		Spec: corev1.PersistentVolumeSpec{
@@ -220,15 +236,13 @@ func CreatePv(
 				corev1.ResourceStorage: resource.MustParse(capacity),
 			},
 			AccessModes:                   accessModes,
-			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimDelete,
 			StorageClassName:              storageClass,
-			VolumeMode: func() *corev1.PersistentVolumeMode {
-				m := corev1.PersistentVolumeFilesystem
-				return &m
-			}(),
+			VolumeMode:                    ptr.To(corev1.PersistentVolumeFilesystem),
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/tmp/gkm",
+					Path: "/kernel-caches",
+					Type: ptr.To(corev1.HostPathDirectory),
 				},
 			},
 		},
@@ -347,6 +361,44 @@ func PvExists(
 	}
 
 	return retPv, found, updatedName, nil
+}
+
+// GetGkmPvFailedList retrieves all the PVs created by GKM based on labels on the PV.
+// It will liimt the returned list to just those PVs in a Phase of Failed.
+func GetGkmPvFailedList(
+	ctx context.Context,
+	objClient client.Client,
+	log logr.Logger,
+) ([]corev1.PersistentVolume, error) {
+
+	labelSelector, err := labels.Parse(
+		utils.PvLabelCache + "," + utils.PvLabelPvcNamespace,
+	)
+
+	pvList := &corev1.PersistentVolumeList{}
+
+	if err :=
+		objClient.List(
+			ctx,
+			pvList,
+			client.MatchingLabelsSelector{Selector: labelSelector},
+		); err != nil {
+		return nil, err
+	}
+
+	var failed []corev1.PersistentVolume
+
+	for _, pv := range pvList.Items {
+		if pv.Status.Phase == corev1.VolumeFailed {
+			failed = append(failed, pv)
+		}
+	}
+	log.Info("GKM PV List",
+		"NumPVs", len(pvList.Items),
+		"NumFailedPVs", len(failed),
+	)
+
+	return failed, err
 }
 
 // DeletePv tries to delete PV created by GKM
@@ -492,10 +544,12 @@ func CreatePvc(
 			Name:      pvcName,
 			Namespace: pvcNamespace,
 			Labels: map[string]string{
-				utils.PvcLabelCache:        gkmCacheName,
-				utils.PvcLabelPvcNamespace: pvcNamespace,
-				utils.PvcLabelNode:         nodeName,
-				utils.PvcLabelDigest:       trimDigest[:utils.MaxLabelValueLength],
+				utils.PvcLabelCache:          gkmCacheName,
+				utils.PvcLabelCacheNamespace: gkmCacheNamespace,
+				utils.PvcLabelPvcNamespace:   pvcNamespace,
+				utils.PvcLabelPvName:         pvName,
+				utils.PvcLabelNode:           nodeName,
+				utils.PvcLabelDigest:         trimDigest[:utils.MaxLabelValueLength],
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
@@ -617,6 +671,35 @@ func PvcExists(
 	}
 
 	return retPvc, found, updatedName, nil
+}
+
+// GetGkmPvcList retrieves all the PVCs created by GKM based on labels on the PVC.
+func GetGkmPvcList(
+	ctx context.Context,
+	objClient client.Client,
+	log logr.Logger,
+) ([]corev1.PersistentVolumeClaim, error) {
+
+	labelSelector, err := labels.Parse(
+		utils.PvcLabelCache + "," + utils.PvcLabelPvcNamespace,
+	)
+
+	pvcList := &corev1.PersistentVolumeClaimList{}
+
+	if err :=
+		objClient.List(
+			ctx,
+			pvcList,
+			client.MatchingLabelsSelector{Selector: labelSelector},
+		); err != nil {
+		return nil, err
+	}
+
+	log.Info("GKM PVC List",
+		"NumPVCs", len(pvcList.Items),
+	)
+
+	return pvcList.Items, err
 }
 
 // GetPvcUsedByList walks the Pods in the Namespace and tries to determine which
@@ -838,10 +921,12 @@ func LaunchJob(
 	cacheImage string,
 	resolvedDigest string,
 	noGpu bool,
+	kindCluster bool,
 	extractImage string,
 	pvcStatus *gkmv1alpha1.PvcStatus,
 	podTemplate *gkmv1alpha1.PodTemplate,
 	log logr.Logger,
+	jobLogLevel string,
 ) error {
 	log.Info("Creating download job", "jobName", jobName, "pvcName", pvcStatus.PvcName)
 
@@ -890,6 +975,7 @@ func LaunchJob(
 		{Name: utils.JobExtractEnvCacheDir, Value: utils.MountPath},
 		{Name: utils.JobExtractEnvImageUrl, Value: updatedImage},
 		{Name: utils.JobExtractEnvNoGpu, Value: noGpuString},
+		{Name: utils.JobExtractEnvGoLog, Value: jobLogLevel},
 	}
 
 	container.VolumeMounts = []corev1.VolumeMount{
@@ -982,10 +1068,10 @@ func LaunchJob(
 		}
 	}
 
-	// For KIND Clusters, currently identified by NoGpu, Kubelet can't change the ownership
+	// For KIND Clusters, currently identified by kindCluster, Kubelet can't change the ownership
 	// of the directory of a Volume Mount. So an InitContainer is added to the job the manage
 	// the ownership.
-	if noGpu {
+	if kindCluster {
 		var rootUser int64 = 0
 
 		commandString :=

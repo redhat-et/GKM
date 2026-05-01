@@ -71,6 +71,18 @@ func main() {
 		setupLog.Info("No-GPU set to true", "noGpu", noGpu)
 	}
 
+	extractLogLevel := os.Getenv("EXTRACT_GO_LOG")
+	if extractLogLevel == "" {
+		extractLogLevel = "info"
+		setupLog.Info("Extract Job Log Level set to info")
+	}
+
+	kindCluster := false
+	if os.Getenv("KIND_CLUSTER") == "true" {
+		kindCluster = true
+		setupLog.Info("KIND Cluster set to true")
+	}
+
 	extractImage := utils.JobExtractImage
 	tmpExtractImage := os.Getenv("EXTRACT_IMAGE")
 	if tmpExtractImage != "" {
@@ -211,9 +223,11 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		NoGpu:           noGpu,
+		KindCluster:     kindCluster,
+		ExtractLogLevel: extractLogLevel,
 		ExtractImage:    extractImage,
-		CrdCacheStr:     "GKMCache",
-		CrdCacheNodeStr: "GKMCacheNode",
+		CrdCacheStr:     utils.CrdGKMCache,
+		CrdCacheNodeStr: utils.CrdGKMCacheNode,
 	}
 	if err = (&gkmOperator.GKMCacheOperatorReconciler{
 		ReconcilerCommonOperator: commonNs,
@@ -231,9 +245,10 @@ func main() {
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
 		NoGpu:           noGpu,
+		KindCluster:     kindCluster,
 		ExtractImage:    extractImage,
-		CrdCacheStr:     "ClusterGKMCache",
-		CrdCacheNodeStr: "ClusterGKMCacheNode",
+		CrdCacheStr:     utils.CrdClusterGKMCache,
+		CrdCacheNodeStr: utils.CrdClusterGKMCacheNode,
 	}
 	if err = (&gkmOperator.ClusterGKMCacheOperatorReconciler{
 		ReconcilerCommonOperator: commonCl,

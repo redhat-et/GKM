@@ -1147,7 +1147,8 @@ spec:
                 description: |-
                   storageClassName contains the name of the Kubernetes Storage Class, which
                   will be used for the PersistentVolume and PersistentVolumeClaim the GKM will
-                  create in order to store the extract GPU Kernel Cache.
+                  create in order to store the extract GPU Kernel Cache. If not provided, then
+                  default Storage Class will be used.
                 type: string
               workloadNamespaces:
                 description: |-
@@ -1161,7 +1162,6 @@ spec:
                 type: array
             required:
             - image
-            - storageClassName
             type: object
           status:
             description: |-

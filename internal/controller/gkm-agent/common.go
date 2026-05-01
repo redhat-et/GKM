@@ -36,19 +36,6 @@ import (
 	"github.com/redhat-et/GKM/pkg/utils"
 )
 
-var defaultCacheDir string
-
-func init() {
-	initializeCachePath(utils.DefaultCacheDir)
-}
-
-// Allow overriding UsageDir location for Testing
-var ExportForTestInitializeCachePath = initializeCachePath
-
-func initializeCachePath(value string) {
-	defaultCacheDir = value
-}
-
 // GKMInstance is a generic interface that can either be a gkmv1alpha1.GKMCache or
 // a gkmv1alpha1.ClusterGKMCache. This is used to allow both a GKMCache and a ClusterGKMCache
 // to be processed by the same code.
@@ -101,9 +88,10 @@ type ReconcilerCommonAgent[C GKMInstance, CL GKMInstanceList[C], N GKMNodeInstan
 	Scheme          *runtime.Scheme
 	Logger          logr.Logger
 	Recorder        record.EventRecorder
-	CacheDir        string
 	NodeName        string
 	NoGpu           bool
+	KindCluster     bool
+	ExtractLogLevel string
 	ExtractImage    string
 	CrdCacheStr     string // For logging/errors: GKMCache or ClusterGKMCache
 	CrdCacheNodeStr string // For logging/errors: GKMCacheNode or ClusterGKMCacheNode
@@ -438,6 +426,7 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) reconcileCommonAgent(
 							} else {
 								// DELETE
 								pvcInUse := false
+								pvcDeleting := false
 
 								// Get the PVC Status, which is the Per Namespace PV and PVC information.
 								// If it doesn't exist for this Namespace, then move on to the next Namespace.
@@ -463,7 +452,6 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) reconcileCommonAgent(
 								// If Owner is Agent, then attempt to delete Job, PVC and PV. Otherwise,
 								// there is nothing to do here.
 								if gkmCache.GetPvcOwner() == gkmv1alpha1.PvcOwnerAgent {
-									var pvcDeleting bool
 									if updated, updateReason, pvcInUse, pvcDeleting, err = common.ManagePvcStatusDelete(
 										ctx,
 										r.Client,
@@ -510,7 +498,7 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) reconcileCommonAgent(
 								}
 
 								// If nothing was updated, then this PVC Status can be removed.
-								if !updated && !pvcInUse {
+								if !updated && !pvcInUse && !pvcDeleting {
 									delete(cacheStatus.PvcStatus, pvcNamespace)
 									updated = true
 									skipPvcCopy = true
@@ -825,7 +813,7 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) managePVandPVC(
 			// The preferred method for creating a PV is to create the PVC and Kubelet auto-creates the PV.
 			// In a KIND cluster, there is not a true CSI driver for storage management, so the PV must be
 			// manually created.
-			if r.NoGpu {
+			if r.KindCluster {
 				_, found, updatedName, err := common.PvExists(
 					ctx,
 					r.Client,
@@ -965,6 +953,7 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) manageJob(
 	stillPending := false
 	var err error
 
+	//jobNamespace = utils.GKMDefaultNamespace
 	if (*gkmCache).GetPvcOwner() == gkmv1alpha1.PvcOwnerAgent {
 		// If the condition on the PVC Status is Pending, then a Job to extract the cache has not been
 		// launched. Build up and launch the job.
@@ -973,7 +962,7 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) manageJob(
 			//
 			// For both GKMCache and ClusterGKMCache, just use the PVC name, because Jobs are
 			// always created per Node per Namespace. Name is already unique.
-			jobName := pvcStatus.PvcName
+			jobName := pvcStatus.PvcName + "-job-download-"
 
 			r.Logger.Info("Cache NOT Extracted, extract now",
 				"Namespace", (*gkmCache).GetNamespace(),
@@ -981,7 +970,8 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) manageJob(
 				"Job Name", jobName,
 				"Name", (*gkmCache).GetName(),
 				"digest", resolvedDigest,
-				"NoGpu", r.NoGpu)
+				"NoGpu", r.NoGpu,
+				"KIND", r.KindCluster)
 
 			err = common.LaunchJob(
 				ctx,
@@ -994,10 +984,12 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) manageJob(
 				(*gkmCache).GetImage(),
 				resolvedDigest,
 				r.NoGpu,
+				r.KindCluster,
 				r.ExtractImage,
 				pvcStatus,
 				(*gkmCache).GetPodTemplate(),
 				r.Logger,
+				r.ExtractLogLevel,
 			)
 
 			if err != nil {
@@ -1461,7 +1453,7 @@ func (r *ReconcilerCommonAgent[C, CL, N, NL]) addCounts(
 			r.Client,
 			r.NodeName,
 			pvcNamespace,
-			pvcStatus.PvcName,
+			cacheName, /* PvcName: Serving PVC has same name as Cache */
 			r.Logger,
 		)
 	}

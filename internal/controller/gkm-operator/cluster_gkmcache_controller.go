@@ -91,17 +91,19 @@ func (r *ClusterGKMCacheOperatorReconciler) SetupWithManager(mgr ctrl.Manager) e
 }
 
 func (r *ClusterGKMCacheOperatorReconciler) enqueueClusterGKMCache(ctx context.Context, obj client.Object) []reconcile.Request {
+	var name string
 	crList := &gkmv1alpha1.ClusterGKMCacheList{}
 	if err := r.List(ctx, crList); err != nil || len(crList.Items) == 0 {
-		return nil
+		name = "EmptyClusterCache"
+	} else {
+		cr := crList.Items[0]
+		name = cr.Name
 	}
-
-	cr := crList.Items[0]
 
 	return []reconcile.Request{
 		{
 			NamespacedName: types.NamespacedName{
-				Name: cr.Name,
+				Name: name,
 			},
 		},
 	}

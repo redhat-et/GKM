@@ -168,8 +168,8 @@ func (r *GKMCacheAgentReconciler) getCacheNode(
 	cacheNodeList := &gkmv1alpha1.GKMCacheNodeList{}
 
 	labelSelector := map[string]string{
-		utils.GKMCacheNodeLabelCache: cacheName,
-		utils.GKMCacheLabelHostname:  r.NodeName,
+		//utils.GKMCacheNodeLabelCache: cacheName,
+		utils.GKMCacheLabelHostname: r.NodeName,
 	}
 	err := r.List(ctx, cacheNodeList,
 		client.InNamespace(cacheNamespace),
@@ -207,12 +207,13 @@ func (r *GKMCacheAgentReconciler) createCacheNode(ctx context.Context, cacheName
 	// Build up GKMCacheNode
 	gkmCacheNode := &gkmv1alpha1.GKMCacheNode{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       utils.GenerateUniqueName(cacheName),
+			//Name:       utils.GenerateUniqueName(cacheName),
+			Name:       r.NodeName,
 			Namespace:  cacheNamespace,
 			Finalizers: []string{},
 			Labels: map[string]string{
-				utils.GKMCacheLabelHostname:  r.NodeName,
-				utils.GKMCacheNodeLabelCache: cacheName,
+				utils.GKMCacheLabelHostname: r.NodeName,
+				//utils.GKMCacheNodeLabelCache: cacheName,
 			},
 		},
 	}

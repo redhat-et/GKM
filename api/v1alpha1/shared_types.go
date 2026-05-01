@@ -79,10 +79,9 @@ type GKMCacheSpec struct {
 
 	// storageClassName contains the name of the Kubernetes Storage Class, which
 	// will be used for the PersistentVolume and PersistentVolumeClaim the GKM will
-	// create in order to store the extract GPU Kernel Cache.
-	// +required
-	// +kubebuilder:validation:Required
-	StorageClassName string `json:"storageClassName"`
+	// create in order to store the extract GPU Kernel Cache. If not provided, then
+	// default Storage Class will be used.
+	StorageClassName string `json:"storageClassName,omitempty"`
 
 	// accessMode is the set of capabilities being requested by the generated PVC.
 	// This field is optional. If not provided, it will default to "ReadWriteOnce".

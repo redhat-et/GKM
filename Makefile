@@ -304,10 +304,19 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-ifdef NO_GPU
+ifdef KIND_CLUSTER
 	cd config/configMap && \
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \
+	    -e '/literals:/a\  - gkm.kindcluster=true' \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
+	    kustomization.yaml.env > kustomization.yaml
+else ifdef NO_GPU
+	cd config/configMap && \
+	  $(SED) \
+	    -e '/literals:/a\  - gkm.nogpu=true' \
+	    -e '/literals:/a\  - gkm.kindcluster=false' \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
@@ -591,11 +600,11 @@ deploy-on-kind: kind-load-images tmp-cleanup
 	@echo "Add label gkm-test-node=false to node kind-gpu-sim-worker2."
 	$(KUBECTL) label node kind-gpu-sim-worker2 gkm-test-node=false --overwrite
 	## NOTE: config/kind-gpu is an overlay of config/default
-	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
+	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true KIND_CLUSTER=true
 
 .PHONY: redeploy-on-kind
 redeploy-on-kind: ## Redeploy controller and agent to Kind GPU cluster after run-on-kind and undeploy-on-kind have been called. Skips some onetime steps in deploy.
-	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
+	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu NO_GPU=true KIND_CLUSTER=true
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy-on-kind

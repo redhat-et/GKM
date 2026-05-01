@@ -32,7 +32,6 @@ import (
 // instance are created in a namespace, GKM ensures that one GKMCacheNode
 // instance is created per Kubernetes Node. GKMCacheNode cannot be edited by an
 // application or user, only by GKM.
-// +kubebuilder:printcolumn:name="Node",type=string,JSONPath=".status.nodeName"
 // +kubebuilder:printcolumn:name="Node-In-Use",type=string,JSONPath=`.status.counts.nodeInUseCnt`
 // +kubebuilder:printcolumn:name="Node-Not-In-Use",type=string,JSONPath=`.status.counts.nodeNotInUseCnt`
 // +kubebuilder:printcolumn:name="Node-Error",type=string,JSONPath=`.status.counts.nodeErrorCnt`

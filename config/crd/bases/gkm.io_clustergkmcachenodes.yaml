@@ -15,9 +15,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.nodeName
-      name: Node
-      type: string
     - jsonPath: .status.counts.nodeInUseCnt
       name: Node-In-Use
       type: string

@@ -60,9 +60,11 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		log.Info("unable to chown", "err", err)
 	}
 
-	if err := os.Chmod(cacheDir, 0755); err != nil {
-		log.Info("unable to chmod", "err", err)
-	}
+	/*
+		if err := os.Chmod(cacheDir, 0755); err != nil {
+			log.Info("unable to chmod", "err", err)
+		}
+	*/
 
 	// Only one initialization should occur
 	initFile := filepath.Join(cacheDir, ".initialized")

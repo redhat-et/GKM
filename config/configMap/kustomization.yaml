@@ -9,6 +9,7 @@ configMapGenerator:
 - behavior: merge
   literals:
   - gkm.nogpu=true
+  - gkm.kindcluster=true
   - gkm.agent.image=quay.io/gkm/agent:latest
   - gkm.extract.image=quay.io/gkm/gkm-extract:latest
   name: config

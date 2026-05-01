@@ -84,6 +84,11 @@ spec:
               configMapKeyRef:
                 name: gkm-config
                 key: gkm.nogpu
+          - name: KIND_CLUSTER
+            valueFrom:
+              configMapKeyRef:
+                name: gkm-config
+                key: gkm.kindcluster
           - name: GO_LOG
             valueFrom:
               configMapKeyRef:

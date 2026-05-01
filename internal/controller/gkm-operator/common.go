@@ -92,6 +92,8 @@ type ReconcilerCommonOperator[
 	Scheme          *runtime.Scheme
 	Logger          logr.Logger
 	NoGpu           bool
+	KindCluster     bool
+	ExtractLogLevel string
 	ExtractImage    string
 	CrdCacheStr     string // For logging/errors: GKMCache or ClusterGKMCache
 	CrdCacheNodeStr string // For logging/errors: GKMCacheNode or ClusterGKMCacheNode
@@ -150,7 +152,13 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) reconcileCommonOperator(
 
 	r.Logger.V(1).Info("Start reconcileCommonOperator()")
 
-	inUseGkmCacheList := make(map[string]bool)
+	// This is a Map indexed by the Cache Namespace and Name. If a GKMCache or
+	// ClusterGKMCache instance is deleted while the associated Serving PVC is
+	// still being used by a Pod, then that PVC is "stranded" and needs to be
+	// cleaned up. This map tracks what caches were processed in the main loop
+	// so that when walking PVCs the code can determine which PVCs are stranded
+	// and need to be checked if they are still in use and can be deleted.
+	inUseGkmCacheList := make(map[string]map[string]bool)
 
 	// Get the list of existing GKMCache or ClusterGKMCache objects from KubeAPI Server.
 	gkmCacheList, err := reconciler.getCacheList(ctx, []client.ListOption{})
@@ -177,7 +185,10 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) reconcileCommonOperator(
 			)
 
 			cacheDeleting := reconciler.isBeingDeleted(&gkmCache)
-			inUseGkmCacheList[gkmCache.GetName()] = cacheDeleting
+			if _, ok := inUseGkmCacheList[gkmCache.GetNamespace()]; !ok {
+				inUseGkmCacheList[gkmCache.GetNamespace()] = make(map[string]bool)
+			}
+			inUseGkmCacheList[gkmCache.GetNamespace()][gkmCache.GetName()] = cacheDeleting
 
 			// See if Digest has been set (Webhook validated and image is allowed to be used).
 			annotations := gkmCache.GetAnnotations()
@@ -214,259 +225,263 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) reconcileCommonOperator(
 			gkmCacheStatus.Counts = gkmv1alpha1.CacheCounts{}
 			gkmCacheStatus.ResolvedDigest = resolvedDigest
 
+			// The PvcOwner is the controller that creates and manages the PV/PVC/Job.
+			// * If AccessMode is ReadOnlyMany (ROX), then only one PV/PVC/Job is needed for
+			//   the Cluster so the Operator creates and manages the resources. The Job downloads
+			//   and extracts the content from the OCI Image once to the PVC and the Storage
+			//   backend is responsible to distributing the content to each Node. Not all
+			//   Clusters have a Storage instance that supports this, so RWO must also be supported.
+			// * If AccessMode is ReadWriteOnce (RWO), then:
+			//   * Agent on each Node creates and manages a PV/PVC/Job per Node. The Job downloads
+			//     and extracts the content from the OCI Image on each Node. These are the download
+			//     PV/PVC/Job instances.
+			//   * Once the download has occurred, the Operator creates one Serving PV/PVC that
+			//     refeneces the path used in the downlaod PVC. This Serving PVC is what is given to
+			//     the ISVC to mount in the workload. Note, no Serving Job is needed.
 			if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerUnknown || gkmCacheStatus.PvcOwner == "" {
 				// Initialize the condition to pending.
 				r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondPending.Condition())
 
-				gkmCacheStatus.PvcOwner = gkmv1alpha1.PvcOwnerAgent
-				accessMode := gkmCache.GetAccessMode()
-				for _, mode := range accessMode {
-					if mode == corev1.ReadOnlyMany {
-						gkmCacheStatus.PvcOwner = gkmv1alpha1.PvcOwnerOperator
-					}
-				}
+				gkmCacheStatus.PvcOwner = deterineOwner(gkmCache.GetAccessMode())
 				r.Logger.Info("Owner not set, setting now", "Updated Value", gkmCacheStatus.PvcOwner)
 			}
 
-			// If the PVC AccessMode is ReadOnlyMany, then only one PVC per Namespace needs to be created
-			// and the storage backend will handle propagating the extracted cache to each node. Since
-			// there is only one, the Operator handles the creation here.
-			if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerOperator {
-				updated := false
-				updateReason := ""
+			updated := false
+			updateReason := ""
 
-				// Loop through the list of Namespaces. For GKMCache, it's just the namespace
-				// GKMCache is created in. For ClusterGKMCache, it's the Workload Namespace list
-				// that was provided in ClusterGKMCache.
-				namespaceList := gkmCache.GetWorkloadNamespaces()
-				if len(namespaceList) == 0 {
-					if gkmCache.GetNamespace() == "" {
-						r.Logger.Info("No namespaces in ClusterGKMCache Spec.WorkloadNamespaces, so no PVCs created",
-							"Namespace", gkmCache.GetNamespace(),
-							"Name", gkmCache.GetName(),
-						)
-					}
+			// pvcInUse is used to indicate on a delete of the GKMCache or ClusterGKMCache that a
+			// PVC is still in use. The must go ahead and delete the GKMCache or ClusterGKMCache
+			// and will use manageStrandedPvcs() to clean up the PV and PVCs once they are no longer
+			// being used by a pod.
+			pvcInUse := false
+
+			// pvcDeleting is used to indicate that KubeAPI has been called to delete the PVC but
+			// the delete is still being processed.
+			pvcDeleting := false
+
+			// Map index by Namespace. Contains the collection of counts per Namespace
+			// so the Operator created Serving PVC can provide a summary State of the
+			// Download PVCs from each Node. Per Namespace is needed for the ClusterGKMCache,
+			// because there is a PVC per namespace. Collected for the GKMCache just to
+			// simplify code.
+			namespaceCnts := make(map[string]*gkmv1alpha1.CacheCounts)
+
+			// If Agent managed, then collect the counts now. For Operator managed,
+			// delay the work to collect until there is no more work to do.
+			if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerAgent {
+				if err := r.collectNodeCounts(
+					ctx,
+					reconciler,
+					&gkmCache,
+					gkmCacheStatus,
+					namespaceCnts,
+				); err != nil {
+					errorHit = true
+					continue
 				}
-				for _, pvcNamespace := range namespaceList {
-					var pvcStatus gkmv1alpha1.PvcStatus
-					skipPvcCopy := false
+			}
 
-					namespaceExists, namespaceDeleting, err := r.namespaceExists(ctx, pvcNamespace)
-					if err != nil {
+			// Loop through the list of Namespaces. For GKMCache, it's just the namespace
+			// GKMCache is created in. For ClusterGKMCache, it's the Workload Namespace list
+			// that was provided in ClusterGKMCache.
+			namespaceList := gkmCache.GetWorkloadNamespaces()
+			if len(namespaceList) == 0 {
+				if gkmCache.GetNamespace() == "" {
+					r.Logger.Info("No namespaces in ClusterGKMCache Spec.WorkloadNamespaces, so no PVCs created",
+						"Namespace", gkmCache.GetNamespace(),
+						"Name", gkmCache.GetName(),
+					)
+				}
+			}
+			for _, pvcNamespace := range namespaceList {
+				var pvcStatus gkmv1alpha1.PvcStatus
+				skipPvcCopy := false
+
+				namespaceExists, namespaceDeleting, err := r.namespaceExists(ctx, pvcNamespace)
+				if err != nil {
+					errorHit = true
+					continue
+				}
+
+				// CREATE or UPDATE
+				if !cacheDeleting && !namespaceDeleting {
+
+					// Get the PVC Status, which is the Per Namespace PV and PVC information.
+					if gkmCacheStatus.PvcStatus == nil {
+						gkmCacheStatus.PvcStatus = make(map[string]gkmv1alpha1.PvcStatus)
+						updated = true
+						updateReason = "PvcStatus Allocation"
+					}
+
+					var pvcStatusExisted bool
+					pvcStatus, pvcStatusExisted = gkmCacheStatus.PvcStatus[pvcNamespace]
+					if !pvcStatusExisted {
+						pvcStatus = gkmv1alpha1.PvcStatus{}
+						gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondPending.Condition())
+						pvcStatus.PvcOwner = gkmv1alpha1.PvcOwnerOperator
+						updated = true
+						updateReason = "PvcStatus Initialization"
+					}
+
+					// Manage PV, PVC and Job used for extracted GPU Kernel Cache
+					if pvcUpdated, pvcUpdateReason, pending, err := r.managePvcStatusModify(
+						ctx,
+						reconciler,
+						&gkmCache,
+						gkmCacheStatus,
+						&pvcStatus,
+						pvcNamespace,
+						resolvedDigest,
+						capacity,
+						namespaceExists,
+						namespaceCnts,
+					); err != nil {
 						errorHit = true
+						continue
+					} else if pvcUpdated {
+						updated = true
+						updateReason = pvcUpdateReason
+					} else if pending {
+						stillInUse = true
+					}
+				} else {
+					// DELETE
+
+					// Get the PVC Status, which is the Per Namespace PV and PVC information.
+					// If it doesn't exist for this Namespace, then move on to the next Namespace.
+					if gkmCacheStatus.PvcStatus == nil {
 						continue
 					}
 
-					// CREATE or UPDATE
-					if !cacheDeleting && !namespaceDeleting {
+					var pvcStatusExisted bool
+					pvcStatus, pvcStatusExisted = gkmCacheStatus.PvcStatus[pvcNamespace]
+					if !pvcStatusExisted {
+						continue
+					}
 
-						// Get the PVC Status, which is the Per Namespace PV and PVC information.
-						if gkmCacheStatus.PvcStatus == nil {
-							gkmCacheStatus.PvcStatus = make(map[string]gkmv1alpha1.PvcStatus)
+					if updated, updateReason, pvcInUse, pvcDeleting, err = common.ManagePvcStatusDelete(
+						ctx,
+						r.Client,
+						gkmCache.GetNamespace(),
+						gkmCache.GetName(),
+						"", // NodeName
+						&pvcStatus,
+						gkmv1alpha1.PvcOwnerOperator,
+						pvcNamespace,
+						resolvedDigest,
+						r.Logger,
+					); err != nil {
+						errorHit = true
+						continue
+					} else if pvcInUse || pvcDeleting {
+						stillInUse = true
+						if !gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
+							gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondDeleting.Condition())
 							updated = true
-							updateReason = "PvcStatus Allocation"
-						}
-
-						var pvcStatusExisted bool
-						pvcStatus, pvcStatusExisted = gkmCacheStatus.PvcStatus[pvcNamespace]
-						if !pvcStatusExisted {
-							pvcStatus = gkmv1alpha1.PvcStatus{}
-							gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondPending.Condition())
-							pvcStatus.PvcOwner = gkmv1alpha1.PvcOwnerOperator
-							updated = true
-							updateReason = "PvcStatus Initialization"
-						}
-
-						// Manage PV, PVC and Job used for extracted GPU Kernel Cache
-						if pvcUpdated, pvcUpdateReason, pending, err := r.managePvcStatusModify(
-							ctx,
-							reconciler,
-							&gkmCache,
-							gkmCacheStatus,
-							&pvcStatus,
-							pvcNamespace,
-							resolvedDigest,
-							capacity,
-							namespaceExists,
-						); err != nil {
-							errorHit = true
-							continue
-						} else if pvcUpdated {
-							updated = true
-							updateReason = pvcUpdateReason
-						} else if pending {
-							stillInUse = true
-						}
-					} else {
-						// DELETE
-						pvcInUse := false
-
-						// Get the PVC Status, which is the Per Namespace PV and PVC information.
-						// If it doesn't exist for this Namespace, then move on to the next Namespace.
-						if gkmCacheStatus.PvcStatus == nil {
-							continue
-						}
-
-						var pvcStatusExisted bool
-						pvcStatus, pvcStatusExisted = gkmCacheStatus.PvcStatus[pvcNamespace]
-						if !pvcStatusExisted {
-							continue
-						}
-
-						var pvcDeleting bool
-						if updated, updateReason, pvcInUse, pvcDeleting, err = common.ManagePvcStatusDelete(
-							ctx,
-							r.Client,
-							gkmCache.GetNamespace(),
-							gkmCache.GetName(),
-							"", // NodeName
-							&pvcStatus,
-							gkmv1alpha1.PvcOwnerOperator,
-							pvcNamespace,
-							resolvedDigest,
-							r.Logger,
-						); err != nil {
-							errorHit = true
-							continue
-						} else if pvcInUse || pvcDeleting {
-							stillInUse = true
-							if !gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
-								gkmv1alpha1.SetPvcStatusConditions(&pvcStatus, gkmv1alpha1.GkmCondDeleting.Condition())
-								updated = true
-								updateReason = "Update Condition to Deleting"
-							}
-						}
-
-						// If nothing was updated, then this PVC Status can be removed.
-						if !updated && !pvcInUse {
-							delete(gkmCacheStatus.PvcStatus, pvcNamespace)
-							updated = true
-							skipPvcCopy = true
-							updateReason = "Remove PVC Namespace entry"
+							updateReason = "Update Condition to Deleting"
 						}
 					}
 
-					if updated {
-						if !skipPvcCopy {
-							// Update the Cache Status copy of the PVC Status before writing the data below.
-							gkmCacheStatus.PvcStatus[pvcNamespace] = pvcStatus
-						}
-						break
+					// If nothing was updated, then this PVC Status can be removed.
+					if !updated && !pvcInUse && !pvcDeleting {
+						delete(gkmCacheStatus.PvcStatus, pvcNamespace)
+						updated = true
+						skipPvcCopy = true
+						updateReason = "Remove PVC Namespace entry"
 					}
-				} // For each Namespace
+				}
 
-				// Call KubeAPI to update the Status for the GKMCache (or ClusterGKMCache) that was
-				// modified above.
 				if updated {
-					gkmCacheStatus.LastUpdated = metav1.Now()
-					changed, err := reconciler.cacheUpdateStatus(ctx, &gkmCache, gkmCacheStatus, updateReason)
-					if err != nil {
-						errorHit = true
-						continue
+					if !skipPvcCopy {
+						// Update the Cache Status copy of the PVC Status before writing the data below.
+						gkmCacheStatus.PvcStatus[pvcNamespace] = pvcStatus
+					}
+					break
+				}
+			} // For each Namespace
+
+			// Call KubeAPI to update the Status for the GKMCache (or ClusterGKMCache) that was
+			// modified above.
+			if updated {
+				gkmCacheStatus.LastUpdated = metav1.Now()
+				changed, err := reconciler.cacheUpdateStatus(ctx, &gkmCache, gkmCacheStatus, updateReason)
+				if err != nil {
+					errorHit = true
+					continue
+				} else {
+					// GKMCache Object was updated successfully.
+					// Return and Reconcile will be retriggered with the GKMCache Object.
+					r.Logger.V(1).Info("Return after CacheStatus Write", "Reason", updateReason, "changed", changed)
+					if changed {
+						return ctrl.Result{Requeue: false}, nil
 					} else {
-						// GKMCache Object was updated successfully.
-						// Return and Reconcile will be retriggered with the GKMCache Object.
-						r.Logger.V(1).Info("Return after CacheStatus Write", "Reason", updateReason, "changed", changed)
-						if changed {
-							return ctrl.Result{Requeue: false}, nil
-						} else {
-							return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
-						}
+						return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
 					}
 				}
 			}
 
-			// Call KubeAPI to Retrieve the list of GKMCacheNodes for this Namespace.
-			// Should be one per Node if GKMCache was created in the Namespace.
-			opts := []client.ListOption{
-				client.InNamespace(gkmCache.GetNamespace()),
-			}
-			gkmCacheNodeList, err := reconciler.getCacheNodeList(ctx, opts)
-			if err != nil {
-				// Error returned if unable to call KubeAPI. Don't block Reconcile on one instance,
-				// log and go to next GKMCache.
-				r.Logger.Error(err, "failed to get GKMCacheNode List", "Namespace", gkmCache.GetNamespace(), "Name", gkmCache.GetName())
-				errorHit = true
-				continue
-			}
-
-			// Loop through each GKMCacheNode (i.e. each Node)
-			for _, gkmCacheNode := range (*gkmCacheNodeList).GetItems() {
-				nodeStatus := gkmCacheNode.GetStatus()
-				if nodeStatus != nil {
-					// See if this GKMCache has been added to the GKMCacheNode
-					if _, ok := nodeStatus.CacheStatuses[gkmCache.GetName()]; ok {
-						// This Cache was found in a GKMCacheNode instance
-						gkmCacheStatus.Counts.NodeCnt += nodeStatus.Counts.NodeCnt
-						gkmCacheStatus.Counts.NodeInUseCnt += nodeStatus.Counts.NodeInUseCnt
-						gkmCacheStatus.Counts.NodeNotInUseCnt += nodeStatus.Counts.NodeNotInUseCnt
-						gkmCacheStatus.Counts.NodeErrorCnt += nodeStatus.Counts.NodeErrorCnt
-						gkmCacheStatus.Counts.PodRunningCnt += nodeStatus.Counts.PodRunningCnt
-						gkmCacheStatus.Counts.PodDeletingCnt += nodeStatus.Counts.PodDeletingCnt
-						gkmCacheStatus.Counts.PodOutdatedCnt += nodeStatus.Counts.PodOutdatedCnt
-					}
+			// If Agent managed, the counts were collected above, so collect for
+			// Operator managed now.
+			if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerOperator {
+				if err := r.collectNodeCounts(
+					ctx,
+					reconciler,
+					&gkmCache,
+					gkmCacheStatus,
+					namespaceCnts,
+				); err != nil {
+					errorHit = true
+					continue
 				}
 			}
 
-			r.Logger.V(1).Info("Processed GKMCache",
-				"Namespace", gkmCache.GetNamespace(),
-				"CacheName", gkmCache.GetName(),
-				"NodeCnt", gkmCacheStatus.Counts.NodeCnt,
-				"NodeInUse", gkmCacheStatus.Counts.NodeInUseCnt,
-				"NodeNotInUse", gkmCacheStatus.Counts.NodeNotInUseCnt,
-				"NodeError", gkmCacheStatus.Counts.NodeErrorCnt,
-				"PodRunning", gkmCacheStatus.Counts.PodRunningCnt,
-				"PodDeleting", gkmCacheStatus.Counts.PodDeletingCnt,
-				"PodOutdated", gkmCacheStatus.Counts.PodOutdatedCnt,
-				"Conditions", gkmCacheStatus.Conditions,
-			)
-
-			if !cacheDeleting {
-				reason := "Update Counts"
-				// Adjust Condition if need. If Operator owns the PVC extraction, then
-				// wait for Pending and Downloading state to clear before adjusting based
-				// on GKMCacheNode or ClusterGKMCacheNode counts.
-				if gkmCacheStatus.Counts.NodeErrorCnt != 0 {
-					if !gkmv1alpha1.GkmCondError.IsConditionSet(gkmCacheStatus.Conditions) {
-						r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondError.Condition())
-						reason = "Set Error Condition"
-					}
-				} else if gkmCacheStatus.Counts.PodOutdatedCnt != 0 {
-					if !gkmv1alpha1.GkmCondOutdated.IsConditionSet(gkmCacheStatus.Conditions) {
-						r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondOutdated.Condition())
-						reason = "Set Outdated Condition"
-					}
-				} else if gkmCacheStatus.Counts.NodeInUseCnt != 0 {
-					if !gkmv1alpha1.GkmCondRunning.IsConditionSet(gkmCacheStatus.Conditions) {
-						r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondRunning.Condition())
-						reason = "Set Running Condition"
-					}
-				} else if gkmCacheStatus.Counts.NodeNotInUseCnt != 0 {
-					if !gkmv1alpha1.GkmCondExtracted.IsConditionSet(gkmCacheStatus.Conditions) {
-						r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondExtracted.Condition())
-						reason = "Set Extracted Condition"
-					}
+			// Adjust the Cache Condition if need. This is a summary of all the Nodes.
+			if gkmCacheStatus.Counts.NodeErrorCnt != 0 {
+				if !gkmv1alpha1.GkmCondError.IsConditionSet(gkmCacheStatus.Conditions) {
+					r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondError.Condition())
+					updated = true
+					updateReason = "Set Error Cache Condition"
 				}
+			} else if gkmCacheStatus.Counts.PodOutdatedCnt != 0 {
+				if !gkmv1alpha1.GkmCondOutdated.IsConditionSet(gkmCacheStatus.Conditions) {
+					r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondOutdated.Condition())
+					updated = true
+					updateReason = "Set Outdated Cache Condition"
+				}
+			} else if gkmCacheStatus.Counts.NodeInUseCnt != 0 {
+				if !gkmv1alpha1.GkmCondRunning.IsConditionSet(gkmCacheStatus.Conditions) {
+					r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondRunning.Condition())
+					updated = true
+					updateReason = "Set Running Cache Condition"
+				}
+			} else if gkmCacheStatus.Counts.NodeNotInUseCnt != 0 {
+				if !gkmv1alpha1.GkmCondExtracted.IsConditionSet(gkmCacheStatus.Conditions) {
+					r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondExtracted.Condition())
+					updated = true
+					updateReason = "Set Extracted Cache Condition"
+				}
+			}
 
-				if !reflect.DeepEqual(gkmCache.GetStatus(), gkmCacheStatus) {
-					gkmCacheStatus.LastUpdated = metav1.Now()
+			if updated || !reflect.DeepEqual(gkmCache.GetStatus(), gkmCacheStatus) {
+				gkmCacheStatus.LastUpdated = metav1.Now()
 
-					if changed, err := reconciler.cacheUpdateStatus(ctx, &gkmCache, gkmCacheStatus, reason); err != nil {
-						errorHit = true
-						continue
+				if changed, err := reconciler.cacheUpdateStatus(ctx, &gkmCache, gkmCacheStatus, updateReason); err != nil {
+					errorHit = true
+					continue
+				} else {
+					// GKMCache Object was updated successfully.
+					// Return and Reconcile will be retriggered with the GKMCache Object.
+					r.Logger.V(1).Info("Return after CacheStatus Write", "Reason", updateReason, "changed", changed)
+					if changed {
+						return ctrl.Result{Requeue: false}, nil
 					} else {
-						// GKMCache Object was updated successfully.
-						// Return and Reconcile will be retriggered with the GKMCache Object.
-						r.Logger.V(1).Info("Return after CacheStatus Write", "Reason", reason, "changed", changed)
-						if changed {
-							return ctrl.Result{Requeue: false}, nil
-						} else {
-							return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
-						}
+						return ctrl.Result{Requeue: true, RequeueAfter: utils.RetryAgentNodeStatusUpdate}, nil
 					}
 				}
-			} else {
-				if gkmCacheStatus.Counts.NodeCnt == 0 {
+			}
+
+			if cacheDeleting {
+				if gkmCacheStatus.Counts.NodeCnt == 0 && !pvcDeleting {
 					// Everything should be cleaned up, so delete the GKMCacheNode specific
 					// finalizer from the GKMCache.
 					changed, err := reconciler.cacheRemoveFinalizer(ctx, &gkmCache)
@@ -486,7 +501,7 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) reconcileCommonOperator(
 					stillInUse = true
 				}
 			}
-		}
+		} // FOR EACH GKMCache
 	}
 
 	// Walk the GKMCacheNode or ClusterGKMCacheNode and determine if any PVCs are stranded.
@@ -524,6 +539,7 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePvcStatusModify(
 	resolvedDigest string,
 	capacity string,
 	namespaceExists bool,
+	namespaceCnts map[string]*gkmv1alpha1.CacheCounts,
 ) (bool, string, bool, error) {
 	updated := false
 	updateReason := ""
@@ -534,7 +550,7 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePvcStatusModify(
 	// If updated is already true, still manage PV and PVCs, because up to this
 	// point, it's just been initialization and allocation of structures, no
 	// actual work on kube objects.
-	if updated, updateReason, err := r.managePVandPVC(
+	if updated, updateReason, pending, err := r.managePVandPVC(
 		ctx,
 		reconciler,
 		gkmCache,
@@ -543,18 +559,22 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePvcStatusModify(
 		pvcNamespace,
 		capacity,
 		namespaceExists,
-	); err != nil || updated {
+		namespaceCnts,
+	); err != nil || updated || pending {
 		return updated, updateReason, pending, err
 	}
 
 	// Launch Job to Extract Cache
-	updated, updateReason, pending, err = r.manageJob(
-		ctx,
-		gkmCache,
-		pvcStatus,
-		pvcNamespace,
-		resolvedDigest,
-	)
+	if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerOperator {
+		updated, updateReason, pending, err = r.manageJob(
+			ctx,
+			gkmCache,
+			pvcStatus,
+			pvcNamespace,
+			resolvedDigest,
+		)
+	}
+
 	return updated, updateReason, pending, err
 }
 
@@ -570,9 +590,12 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePVandPVC(
 	pvcNamespace string,
 	capacity string,
 	namespaceExists bool,
-) (bool, string, error) {
+	namespaceCnts map[string]*gkmv1alpha1.CacheCounts,
+) (bool, string, bool, error) {
 	updated := false
 	updateReason := ""
+	pending := false
+
 	pvCreated := false
 
 	if gkmv1alpha1.GkmCondNoNamespace.IsConditionSet(pvcStatus.Conditions) {
@@ -588,131 +611,171 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePVandPVC(
 	// launched for this Namespace. Make sure the PV and PVC are in a valid state to handle the extraction.
 	if gkmv1alpha1.GkmCondPending.IsConditionSet(pvcStatus.Conditions) {
 		r.Logger.Info("Condition is Pending so managing PV/PVC")
-		if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerOperator {
-			if !namespaceExists {
-				gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondNoNamespace.Condition())
-				updated = true
-				updateReason = "Update Condition to No Namespace"
-				return updated, updateReason, nil
-			}
 
-			// The preferred method for creating a PV is to create the PVC and Kubelet auto-creates the PV.
-			// In a KIND cluster, there is not a true CSI driver for storage management, so the PV must be
-			// manually created.
-			if r.NoGpu {
-				_, found, updatedName, err := common.PvExists(
+		if !namespaceExists {
+			gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondNoNamespace.Condition())
+			updated = true
+			updateReason = "Update Condition to No Namespace"
+			return updated, updateReason, pending, nil
+		}
+		// Hold off creating the Serving PV/PVC until at least one Download PVC has completed
+		if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerAgent &&
+			gkmCacheStatus.Counts.NodeInUseCnt == 0 && gkmCacheStatus.Counts.NodeNotInUseCnt == 0 {
+			pending = true
+			return updated, updateReason, pending, nil
+		}
+
+		// The preferred method for creating a PV is to create the PVC and Kubelet auto-creates the PV.
+		// In a KIND cluster, there is not a true CSI driver for storage management, so the PV must be
+		// manually created.
+		if r.NoGpu {
+			_, found, updatedName, err := common.PvExists(
+				ctx,
+				r.Client,
+				(*gkmCache).GetName(),
+				"", // NodeName
+				pvcStatus.PvName,
+				pvcNamespace,
+				gkmCacheStatus.ResolvedDigest,
+				r.Logger,
+			)
+			if err != nil {
+				return updated, updateReason, pending, err
+			} else if updatedName != "" {
+				pvcStatus.PvName = updatedName
+				updated = true
+				updateReason = "Writing PV Name"
+				pvCreated = true
+			} else if !found {
+				// Call KubeAPI to create the PV.
+				pvcStatus.PvName = utils.GenerateUniqueName((*gkmCache).GetName())
+
+				accessModes := []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOnce,
+				}
+
+				err := common.CreatePv(
 					ctx,
 					r.Client,
+					r.Scheme,
+					(*gkmCache).GetClientObject(),
+					(*gkmCache).GetNamespace(),
 					(*gkmCache).GetName(),
 					"", // NodeName
 					pvcStatus.PvName,
 					pvcNamespace,
+					accessModes,
+					(*gkmCache).GetStorageClassName(),
+					capacity,
 					gkmCacheStatus.ResolvedDigest,
 					r.Logger,
 				)
+
 				if err != nil {
-					return updated, updateReason, err
-				} else if updatedName != "" {
-					pvcStatus.PvName = updatedName
-					updated = true
-					updateReason = "Writing PV Name"
-					pvCreated = true
-				} else if !found {
-					// Call KubeAPI to create the PV.
-					pvcStatus.PvName = utils.GenerateUniqueName((*gkmCache).GetName())
-
-					accessModes := []corev1.PersistentVolumeAccessMode{
-						corev1.ReadWriteMany,
-					}
-
-					err := common.CreatePv(
-						ctx,
-						r.Client,
-						r.Scheme,
-						(*gkmCache).GetClientObject(),
-						(*gkmCache).GetNamespace(),
-						(*gkmCache).GetName(),
-						"", // NodeName
-						pvcStatus.PvName,
-						pvcNamespace,
-						accessModes,
-						(*gkmCache).GetStorageClassName(),
-						capacity,
-						gkmCacheStatus.ResolvedDigest,
-						r.Logger,
-					)
-
-					if err != nil {
-						return false, updateReason, err
-					}
-
-					updated = true
-					updateReason = "Create PV"
-					pvCreated = true
+					return false, updateReason, pending, err
 				}
-			}
 
-			// If PV was not written above, then determine if PVC needs to be created.
-			if !pvCreated {
-				_ /* pvc */, found, updatedName, err := common.PvcExists(
+				updated = true
+				updateReason = "Create PV"
+				pvCreated = true
+			}
+		}
+
+		// If PV was not written above, then determine if PVC needs to be created.
+		if !pvCreated {
+			_ /* pvc */, found, updatedName, err := common.PvcExists(
+				ctx,
+				r.Client,
+				(*gkmCache).GetName(),
+				"", // NodeName
+				pvcStatus.PvcName,
+				pvcNamespace,
+				gkmCacheStatus.ResolvedDigest,
+				r.Logger,
+			)
+			if err != nil {
+				return updated, updateReason, pending, err
+			} else if updatedName != "" {
+				pvcStatus.PvcName = updatedName
+				updated = true
+				updateReason = "Writing PVC Name"
+			} else if !found {
+				// Call KubeAPI to create the PVC.
+				//
+				// For both GKMCache and ClusterGKMCache, just use the cache name, because PVCs
+				// always created in a Namespace. For GKMCache, it's the same namespaces as the
+				// GKMCache. For ClusterGKMCache, name is unique at cluster level and will be
+				// created in GKMDefaultNamespace.
+				pvcStatus.PvcName = (*gkmCache).GetName()
+
+				accessModes := []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOnce,
+				}
+
+				err := common.CreatePvc(
 					ctx,
 					r.Client,
+					r.Scheme,
+					(*gkmCache).GetClientObject(),
+					(*gkmCache).GetNamespace(),
 					(*gkmCache).GetName(),
-					"", // NodeName
+					"",
+					pvcStatus.PvName,
 					pvcStatus.PvcName,
 					pvcNamespace,
+					accessModes,
+					(*gkmCache).GetStorageClassName(),
+					capacity,
 					gkmCacheStatus.ResolvedDigest,
 					r.Logger,
 				)
+
 				if err != nil {
-					return updated, updateReason, err
-				} else if updatedName != "" {
-					pvcStatus.PvcName = updatedName
+					return updated, updateReason, pending, err
+				}
+
+				updated = true
+				updateReason = "Create PVC"
+
+				// This is the Serving PVC so OCI Image was extracted via the Download PVC, so set
+				// condition to extracted.
+				if !gkmv1alpha1.IsConditionDownloadSet(pvcStatus.Conditions) {
+					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondExtracted.Condition())
+				}
+			}
+		}
+	} else {
+		if cnts, exists := namespaceCnts[pvcNamespace]; exists {
+			// Adjust the Cache Condition if need. This is a summary of all the Nodes.
+			if cnts.NodeErrorCnt != 0 {
+				if !gkmv1alpha1.GkmCondError.IsConditionSet(pvcStatus.Conditions) {
+					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondExtracted.Condition())
 					updated = true
-					updateReason = "Writing PVC Name"
-				} else if !found {
-					// Call KubeAPI to create the PVC.
-					//
-					// For both GKMCache and ClusterGKMCache, just use the cache name, because PVCs
-					// always created in a Namespace. For GKMCache, it's the same namespaces as the
-					// GKMCache. For ClusterGKMCache, name is unique at cluster level and will be
-					// created in GKMDefaultNamespace.
-					pvcStatus.PvcName = (*gkmCache).GetName()
-
-					accessModes := []corev1.PersistentVolumeAccessMode{
-						corev1.ReadWriteMany,
-					}
-
-					err := common.CreatePvc(
-						ctx,
-						r.Client,
-						r.Scheme,
-						(*gkmCache).GetClientObject(),
-						(*gkmCache).GetNamespace(),
-						(*gkmCache).GetName(),
-						"",
-						pvcStatus.PvName,
-						pvcStatus.PvcName,
-						pvcNamespace,
-						accessModes,
-						(*gkmCache).GetStorageClassName(),
-						capacity,
-						gkmCacheStatus.ResolvedDigest,
-						r.Logger,
-					)
-
-					if err != nil {
-						return updated, updateReason, err
-					}
-
+					updateReason = "Set Error PVC Condition"
+				}
+			} else if cnts.PodOutdatedCnt != 0 {
+				if !gkmv1alpha1.GkmCondOutdated.IsConditionSet(pvcStatus.Conditions) {
+					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondOutdated.Condition())
 					updated = true
-					updateReason = "Create PVC"
+					updateReason = "Set Outdated PVC Condition"
+				}
+			} else if cnts.NodeInUseCnt != 0 {
+				if !gkmv1alpha1.GkmCondRunning.IsConditionSet(pvcStatus.Conditions) {
+					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondRunning.Condition())
+					updated = true
+					updateReason = "Set Running PVC Condition"
+				}
+			} else if cnts.NodeNotInUseCnt != 0 {
+				if !gkmv1alpha1.GkmCondExtracted.IsConditionSet(pvcStatus.Conditions) {
+					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondExtracted.Condition())
+					updated = true
+					updateReason = "Set Extracted PVC Condition"
 				}
 			}
 		}
 	}
 
-	return updated, updateReason, nil
+	return updated, updateReason, pending, nil
 }
 
 // manageJob determines if the GPU Kernel Cache has been extracted. If not, checks the condition and either
@@ -748,6 +811,7 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) manageJob(
 			"Name", (*gkmCache).GetName(),
 			"digest", resolvedDigest,
 			"NoGpu", r.NoGpu,
+			"KIND", r.KindCluster,
 			"ExtractImage", r.ExtractImage,
 		)
 
@@ -762,10 +826,12 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) manageJob(
 			(*gkmCache).GetImage(),
 			resolvedDigest,
 			r.NoGpu,
+			r.KindCluster,
 			r.ExtractImage,
 			pvcStatus,
 			(*gkmCache).GetPodTemplate(),
 			r.Logger,
+			r.ExtractLogLevel,
 		)
 
 		if err != nil {
@@ -872,96 +938,78 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) manageJob(
 	return updated, updateReason, stillPending, err
 }
 
-// manageStrandedPvcs walks the GKMCacheNode or ClusterGKMCacheNode and determines if any PVCs are
-// stranded (GKMCache or ClusterGKMCache was deleted but Pod was still using PVC). If so, see if the
-// Pod using them is still active. If not, clean them up.
-func (r *ReconcilerCommonOperator[C, CL, N, NL]) manageStrandedPvcs(
+func (r *ReconcilerCommonOperator[C, CL, N, NL]) collectNodeCounts(
 	ctx context.Context,
 	reconciler OperatorReconciler[C, CL, N, NL],
-	inUseGkmCacheList map[string]bool,
-) (bool, bool) {
-	pending := false
-	errorHit := false
-
-	r.Logger.V(1).Info("ENTER manageStrandedPvcs()")
-
-	gkmCacheNodeList, err := reconciler.getCacheNodeList(ctx, []client.ListOption{})
+	gkmCache *C,
+	gkmCacheStatus *gkmv1alpha1.GKMCacheStatus,
+	namespaceCnts map[string]*gkmv1alpha1.CacheCounts,
+) error {
+	// Call KubeAPI to Retrieve the list of GKMCacheNodes for a Namespace or
+	// ClusterGKMCacheNodes. Should be one per Node.
+	opts := []client.ListOption{
+		client.InNamespace((*gkmCache).GetNamespace()),
+	}
+	gkmCacheNodeList, err := reconciler.getCacheNodeList(ctx, opts)
 	if err != nil {
-		errorHit = true
-		return pending, errorHit
+		// Error returned if unable to call KubeAPI. Don't block Reconcile on one instance,
+		// log and go to next GKMCache.
+		r.Logger.Error(err, "failed to get GKMCacheNode List",
+			"Namespace", (*gkmCache).GetNamespace(),
+			"Name", (*gkmCache).GetName())
+		return err
 	}
 
-	if (*gkmCacheNodeList).GetItemsLen() == 0 {
-		// KubeAPI doesn't have any GKMCacheNode instances
-		r.Logger.Info("No GKMCacheNode entries found")
-	} else {
-		// There are GKMCacheNode instances created, so loop through each and any check if PVCs are stranded.
-		for _, gkmCacheNode := range (*gkmCacheNodeList).GetItems() {
-			r.Logger.V(1).Info("Verifying Cache Node",
-				"Object", r.CrdCacheStr,
-				"Namespace", gkmCacheNode.GetNamespace(),
-				"Name", gkmCacheNode.GetName(),
-			)
-			nodeStatus := gkmCacheNode.GetStatus()
-			if nodeStatus != nil {
-				for cacheName, digestList := range nodeStatus.CacheStatuses {
-					// Check to see if GKMCache was processed above in main loop. If so, skip over.
-					if _, ok := inUseGkmCacheList[cacheName]; ok {
-						r.Logger.V(1).Info("Skipping Cache because Cache still exists",
-							"Object", r.CrdCacheStr,
-							"Namespace", gkmCacheNode.GetNamespace(),
-							"Name", cacheName,
-						)
-						continue
-					}
+	// Loop through each GKMCacheNode (i.e. each Node)
+	for _, gkmCacheNode := range (*gkmCacheNodeList).GetItems() {
+		nodeStatus := gkmCacheNode.GetStatus()
+		if nodeStatus != nil {
+			// See if this GKMCache has been added to the GKMCacheNode
+			if _, ok := nodeStatus.CacheStatuses[(*gkmCache).GetName()]; ok {
+				// This Cache was found in a GKMCacheNode instance so collect a summary
+				// of the counts for all Namespaces (cluster scoped may have more than
+				// one namespace).
+				gkmCacheStatus.Counts.NodeCnt += nodeStatus.Counts.NodeCnt
+				gkmCacheStatus.Counts.NodeInUseCnt += nodeStatus.Counts.NodeInUseCnt
+				gkmCacheStatus.Counts.NodeNotInUseCnt += nodeStatus.Counts.NodeNotInUseCnt
+				gkmCacheStatus.Counts.NodeErrorCnt += nodeStatus.Counts.NodeErrorCnt
+				gkmCacheStatus.Counts.PodRunningCnt += nodeStatus.Counts.PodRunningCnt
+				gkmCacheStatus.Counts.PodDeletingCnt += nodeStatus.Counts.PodDeletingCnt
+				gkmCacheStatus.Counts.PodOutdatedCnt += nodeStatus.Counts.PodOutdatedCnt
 
+				for cacheName, digestList := range nodeStatus.CacheStatuses {
 					for digest, cacheStatus := range digestList {
 						for namespace, pvcStatus := range cacheStatus.PvcStatus {
-							if pvcStatus.PvcOwner == gkmv1alpha1.PvcOwnerOperator &&
-								gkmv1alpha1.GkmCondDeleting.IsConditionSet(pvcStatus.Conditions) {
-								r.Logger.Info("PVC is in Deleting State",
-									"Object", r.CrdCacheNodeStr,
-									"Name", cacheName,
-									"Digest", digest,
-									"Namespace", namespace,
-									"PVC", pvcStatus.PvcName,
-									"PV", pvcStatus.PvName,
-								)
-								pvcUpdated, pvcUpdateReason, pvcInUse, pvcDeleting, err := common.ManagePvcStatusDelete(
-									ctx,
-									r.Client,
-									namespace,
-									cacheName,
-									"", // NodeName
-									&pvcStatus,
-									gkmv1alpha1.PvcOwnerOperator,
-									namespace,
-									digest,
-									r.Logger,
-								)
-								if err != nil {
-									errorHit = true
-									continue
-								}
-								// This PVC Status is associated with the GKMCacheNode or ClusterGKMCacheNode.
-								// Operator cannot update it. The CacheNode is being used to store the PV and PVC
-								// names. So if something was updated (PVC or PV was deleted), just mark pending so
-								// this code checks again to see if anything needs to be deleted.
-								if pvcUpdated || pvcDeleting {
-									pending = true
-									r.Logger.Info("PVC still In Use or was Updated",
-										"Object", r.CrdCacheNodeStr,
-										"Name", cacheName,
-										"Digest", digest,
-										"Namespace", namespace,
-										"PVC", pvcStatus.PvcName,
-										"PV", pvcStatus.PvName,
-										"Still In Use", pvcInUse,
-										"Deleting", pvcDeleting,
-										"Updated", pvcUpdated,
-										"Reason", pvcUpdateReason,
-									)
-								}
+							r.Logger.Info("Looping through namespaces",
+								"Name", cacheName,
+								"Namespace", namespace,
+								"Digest", digest,
+								"pvcStatus", pvcStatus)
+
+							// Check if namespace exists
+							cnts, exists := namespaceCnts[namespace]
+
+							// Allocate if missing
+							if !exists {
+								cnts = &gkmv1alpha1.CacheCounts{}
+								namespaceCnts[namespace] = cnts
+							}
+
+							switch gkmv1alpha1.GetLatestConditionType(pvcStatus.Conditions).Type {
+							case string(gkmv1alpha1.GkmCondPending):
+								// Temp state, ignore
+							case string(gkmv1alpha1.GkmCondExtracted):
+								cnts.NodeNotInUseCnt++
+							case string(gkmv1alpha1.GkmCondRunning):
+								cnts.NodeInUseCnt++
+							case string(gkmv1alpha1.GkmCondDeleting):
+								cnts.PodDeletingCnt++
+							case string(gkmv1alpha1.GkmCondError):
+								cnts.NodeErrorCnt++
+							case string(gkmv1alpha1.GkmCondUnloadError):
+								cnts.NodeErrorCnt++
+							case string(gkmv1alpha1.GkmCondOutdated):
+								gkmCacheStatus.Counts.PodOutdatedCnt++
 							}
 						}
 					}
@@ -969,6 +1017,227 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) manageStrandedPvcs(
 			}
 		}
 	}
+
+	r.Logger.V(1).Info("Processed GKMCache",
+		"Namespace", (*gkmCache).GetNamespace(),
+		"CacheName", (*gkmCache).GetName(),
+		"NodeCnt", gkmCacheStatus.Counts.NodeCnt,
+		"NodeInUse", gkmCacheStatus.Counts.NodeInUseCnt,
+		"NodeNotInUse", gkmCacheStatus.Counts.NodeNotInUseCnt,
+		"NodeError", gkmCacheStatus.Counts.NodeErrorCnt,
+		"PodRunning", gkmCacheStatus.Counts.PodRunningCnt,
+		"PodDeleting", gkmCacheStatus.Counts.PodDeletingCnt,
+		"PodOutdated", gkmCacheStatus.Counts.PodOutdatedCnt,
+		"Conditions", gkmCacheStatus.Conditions,
+	)
+
+	return nil
+}
+
+// manageStrandedPvcs walks the GKMCacheNode or ClusterGKMCacheNode and determines if any PVCs are
+// stranded (GKMCache or ClusterGKMCache was deleted but Pod was still using PVC). If so, see if the
+// Pod using them is still active. If not, clean them up.
+func (r *ReconcilerCommonOperator[C, CL, N, NL]) manageStrandedPvcs(
+	ctx context.Context,
+	reconciler OperatorReconciler[C, CL, N, NL],
+	inUseGkmCacheList map[string]map[string]bool,
+) (bool, bool) {
+	pending := false
+	errorHit := false
+
+	r.Logger.V(1).Info("ENTER manageStrandedPvcs()")
+
+	pvcList, err := common.GetGkmPvcList(ctx, r.Client, r.Logger)
+	if err != nil {
+		errorHit = true
+		return pending, errorHit
+	}
+
+	for _, pvc := range pvcList {
+		// Retrieve the Cache Name from the labels in the PVC.
+		labels := pvc.GetLabels()
+
+		gkmCacheNamespace, found := labels[utils.PvcLabelCacheNamespace]
+		if !found {
+			continue
+		} else {
+			// If the Cache Namespace is empty, then this is a ClusterGKMCache created
+			// PVC, make sure the Object is the same. Else handles the inverse.
+			if gkmCacheNamespace == "" && r.CrdCacheStr != utils.CrdClusterGKMCache {
+				continue
+			} else if gkmCacheNamespace != "" && r.CrdCacheStr != utils.CrdGKMCache {
+				continue
+			}
+		}
+
+		gkmCacheName, found := labels[utils.PvcLabelCache]
+		if !found {
+			continue
+		}
+		pvName, found := labels[utils.PvcLabelPvName]
+		if !found {
+			continue
+		}
+		nodeName, found := labels[utils.PvcLabelNode]
+		if !found {
+			continue
+		}
+		digest, found := labels[utils.PvcLabelDigest]
+		if !found {
+			continue
+		}
+
+		if cl, ok := inUseGkmCacheList[gkmCacheNamespace]; ok {
+			if _, ok := cl[gkmCacheName]; ok {
+				r.Logger.V(1).Info("For PVC Skipping Cache because Cache still exists",
+					"Object", r.CrdCacheStr,
+					"Namespace", gkmCacheNamespace,
+					"Name", gkmCacheName,
+				)
+				continue
+			}
+		}
+
+		pvcStatus := gkmv1alpha1.PvcStatus{
+			PvName:   pvName,
+			PvcName:  pvc.Name,
+			PvcOwner: gkmv1alpha1.PvcOwnerOperator,
+		}
+
+		pvcUpdated, pvcUpdateReason, pvcInUse, pvcDeleting, err := common.ManagePvcStatusDelete(
+			ctx,
+			r.Client,
+			gkmCacheNamespace,
+			gkmCacheName,
+			nodeName,
+			&pvcStatus,
+			gkmv1alpha1.PvcOwnerOperator,
+			pvc.GetNamespace(), // pvcNamespace
+			digest,
+			r.Logger,
+		)
+		if err != nil {
+			errorHit = true
+			continue
+		}
+		// This PVC Status is associated with the GKMCacheNode or ClusterGKMCacheNode.
+		// Operator cannot update it. The CacheNode is being used to store the PV and PVC
+		// names. So if something was updated (PVC or PV was deleted), just mark pending so
+		// this code checks again to see if anything needs to be deleted.
+		if pvcUpdated || pvcDeleting {
+			pending = true
+			r.Logger.Info("PVC still In Use or was Updated",
+				"Object", r.CrdCacheNodeStr,
+				"Name", gkmCacheName,
+				"Digest", digest,
+				"Namespace", gkmCacheNamespace,
+				"PVC Namespace", pvc.GetNamespace(),
+				"PVC Name", pvc.GetName(),
+				"Still In Use", pvcInUse,
+				"Deleting", pvcDeleting,
+				"Updated", pvcUpdated,
+				"Reason", pvcUpdateReason,
+			)
+		}
+	}
+
+	// Process PVs. Only need to look for PVs in a Phase of Failed (no PVC).
+	// If they have a PVC, they will be in a Phase od Bonded.
+	pvList, err := common.GetGkmPvFailedList(ctx, r.Client, r.Logger)
+	if err != nil {
+		errorHit = true
+		return pending, errorHit
+	}
+
+	for _, pv := range pvList {
+		// Retrieve the Cache Name from the labels in the PV.
+		labels := pv.GetLabels()
+
+		gkmCacheNamespace, found := labels[utils.PvLabelCacheNamespace]
+		if !found {
+			continue
+		} else {
+			// If the Cache Namespace is empty, then this is a ClusterGKMCache created
+			// PV, make sure the Object is the same. Else handles the inverse.
+			if gkmCacheNamespace == "" && r.CrdCacheStr != utils.CrdClusterGKMCache {
+				continue
+			} else if gkmCacheNamespace != "" && r.CrdCacheStr != utils.CrdGKMCache {
+				continue
+			}
+		}
+
+		gkmCacheName, found := labels[utils.PvLabelCache]
+		if !found {
+			continue
+		}
+		nodeName, found := labels[utils.PvLabelNode]
+		if !found {
+			continue
+		}
+		digest, found := labels[utils.PvLabelDigest]
+		if !found {
+			continue
+		}
+		pvcNamespace, found := labels[utils.PvLabelPvcNamespace]
+		if !found {
+			continue
+		}
+
+		if cl, ok := inUseGkmCacheList[gkmCacheNamespace]; ok {
+			if _, ok := cl[gkmCacheName]; ok {
+				r.Logger.V(1).Info("For PV Skipping Cache because Cache still exists",
+					"Object", r.CrdCacheStr,
+					"Namespace", gkmCacheNamespace,
+					"Name", gkmCacheName,
+				)
+				continue
+			}
+		}
+
+		pvcStatus := gkmv1alpha1.PvcStatus{
+			PvName:   pv.Name,
+			PvcOwner: gkmv1alpha1.PvcOwnerOperator,
+		}
+
+		pvUpdated, pvUpdateReason, pvInUse, pvDeleting, err := common.ManagePvcStatusDelete(
+			ctx,
+			r.Client,
+			gkmCacheNamespace,
+			gkmCacheName,
+			nodeName,
+			&pvcStatus,
+			gkmv1alpha1.PvcOwnerOperator,
+			pvcNamespace,
+			digest,
+			r.Logger,
+		)
+		if err != nil {
+			errorHit = true
+			continue
+		}
+		// This PV Status is associated with the GKMCacheNode or ClusterGKMCacheNode.
+		// Operator cannot update it. The CacheNode is being used to store the PV and PVC
+		// names. So if something was updated (PVC or PV was deleted), just mark pending so
+		// this code checks again to see if anything needs to be deleted.
+		if pvUpdated || pvDeleting {
+			pending = true
+			r.Logger.Info("PV still In Use or was Updated",
+				"Object", r.CrdCacheNodeStr,
+				"Name", gkmCacheName,
+				"Digest", digest,
+				"Namespace", gkmCacheNamespace,
+				"PVC Namespace", pvcNamespace,
+				"PV Name", pv.GetName(),
+				"Still In Use", pvInUse,
+				"Deleting", pvDeleting,
+				"Updated", pvUpdated,
+				"Reason", pvUpdateReason,
+			)
+		}
+	}
+
+	r.Logger.V(1).Info("EXIT manageStrandedPvcs()")
+
 	return pending, errorHit
 }
 
@@ -990,4 +1259,16 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) namespaceExists(ctx context.Con
 	namespaceDeleting = !(*ns).GetDeletionTimestamp().IsZero()
 
 	return namespaceExists, namespaceDeleting, nil
+}
+
+// deterineOwner walks the list of AccessMode values and if any of the values are
+// ReadOnlyMany then the owner is PvcOwnerOperator, otherwise PvcOwnerAgent.
+func deterineOwner(accessMode []corev1.PersistentVolumeAccessMode) gkmv1alpha1.PvcOwner {
+	pvcOwner := gkmv1alpha1.PvcOwnerAgent
+	for _, mode := range accessMode {
+		if mode == corev1.ReadOnlyMany {
+			pvcOwner = gkmv1alpha1.PvcOwnerOperator
+		}
+	}
+	return pvcOwner
 }

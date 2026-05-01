@@ -5,33 +5,17 @@ import (
 )
 
 const (
-	// DefaultSocketFilename is the location of the Unix domain socket for this CSI driver
-	// for Kubelet to send requests.
-	DefaultSocketFilename string = "unix:///var/lib/kubelet/plugins/csi-gkm/csi.sock"
-
-	// DefaultImagePort is the location of port the Image Server will listen on for GKM
-	// to send requests.
-	DefaultImagePort string = ":50051"
-
-	// DefaultCacheDir is the default root directory to store the expanded the GPU Kernel
-	// images.
-	DefaultCacheDir = "/var/lib/gkm/caches"
-	CacheFilename   = "cache.json"
-
-	// DefaultUsageDir is the default root directory to store the usage data for the GPU Kernel
-	// images.
-	DefaultUsageDir = "/run/gkm/usage"
-	UsageFilename   = "usage.json"
-
-	// DefaultCacheDir is the default root directory to store the expanded the GPU Kernel
-	// images.
-	ClusterScopedSubDir = "cluster-scoped"
-
 	// Name of the GKM ConfigMap that is used to control how GKM is Deployed and Functions.
 	GKMConfigName = "gkm-config"
 
 	// Name of the GKM Namespace where Operator and Agent run.
 	GKMDefaultNamespace = "gkm-system"
+
+	// Name of the CRDs. Used in each reconciler as the CrdCacheStr.
+	CrdGKMCache            = "GKMCache"
+	CrdGKMCacheNode        = "GKMCacheNode"
+	CrdClusterGKMCache     = "ClusterGKMCache"
+	CrdClusterGKMCacheNode = "ClusterGKMCacheNode"
 
 	// GKMCache and ClusterGKMCache Annotations
 	GKMCacheAnnotationResolvedDigest  = "gkm.io/resolvedDigest"
@@ -46,14 +30,17 @@ const (
 	GKMCachePvcMutation           = "gkm.io/pvc-mutation"
 
 	// PV and PVC Labels
-	PvLabelCache         = "cache-name"
-	PvLabelPvcNamespace  = "pvc-namespace"
-	PvLabelNode          = "node"
-	PvLabelDigest        = "digest"
-	PvcLabelCache        = "cache-name"
-	PvcLabelPvcNamespace = "pvc-namespace"
-	PvcLabelNode         = "node"
-	PvcLabelDigest       = "digest"
+	PvLabelCache           = "cache-name"
+	PvLabelCacheNamespace  = "cache-namespace"
+	PvLabelPvcNamespace    = "pvc-namespace"
+	PvLabelNode            = "node"
+	PvLabelDigest          = "digest"
+	PvcLabelCache          = "cache-name"
+	PvcLabelCacheNamespace = "cache-namespace"
+	PvcLabelPvcNamespace   = "pvc-namespace"
+	PvcLabelNode           = "node"
+	PvcLabelDigest         = "digest"
+	PvcLabelPvName         = "pv-name"
 
 	// OCI Image Label
 	ImageLabelCacheSizeBytesSubstring = "cache-size-bytes"
@@ -65,6 +52,7 @@ const (
 	JobExtractEnvCacheDir        = "GKM_CACHE_DIR"
 	JobExtractEnvImageUrl        = "GKM_IMAGE_URL"
 	JobExtractEnvNoGpu           = "NO_GPU"
+	JobExtractEnvGoLog           = "GO_LOG"
 	JobExtractPvcSourceMountName = "gkm-pvc-source"
 	JobExtractLabelPvc           = "pvc"
 	JobExtractLabelDigest        = "digest"
@@ -73,7 +61,7 @@ const (
 	JobFSGroup                   = 1000
 	MaxLabelValueLength          = 60 // Labels can only be 63 characters
 	DigestPrefix                 = "sha256:"
-	MountPath                    = "/cache"
+	MountPath                    = "/kernel-caches"
 
 	// Kyverno Annotations
 	KyvernoVerifyImagesAnnotation = "kyverno.io/verify-images"
