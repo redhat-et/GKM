@@ -80,6 +80,11 @@ OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
 
+# Number of parallel jobs to use when running build-images. Default is 3, one for each image
+# being built. High number won't really speed it up. Parallels builds can be hard to debug,
+# so setting to 1 will make the builds sequential and easier to debug.
+MAX_JOBS ?= 3
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -223,7 +228,8 @@ build-image-gkm-extract:
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
-build-images: build-image-operator build-image-agent build-image-gkm-extract ## Build all container images.
+build-images: ## Build all container images in parallel (use MAX_JOBS=1 to build sequentially)
+	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-gkm-extract
 
 .PHONY: push-images
 push-images: ## Push all container image.
