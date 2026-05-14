@@ -26,11 +26,10 @@ The two major factors that dictate deployment are:
 - **Cluster Storage Backend:**
   If the Kubernetes StorageClass backend supports an Access Mode of `ReadOnlyMany`,
   then the storage backend can distribute extracted GPU Kernel Cache to each
-  node to each node.
+  node.
   If the Kubernetes StorageClass backend does not support an Access Mode of
   `ReadOnlyMany`, GKM needs to handle the distribution of the extracted GPU Kernel
   Cache to each node.
-  If this is the case, certain concession need to be made.
 
 ![GKM Flowchart](images/GKM_CRD_Flowchart.png)
 
@@ -132,59 +131,39 @@ spec:
 GKM will create a Kubernetes PVC on each Node.
 Since there are now multiple PVCs in the Namespace, each PVC will be created
 with the same name as the GKMCache but with a unique id appended.
+These are called the Download PVCs, and there is one per Node.
 Then on each Node, GKM will launch a Kubernetes Job with the same name that will
 download the OCI Image and extract the image into each PVC.
+
+GKM will also create an additional PVC with the same name as the GKMCache, but this
+time with no additional unique ids appended.
+This is called the Serving PVC, and there is one for the Namespace.
 
 The user then creates the workload with a `volume:` of type
 `persistentVolumeClaim:` and a `claimName:` set to the GKMCache name with the
 OCI Image.
-Because there is a PVC per node, GKM has a Mutating Webhook that will update the
-`claimName:` for the Pod when it's launched on a Node.
-To trigger the Mutating Webhook, and keep minimal impact to pods not needing the
-mutation, the Mutating Webhook only actives is the Pod has the Label
-`gkm.io/pvc-mutation: "true"`.
-
-When a Pod is launched, the Mutating Webhook runs first, then the Kubernetes
-Scheduler is run.
-So the Node has not been selected at the time the Mutating Webhook runs, which
-is needed to set the correct PVC in the Volume.
-To get around this, GKM requires the application to be launched in a Kubernetes
-DaemonSet when `ReadOnlyMany` is not supported, because Pods associated with a
-DaemonSet do provide the selected Node at the time the Mutating Webhook runs.
-
-So the user then creates a Kubernetes DaemonSet with a `volume:` of type
-`persistentVolumeClaim:` and a `claimName:` set to the GKMCache name with the
-OCI Image and the Label `gkm.io/pvc-mutation: "true"`.
+This maps to the Serving PVC.
+This works because all the PVCs map to the same directory name on each Node.
 
 ```yaml
-kind: DaemonSet
-apiVersion: apps/v1
+kind: Pod
+apiVersion: v1
 metadata:
-  name: myDaemonSet1
+  name: myPod1
   namespace: myns1
 spec:
-  selector:
-    matchLabels:
-      name: myDaemonSet1
-  template:
-    metadata:
-      labels:
-        name: myDaemonSet1
-        gkm.io/pvc-mutation: "true"   <=== Label to Trigger Webhook
-    spec:
-      containers:
-        - name: test
-          image: quay.io/fedora/fedora-minimal
-          imagePullPolicy: IfNotPresent
-          command: [sleep, 365d]
-          volumeMounts:
-            - name: kernel-volume
-              mountPath: /cache
-              readOnly: true
-      volumes:
+  containers:
+    - name: test
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      volumeMounts:
         - name: kernel-volume
-          persistentVolumeClaim:
-            claimName: cacheNs        <=== GKMCache Name
+          mountPath: /cache       <=== Directory in Pod where extracted cache located
+  volumes:
+    - name: kernel-volume
+      persistentVolumeClaim:
+        claimName: cacheNs        <=== GKMCache Name
 ```
 
 The extracted GPU Kernel Cache is then mounted in the application Pod.
@@ -305,76 +284,52 @@ spec:
     - myns2
 ```
 
-GKM will create a Kubernetes PVC in each Namespace on each Node.
+GKM will create a download Kubernetes PVC in each Namespace on each Node.
 Since there are now multiple PVCs in the Namespace, each PVC will be created
 with the same name as the GKMCache but with a unique id appended.
-Then on for each PVC, GKM will launch a Kubernetes Job with the same name that
+Then for each PVC, GKM will launch a Kubernetes Job with the same name that
 will download the OCI Image and extract the image into each PVC.
 
-As with the GKMCache case with Access Mode of `ReadWriteOnce`, the application
-needs to be launched in a Kubernetes DaemonSet in each Namespace and the Label
-`gkm.io/pvc-mutation: "true"` must be applied to each.
-
 ```yaml
-kind: DaemonSet
-apiVersion: apps/v1
+kind: Pod
+apiVersion: v1
 metadata:
-  name: myDaemonSet1
+  name: myPod1
   namespace: myns1
 spec:
-  selector:
-    matchLabels:
-      name: myDaemonSet1
-  template:
-    metadata:
-      labels:
-        name: myDaemonSet1
-        gkm.io/pvc-mutation: "true"   <=== Label to Trigger Webhook
-    spec:
-      containers:
-        - name: test
-          image: quay.io/fedora/fedora-minimal
-          imagePullPolicy: IfNotPresent
-          command: [sleep, 365d]
-          volumeMounts:
-            - name: kernel-volume
-              mountPath: /cache
-              readOnly: true
-      volumes:
+  containers:
+    - name: test
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      volumeMounts:
         - name: kernel-volume
-          persistentVolumeClaim:
-            claimName: cacheNs        <=== GKMCache Name
+          mountPath: /cache       <=== Directory in Pod where extracted cache located
+  volumes:
+    - name: kernel-volume
+      persistentVolumeClaim:
+        claimName: cacheCl        <=== ClusterGKMCache Name
 ```
 
 ```yaml
-kind: DaemonSet
-apiVersion: apps/v1
+kind: Pod
+apiVersion: v1
 metadata:
-  name: myDaemonSet2
+  name: myPod1
   namespace: myns2
 spec:
-  selector:
-    matchLabels:
-      name: myDaemonSet2
-  template:
-    metadata:
-      labels:
-        name: myDaemonSet2
-        gkm.io/pvc-mutation: "true"   <=== Label to Trigger Webhook
-    spec:
-      containers:
-        - name: test
-          image: quay.io/fedora/fedora-minimal
-          imagePullPolicy: IfNotPresent
-          command: [sleep, 365d]
-          volumeMounts:
-            - name: kernel-volume
-              mountPath: /cache
-              readOnly: true
-      volumes:
+  containers:
+    - name: test
+      image: quay.io/fedora/fedora-minimal
+      imagePullPolicy: IfNotPresent
+      command: [sleep, 365d]
+      volumeMounts:
         - name: kernel-volume
-          persistentVolumeClaim:
-            claimName: cacheNs        <=== GKMCache Name
+          mountPath: /cache       <=== Directory in Pod where extracted cache located
+  volumes:
+    - name: kernel-volume
+      persistentVolumeClaim:
+        claimName: cacheCl        <=== ClusterGKMCache Name
 ```
 
 The extracted GPU Kernel Cache is then mounted in the application Pods.
@@ -396,7 +351,7 @@ Therefore, GKM will create PVs.
 In a KIND Cluster, when volume mounting a PVC into a Pod, the permissions on the
 mounted directory are not setup in a way that allows the Pod to access the
 mounted directory.
-A workaround is to include a init container in each Pod or DaemonSet that is
+A workaround is to include a init container in each Pod that is
 volume mounting the PVC which adjusts the directory permissions properly.
 The following init container is patched in all the examples in
 [./examples/](https://github.com/redhat-et/GKM/tree/main/examples):

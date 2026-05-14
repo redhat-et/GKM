@@ -19,7 +19,6 @@ Quick summary is that the two major factors that dictate deployment are:
   If the Kubernetes StorageClass backend does not support an Access Mode of
   `ReadOnlyMany`, GKM needs to handle the distribution of the extracted GPU Kernel
   Cache to each node.
-  If this is the case, certain concession need to be made.
 
 To handle these different deployment options, the Examples directory is using a
 tool called `kustomize` along with a shell script to tailor a set of base yaml
@@ -28,8 +27,6 @@ files to work in multiple environments.
 Here are the set of options the examples supports:
 
 - **rox** vs **rwo**: The access mode of `ReadOnlyMany` or `ReadWriteOnce`.
-  - `rox` implies Pods will be used.
-  - `rwo` implies DaemonSets will be used.
 - **namespace** vs **cluster**: The scope.
   - **namespace** or **ns** implies GKMCache will be used.
   - **cluster** or **cl** implies ClusterGKMCache will be used. Also implies two
@@ -53,7 +50,7 @@ For a GKM use case, the following objects are needed:
 
 - **Namespace** (two Namespaces if cluster scoped)
 - **GKMCache** (namespace scoped) or **ClusterGKMCache** (cluster scoped)
-- **Pod** (for ReadOnlyMany (rox)) or **DaemonSet** (for ReadWriteOnce (rwo))
+- **Pod**
 
 So the yaml files for these basic objects is laid out as follows.
 The `kustomization.yaml` file is a `kustomize` file that lists the set of files
@@ -62,20 +59,14 @@ the tool should include.
 ```sh
 $ tree examples/base/
 examples/base/
-├── access
-│   ├── rox
-│   │   ├── kustomization.yaml
-│   │   ├── pod-1.yaml
-│   │   ├── pod-2.yaml
-│   │   └── pod-3.yaml
-│   └── rwo
-│       ├── ds-1.yaml
-│       ├── ds-2.yaml
-│       ├── ds-3.yaml
-│       └── kustomization.yaml
 ├── common
 │   ├── kustomization.yaml
 │   └── namespace-1.env
+├── pods
+│   ├── kustomization.yaml
+│   ├── pod-1.yaml
+│   ├── pod-2.yaml
+│   └── pod-3.yaml
 └── scope
     ├── cluster
     │   ├── clustergkmcache.yaml
@@ -89,13 +80,13 @@ examples/base/
 The base objects are just the bare bones yaml for the object.
 Different deployments require additional fields in the object to be set.
 For example, a deployment in a KIND Cluster requires an Init-Container be added
-to the GKMCache/ClusterGKMCache and Pod/DaemonSet that sets the permissions of
+to the GKMCache/ClusterGKMCache and Pod that sets the permissions of
 the PVC VolumeMount so the workload can access the contents.
 If using the Node Feature Discovery (NFD), the GKMCache/ClusterGKMCache and
 Pod/DaemonSet objects need Affinity set so they are deployed on the proper node
 based on the labels set by NFD.
 
-The variants directory contains `kustomize` patches, that mutate base yaml files
+The variants directory contains `kustomize` patches that mutate base yaml files
 with the desired field updates.
 A basic `kustomize` patch looks something like:
 
@@ -142,9 +133,11 @@ $ tree examples/variants/
 examples/variants/
 ├── access
 │   ├── rox
-│   │   └── kustomization.env
+│   │   └── kustomization.yaml
 │   └── rwo
-│       └── kustomization.env
+│       └── kustomization.yaml
+├── pods
+│   └── kustomization.env
 └── scope
     ├── cluster
     │   └── kustomization.env
@@ -163,8 +156,10 @@ of these files are checked into the repo.
 ```sh
 $ tree examples/overlays/
 examples/overlays/
-├── access
+├── pods
+│   └── kustomization.yaml
 └── scope
+    └── kustomization.yaml
 ```
 
 Once the `examples/generate-files.sh` script is run, the output looks something
@@ -185,14 +180,14 @@ nameSuffix: -rwo-namespace-rocm-v3
 ```
 
 ```sh
-$ cat examples/overlays/access/kustomization.yaml
+$ cat examples/overlays/pods/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- ../../base/access/rwo
+- ../../base/pods
 
 components:
-- ../../variants/access/rwo
+- ../../variants/pods
 
 nameSuffix: -rwo-namespace-rocm-v3
 ```
