@@ -236,13 +236,13 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) reconcileCommonOperator(
 			//     and extracts the content from the OCI Image on each Node. These are the download
 			//     PV/PVC/Job instances.
 			//   * Once the download has occurred, the Operator creates one Serving PV/PVC that
-			//     refeneces the path used in the downlaod PVC. This Serving PVC is what is given to
+			//     refeneces the path used in the download PVC. This Serving PVC is what is given to
 			//     the ISVC to mount in the workload. Note, no Serving Job is needed.
 			if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerUnknown || gkmCacheStatus.PvcOwner == "" {
 				// Initialize the condition to pending.
 				r.setCacheConditions(gkmCacheStatus, gkmv1alpha1.GkmCondPending.Condition())
 
-				gkmCacheStatus.PvcOwner = deterineOwner(gkmCache.GetAccessMode())
+				gkmCacheStatus.PvcOwner = determineOwner(gkmCache.GetAccessMode())
 				r.Logger.Info("Owner not set, setting now", "Updated Value", gkmCacheStatus.PvcOwner)
 			}
 
@@ -628,7 +628,7 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePVandPVC(
 		// The preferred method for creating a PV is to create the PVC and Kubelet auto-creates the PV.
 		// In a KIND cluster, there is not a true CSI driver for storage management, so the PV must be
 		// manually created.
-		if r.NoGpu {
+		if r.KindCluster {
 			_, found, updatedName, err := common.PvExists(
 				ctx,
 				r.Client,
@@ -739,7 +739,8 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) managePVandPVC(
 
 				// This is the Serving PVC so OCI Image was extracted via the Download PVC, so set
 				// condition to extracted.
-				if !gkmv1alpha1.IsConditionDownloadSet(pvcStatus.Conditions) {
+				if gkmCacheStatus.PvcOwner == gkmv1alpha1.PvcOwnerAgent &&
+					!gkmv1alpha1.IsConditionDownloadSet(pvcStatus.Conditions) {
 					gkmv1alpha1.SetPvcStatusConditions(pvcStatus, gkmv1alpha1.GkmCondExtracted.Condition())
 				}
 			}
@@ -1009,7 +1010,7 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) collectNodeCounts(
 							case string(gkmv1alpha1.GkmCondUnloadError):
 								cnts.NodeErrorCnt++
 							case string(gkmv1alpha1.GkmCondOutdated):
-								gkmCacheStatus.Counts.PodOutdatedCnt++
+								cnts.PodOutdatedCnt++
 							}
 						}
 					}
@@ -1261,9 +1262,9 @@ func (r *ReconcilerCommonOperator[C, CL, N, NL]) namespaceExists(ctx context.Con
 	return namespaceExists, namespaceDeleting, nil
 }
 
-// deterineOwner walks the list of AccessMode values and if any of the values are
+// determineOwner walks the list of AccessMode values and if any of the values are
 // ReadOnlyMany then the owner is PvcOwnerOperator, otherwise PvcOwnerAgent.
-func deterineOwner(accessMode []corev1.PersistentVolumeAccessMode) gkmv1alpha1.PvcOwner {
+func determineOwner(accessMode []corev1.PersistentVolumeAccessMode) gkmv1alpha1.PvcOwner {
 	pvcOwner := gkmv1alpha1.PvcOwnerAgent
 	for _, mode := range accessMode {
 		if mode == corev1.ReadOnlyMany {

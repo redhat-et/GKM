@@ -224,11 +224,11 @@ func CreatePv(
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pvName,
 			Labels: map[string]string{
-				utils.PvLabelCache:           gkmCacheName,
-				utils.PvcLabelCacheNamespace: gkmCacheNamespace,
-				utils.PvLabelPvcNamespace:    pvcNamespace,
-				utils.PvLabelNode:            nodeName,
-				utils.PvLabelDigest:          trimDigest[:utils.MaxLabelValueLength],
+				utils.PvLabelCache:          gkmCacheName,
+				utils.PvLabelCacheNamespace: gkmCacheNamespace,
+				utils.PvLabelPvcNamespace:   pvcNamespace,
+				utils.PvLabelNode:           nodeName,
+				utils.PvLabelDigest:         trimDigest[:utils.MaxLabelValueLength],
 			},
 		},
 		Spec: corev1.PersistentVolumeSpec{
@@ -237,12 +237,11 @@ func CreatePv(
 			},
 			AccessModes:                   accessModes,
 			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimDelete,
-			StorageClassName:              storageClass,
 			VolumeMode:                    ptr.To(corev1.PersistentVolumeFilesystem),
 			PersistentVolumeSource: corev1.PersistentVolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/kernel-caches",
-					Type: ptr.To(corev1.HostPathDirectory),
+					Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 				},
 			},
 		},
@@ -263,6 +262,11 @@ func CreatePv(
 				},
 			},
 		}
+	}
+
+	// Since optional, only apply if set.
+	if storageClass != "" {
+		pv.Spec.StorageClassName = storageClass
 	}
 
 	if err := client.Create(ctx, pv); err != nil {
@@ -374,15 +378,17 @@ func GetGkmPvFailedList(
 	labelSelector, err := labels.Parse(
 		utils.PvLabelCache + "," + utils.PvLabelPvcNamespace,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	pvList := &corev1.PersistentVolumeList{}
 
-	if err :=
-		objClient.List(
-			ctx,
-			pvList,
-			client.MatchingLabelsSelector{Selector: labelSelector},
-		); err != nil {
+	if err := objClient.List(
+		ctx,
+		pvList,
+		client.MatchingLabelsSelector{Selector: labelSelector},
+	); err != nil {
 		return nil, err
 	}
 
@@ -398,7 +404,7 @@ func GetGkmPvFailedList(
 		"NumFailedPVs", len(failed),
 	)
 
-	return failed, err
+	return failed, nil
 }
 
 // DeletePv tries to delete PV created by GKM
@@ -559,7 +565,6 @@ func CreatePvc(
 					corev1.ResourceStorage: resource.MustParse(capacity),
 				},
 			},
-			StorageClassName: &storageClass,
 			VolumeMode: func() *corev1.PersistentVolumeMode {
 				m := corev1.PersistentVolumeFilesystem
 				return &m
@@ -570,6 +575,16 @@ func CreatePvc(
 	// If PV was manually created, add it to the PVC.
 	if pvName != "" {
 		pvc.Spec.VolumeName = pvName
+	}
+
+	// StorageClass must match PV, or PVC won't bind.
+	// Empty string prevents Kubernetes from auto-filling default StorageClass.
+	if storageClass != "" {
+		pvc.Spec.StorageClassName = &storageClass
+	} else if pvName != "" {
+		// Manual PV binding requires explicit empty storageClassName
+		emptyClass := ""
+		pvc.Spec.StorageClassName = &emptyClass
 	}
 
 	if err := client.Create(ctx, pvc); err != nil {
@@ -683,15 +698,17 @@ func GetGkmPvcList(
 	labelSelector, err := labels.Parse(
 		utils.PvcLabelCache + "," + utils.PvcLabelPvcNamespace,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	pvcList := &corev1.PersistentVolumeClaimList{}
 
-	if err :=
-		objClient.List(
-			ctx,
-			pvcList,
-			client.MatchingLabelsSelector{Selector: labelSelector},
-		); err != nil {
+	if err := objClient.List(
+		ctx,
+		pvcList,
+		client.MatchingLabelsSelector{Selector: labelSelector},
+	); err != nil {
 		return nil, err
 	}
 
@@ -699,7 +716,7 @@ func GetGkmPvcList(
 		"NumPVCs", len(pvcList.Items),
 	)
 
-	return pvcList.Items, err
+	return pvcList.Items, nil
 }
 
 // GetPvcUsedByList walks the Pods in the Namespace and tries to determine which

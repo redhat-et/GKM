@@ -304,7 +304,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-ifdef KIND_CLUSTER
+ifeq ($(KIND_CLUSTER),true)
 	cd config/configMap && \
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \
@@ -312,7 +312,7 @@ ifdef KIND_CLUSTER
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
-else ifdef NO_GPU
+else ifeq ($(NO_GPU),true)
 	cd config/configMap && \
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \

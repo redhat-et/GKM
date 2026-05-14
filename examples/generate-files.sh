@@ -82,9 +82,9 @@ CUSTOM_AFFINITY=${CUSTOM_AFFINITY:-""}
 CUSTOM_TOLERATION=${CUSTOM_TOLERATION:-""}
 DEBUG=${DEBUG:-false}
 # Node Selector:
-#  CUSTOM_NODE_SELECTOR_1 is for Pod 1 or DaemonSet 1
-#  CUSTOM_NODE_SELECTOR_2 is for Pod 2 or DaemonSet 2
-#  CUSTOM_NODE_SELECTOR_3 is for Pod 3 or DaemonSet 3
+#  CUSTOM_NODE_SELECTOR_1 is for Pod 1
+#  CUSTOM_NODE_SELECTOR_2 is for Pod 2
+#  CUSTOM_NODE_SELECTOR_3 is for Pod 3
 CUSTOM_NODE_SELECTOR_1=${CUSTOM_NODE_SELECTOR_1:-""}
 CUSTOM_NODE_SELECTOR_2=${CUSTOM_NODE_SELECTOR_2:-""}
 CUSTOM_NODE_SELECTOR_3=${CUSTOM_NODE_SELECTOR_3:-""}
@@ -92,7 +92,7 @@ CUSTOM_NODE_SELECTOR_3=${CUSTOM_NODE_SELECTOR_3:-""}
 # Constants
 BASE_DIR_COMMON="base/common"
 OUTPUT_DIR="output"
-OVERLAY_DIR_ACCESS="overlays/access"
+OVERLAY_DIR_PODS="overlays/pods"
 OVERLAY_DIR_SCOPE="overlays/scope"
 AFFINITY_NFD_CUDA_FILE="patch/affinity-nfd-cuda.txt"
 AFFINITY_NFD_ROCM_FILE="patch/affinity-nfd-rocm.txt"
@@ -101,14 +101,12 @@ NODE_SELECTOR_KIND_FALSE_FILE="patch/node-selector-kind-false.txt"
 TOLERATION_KIND_FILE="patch/toleration-kind.txt"
 TOLERATION_NFD_CUDA_FILE="patch/toleration-nfd-cuda.txt"
 
+BASE_DIR_PODS="base/pods"
+VARIANTS_DIR_PODS="variants/pods"
+
+
 # AccessMode of the PVC, valid values: rox (ReadOnlyMany) or rwo (ReadWriteOnce)
-if [[ "$ACCESS" == "rox" ]]; then
-    BASE_DIR_ACCESS="base/access/rox"
-    VARIANTS_DIR_ACCESS="variants/access/rox"
-elif [[ "$ACCESS" == "rwo" ]]; then
-    BASE_DIR_ACCESS="base/access/rwo"
-    VARIANTS_DIR_ACCESS="variants/access/rwo"
-else
+if [[ "$ACCESS" != "rox" && "$ACCESS" != "rwo" ]]; then
     echo "ERROR: Parameter 1 (ACCESS) must be \"rox\" or \"rwo\"."
     exit 1
 fi
@@ -174,7 +172,7 @@ fi
 
 #
 # Build overlays/scope/kustomization.yaml file with Namespace and GKMCache or ClusterGKMCache
-# Build overlays/access/kustomization.yaml file with Pods or DaemonSets
+# Build overlays/pods/kustomization.yaml file with Pods.
 # Broken into two files to control ordering of objects.
 #
 mkdir -p "${OVERLAY_DIR_SCOPE}"
@@ -191,15 +189,15 @@ components:
 nameSuffix: -${NAME_SUFFIX}
 EOF
 
-mkdir -p "${OVERLAY_DIR_ACCESS}"
-cat <<EOF > ${OVERLAY_DIR_ACCESS}/kustomization.yaml
+mkdir -p "${OVERLAY_DIR_PODS}"
+cat <<EOF > ${OVERLAY_DIR_PODS}/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- ../../${BASE_DIR_ACCESS}
+- ../../${BASE_DIR_PODS}
 
 components:
-- ../../${VARIANTS_DIR_ACCESS}
+- ../../${VARIANTS_DIR_PODS}
 
 nameSuffix: -${NAME_SUFFIX}
 EOF
@@ -212,27 +210,15 @@ EOF
 #
 
 if [[ "$ENVIRONMENT" == "kind" ]]; then
-    # Where in a POD or DaemonSet Spec an initContainer is inserted
-    KIND_INIT_CONTAINER_PATH_POD="/spec/initContainers"
-    KIND_INIT_CONTAINER_PATH_DAEMON_SET="/spec/template/spec/initContainers"
-
-    if [[ "$ACCESS" == "rox" ]]; then
-        # ReadOnlyMany (rox) implies a Pod is being deployed, so set the path properly
-        KIND_INIT_CONTAINER_PATH=${KIND_INIT_CONTAINER_PATH_POD}
-    elif [[ "$ACCESS" == "rwo" ]]; then
-        # ReadWriteOnce (rwo) implies a DaemonSet is being deployed, so set the path properly
-        KIND_INIT_CONTAINER_PATH=${KIND_INIT_CONTAINER_PATH_DAEMON_SET}
-    fi
-
-    # KIND_INIT_CONTAINER holds a patch that is used to add an initContainer to Pods or DaemonSets
-    # when KIND Cluster is being used. It sets the permissions of the PVC VolumeMount so that the
+    # KIND_INIT_CONTAINER holds a patch that is used to add an initContainer to Pods when
+    # KIND Cluster is being used. It sets the permissions of the PVC VolumeMount so that the
     # Pod can access it. Only needed in KIND.
     KIND_INIT_CONTAINER="    # For KIND Cluster, add initContainer that sets the permissions on the PVC VolumeMount
     - op: add
-      path: ${KIND_INIT_CONTAINER_PATH}
+      path: /spec/initContainers
       value: []
     - op: add
-      path: ${KIND_INIT_CONTAINER_PATH}/-
+      path: /spec/initContainers/-
       value:
         name: fix-permissions
         image: quay.io/fedora/fedora-minimal
@@ -258,7 +244,7 @@ fi
 if [[ "$ACCESS" == "rox" ]]; then
     # ACCESS_ROX_ACCESS_MODE holds a patch that is used to add ReadOnlyMany to the AccessMode field
     # in a GKMCache or ClusterGKMCache. Kubernetes does not have a way to be queried to determine if
-    # ReadOnlyMany is supported by a StorageClass so GKM Operator/Agent need tobe told.
+    # ReadOnlyMany is supported by a StorageClass so GKM Operator/Agent needs to be told.
     ACCESS_ROX_ACCESS_MODE="    # Append ReadOnlyMany to the spec.accessModes slice in the GKMCache or ClusterGKMCache
     - op: add
       path: /spec/accessModes/-
@@ -337,70 +323,41 @@ ${TOLERATION_INSTANCE}"
         | sed -e 's/[\/&]/\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
 
 
-    # Where in a POD or DaemonSet Spec affinity/toleration/is inserted
-    AFFINITY_PATH_POD="/spec/affinity"
-    AFFINITY_PATH_DAEMON_SET="/spec/template/spec/affinity"
-    TOLERATION_PATH_POD="/spec/tolerations"
-    TOLERATION_PATH_DAEMON_SET="/spec/template/spec/tolerations"
-
-    if [[ "$ACCESS" == "rox" ]]; then
-        # ReadOnlyMany (rox) implies a Pod is being deployed, so set the path properly
-        AFFINITY_PATH=${AFFINITY_PATH_POD}
-        TOLERATION_PATH=${TOLERATION_PATH_POD}
-    elif [[ "$ACCESS" == "rwo" ]]; then
-        # ReadWriteOnce (rwo) implies a DaemonSet is being deployed, so set the path properly
-        AFFINITY_PATH=${AFFINITY_PATH_DAEMON_SET}
-        TOLERATION_PATH=${TOLERATION_PATH_DAEMON_SET}
-    fi
-
     if [[ "$AFFINITY_INSTANCE" != "" ]]; then
-        AFFINITY_ADD_POD_DS="    # Add a Affinity to Pod or DaemonSet
+        AFFINITY_ADD_POD="    # Add a Affinity to Pod
     - op: add
-      path: ${AFFINITY_PATH}
+      path: /spec/affinity
       value:
 ${AFFINITY_INSTANCE}"
 
-        # AFFINITY_ADD_POD_DS contains a multiline string, so special characters need
+        # AFFINITY_ADD_POD contains a multiline string, so special characters need
         # to be stripped for sed to process properly.
-        ESCAPED_AFFINITY_ADD_POD_DS=$(printf '%s\n' "$AFFINITY_ADD_POD_DS" \
+        ESCAPED_AFFINITY_ADD_POD=$(printf '%s\n' "$AFFINITY_ADD_POD" \
             | sed -e 's/[\/&]/\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
     fi
 
     if [[ "$TOLERATION_INSTANCE" != "" ]]; then
-        TOLERATION_ADD_POD_DS="    # Add a Toleration to Pod or DaemonSet
+        TOLERATION_ADD_POD="    # Add a Toleration to Pod
     - op: add
-      path: ${TOLERATION_PATH}
+      path: /spec/tolerations
       value: []
     - op: add
-      path: ${TOLERATION_PATH}/-
+      path: /spec/tolerations/-
       value:
 ${TOLERATION_INSTANCE}"
 
-        # TOLERATION_ADD_POD_DS contains a multiline string, so special characters need
+        # TOLERATION_ADD_POD contains a multiline string, so special characters need
         # to be stripped for sed to process properly.
-        ESCAPED_TOLERATION_ADD_POD_DS=$(printf '%s\n' "$TOLERATION_ADD_POD_DS" \
+        ESCAPED_TOLERATION_ADD_POD=$(printf '%s\n' "$TOLERATION_ADD_POD" \
             | sed -e 's/[\/&]/\\&/g' -e ':a;N;$!ba;s/\n/\\n/g')
     fi
 fi
 
 
 # Node Selector:
-#  .._SELECTOR_1 is for Pod 1 or DaemonSet 1
-#  .._SELECTOR_2 is for Pod 2 or DaemonSet 2
-#  .._SELECTOR_3 is for Pod 3 or DaemonSet 3
-
-# Where in a POD or DaemonSet Spec a Node Selector is inserted
-NODE_SELECTOR_PATH_POD="/spec/nodeSelector"
-NODE_SELECTOR_PATH_DAEMON_SET="/spec/template/spec/nodeSelector"
-
-if [[ "$ACCESS" == "rox" ]]; then
-    # ReadOnlyMany (rox) implies a Pod is being deployed, so set the path properly
-    NODE_SELECTOR_PATH=${NODE_SELECTOR_PATH_POD}
-elif [[ "$ACCESS" == "rwo" ]]; then
-    # ReadWriteOnce (rwo) implies a DaemonSet is being deployed, so set the path properly
-    NODE_SELECTOR_PATH=${NODE_SELECTOR_PATH_DAEMON_SET}
-fi
-
+#  .._SELECTOR_1 is for Pod 1
+#  .._SELECTOR_2 is for Pod 2
+#  .._SELECTOR_3 is for Pod 3
 if [[ "$CUSTOM_NODE_SELECTOR_1" != "" ]]; then
     if [[ -r "${CUSTOM_NODE_SELECTOR_1}" ]]; then
         NODE_SELECTOR_INSTANCE_1=$(cat "${CUSTOM_NODE_SELECTOR_1}") || { echo "Error: Failed to read file - CUSTOM_NODE_SELECTOR_1=${CUSTOM_NODE_SELECTOR_1}" >&2; exit 1; }
@@ -411,9 +368,9 @@ if [[ "$CUSTOM_NODE_SELECTOR_1" != "" ]]; then
 fi
 
 if [[ "$NODE_SELECTOR_INSTANCE_1" != "" ]]; then
-    NODE_SELECTOR_1="    # Add NodeSelector to Pod/DaemonSet 1
+    NODE_SELECTOR_1="    # Add NodeSelector to Pod 1
     - op: add
-      path: ${NODE_SELECTOR_PATH}
+      path: /spec/nodeSelector
       value:
 ${NODE_SELECTOR_INSTANCE_1}"
 
@@ -436,9 +393,9 @@ elif [[ "$ENVIRONMENT" == "kind" && "$ACCESS" == "rwo" ]]; then
 fi
 
 if [[ "$NODE_SELECTOR_INSTANCE_2" != "" ]]; then
-    NODE_SELECTOR_2="    # Add NodeSelector to Pod/DaemonSet 2
+    NODE_SELECTOR_2="    # Add NodeSelector to Pod 2
     - op: add
-      path: ${NODE_SELECTOR_PATH}
+      path: /spec/nodeSelector
       value:
 ${NODE_SELECTOR_INSTANCE_2}"
 
@@ -461,9 +418,9 @@ elif [[ "$ENVIRONMENT" == "kind" && "$ACCESS" == "rwo" ]]; then
 fi
 
 if [[ "$NODE_SELECTOR_INSTANCE_3" != "" ]]; then
-    NODE_SELECTOR_3="    # Add NodeSelector to Pod/DaemonSet 3
+    NODE_SELECTOR_3="    # Add NodeSelector to Pod 3
     - op: add
-      path: ${NODE_SELECTOR_PATH}
+      path: /spec/nodeSelector
       value:
 ${NODE_SELECTOR_INSTANCE_3}"
 
@@ -494,19 +451,19 @@ if [[ "$SCOPE" == "cl" ]]; then
     popd > /dev/null
 fi
 
-# UPDATE Pod or DaemonSet
-# For both rox and rwo, for each Pod or DaemonSet:
+# UPDATE Pod
+# For both rox and rwo, for each Pod
 # - set the Namespace
 # - set the PVC Claim in the Volume to the generated GKMCache or ClusterGKMCache name
 # - insert the KIND Init Container if KIND Cluster, otherwise remove the placeholder
-pushd ${VARIANTS_DIR_ACCESS} > /dev/null
+pushd ${VARIANTS_DIR_PODS} > /dev/null
 ${SED} \
  -e "s/NAMESPACE_1/${NAMESPACE_1}/g" \
  -e "s/NAMESPACE_2/${NAMESPACE_2}/g" \
  -e "s/OBJECT_NAME/${OBJECT_NAME}/g" \
  -e "s@KIND_INIT_CONTAINER@${ESCAPED_KIND_INIT_CONTAINER}@g" \
- -e "s@TOLERATION_ADD_POD_DS@${ESCAPED_TOLERATION_ADD_POD_DS}@g" \
- -e "s@AFFINITY_ADD_POD_DS@${ESCAPED_AFFINITY_ADD_POD_DS}@g" \
+ -e "s@TOLERATION_ADD_POD@${ESCAPED_TOLERATION_ADD_POD}@g" \
+ -e "s@AFFINITY_ADD_POD@${ESCAPED_AFFINITY_ADD_POD}@g" \
  -e "s@NODE_SELECTOR_1@${ESCAPED_NODE_SELECTOR_1}@g" \
  -e "s@NODE_SELECTOR_2@${ESCAPED_NODE_SELECTOR_2}@g" \
  -e "s@NODE_SELECTOR_3@${ESCAPED_NODE_SELECTOR_3}@g" \
@@ -545,9 +502,9 @@ popd > /dev/null
 OUTPUT_FILENAME=${OUTPUT_DIR}/${NAME_SUFFIX}${ENV_FILENAME_SUFFIX}.yaml
 mkdir -p "${OUTPUT_DIR}"
 
-${KUSTOMIZE} build overlays/scope > ${OUTPUT_FILENAME} || exit 1
+"${KUSTOMIZE}" build "${OVERLAY_DIR_SCOPE}" > "${OUTPUT_FILENAME}" || exit 1
 echo "---" >> ${OUTPUT_FILENAME}
-${KUSTOMIZE} build overlays/access >> ${OUTPUT_FILENAME} || exit 1
+"${KUSTOMIZE}" build "${OVERLAY_DIR_PODS}" >> "${OUTPUT_FILENAME}" || exit 1
 
 if [[ "${DEBUG}" == true ]]; then
     cat ${OUTPUT_FILENAME}

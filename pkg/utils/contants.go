@@ -27,7 +27,6 @@ const (
 	GKMCacheLabelHostname         = "kubernetes.io/hostname"
 	GKMCacheNodeLabelCache        = "gkm.io/gkm-cache"
 	GKMClusterCacheNodeLabelCache = "gkm.io/cluster-gkm-cache"
-	GKMCachePvcMutation           = "gkm.io/pvc-mutation"
 
 	// PV and PVC Labels
 	PvLabelCache           = "cache-name"
@@ -91,7 +90,7 @@ const (
 	ConfigMapIndexExtractImage     = "gkm.extract.image"
 	ConfigMapIndexExtractLogLevel  = "gkm.extract.log.level"
 	ConfigMapIndexNoGpu            = "gkm.nogpu"
-	ConfigMapIndexKindCluster      = "gkm.kind.cluster"
+	ConfigMapIndexKindCluster      = "gkm.kindcluster"
 	ConfigMapIndexKyvernoEnabled   = "gkm.kyverno.enabled"
 
 	// Duration for Kubernetes to Retry a failed request

@@ -18,7 +18,7 @@ spec:
         runAsUser: 1000
       volumeMounts:
         - name: kernel-volume
-          mountPath: /cache
+          mountPath: /kernel-caches
   volumes:
     - name: kernel-volume
       persistentVolumeClaim:

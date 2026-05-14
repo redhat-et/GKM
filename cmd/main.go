@@ -36,12 +36,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	gkmv1alpha1 "github.com/redhat-et/GKM/api/v1alpha1"
 	gkmOperator "github.com/redhat-et/GKM/internal/controller/gkm-operator"
 
-	gkmWebhook "github.com/redhat-et/GKM/internal/webhook"
 	"github.com/redhat-et/GKM/pkg/utils"
 	// +kubebuilder:scaffold:imports
 )
@@ -195,16 +193,6 @@ func main() {
 		setupLog.Error(err, "Failed to register Pod field indexer")
 		os.Exit(1)
 	}
-
-	mutator := &gkmWebhook.PodMutator{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Decoder: admission.NewDecoder(mgr.GetScheme()),
-	}
-	mgr.GetWebhookServer().Register(
-		"/mutate-v1-pod",
-		&admission.Webhook{Handler: mutator},
-	)
 
 	if err = (&gkmOperator.GKMConfigMapReconciler{
 		Client: mgr.GetClient(),

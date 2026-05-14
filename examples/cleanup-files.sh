@@ -12,11 +12,10 @@ fi
 
 rm -f base/common/namespace-1.yaml
 rm -f base/scope/cluster/namespace-2.yaml
-rm -f overlays/access/*.yaml
+rm -f overlays/pods/*.yaml
 rm -f overlays/scope/*.yaml
 rm -f output/*.yaml
-rm -f variants/access/rox/*.yaml
-rm -f variants/access/rwo/*.yaml
+rm -f variants/pods/*.yaml
 rm -f variants/scope/cluster/*.yaml
 rm -f variants/scope/namespace/*.yaml
 
