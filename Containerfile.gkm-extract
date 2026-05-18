@@ -1,39 +1,60 @@
-FROM public.ecr.aws/docker/library/golang:1.25 AS extract-builder
+# Build stage - follow KServe pattern with golang:1.25
+FROM golang:1.25-trixie AS deps
 
+WORKDIR /workspace
+COPY mcv/ mcv/
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# ---- Build stage (requires CGO for libgpgme) ----
+FROM deps AS builder
+
+# Install build dependencies for CGO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgpgme-dev \
     libbtrfs-dev \
  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /workspace
-
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-
-# Copy the go source
 COPY gkm-extract/ gkm-extract/
 COPY pkg/ pkg/
 COPY vendor/ vendor/
 COPY Makefile Makefile
 
-# Build the GKM MCV-Extract binary.
-RUN make build-gkm-extract
+# Build with CGO enabled (required for containers/image library)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    make build-gkm-extract
 
-# Use the fedora minimal image to reduce the size of the final image but still
-# be able to easily install extra packages.
-FROM quay.io/fedora/fedora-minimal
+# ---- License stage (parallel with build on BuildKit) ----
+#FROM deps AS license
+#
+#RUN --mount=type=cache,target=/go/pkg/mod \
+#    --mount=type=cache,target=/root/.cache/go-build \
+#    go install github.com/google/go-licenses@v1.6.0
+#
+#COPY gkm-extract/ gkm-extract/
+#COPY pkg/ pkg/
+#COPY LICENSE LICENSE
+#RUN --mount=type=cache,target=/go/pkg/mod \
+#    go-licenses save --save_path /third_party/library ./gkm-extract
 
-RUN dnf update -y && dnf install -y \
-    gpgme-devel \
-    libbtrfs \
- && dnf clean all
+# Runtime stage - use debian:trixie-slim to match golang:1.25 base (Debian 13)
+# KServe pattern uses distroless/static for CGO_ENABLED=0, but we need CGO
+# golang:1.25 is based on Debian trixie (13), so runtime must match
+FROM debian:trixie-slim
 
-# Copy the binary from the builder
-COPY --from=extract-builder /workspace/bin/gkm-extract /usr/sbin/.
-ENV PATH="$PATH:/usr/sbin"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libgpgme11t64 \
+    libbtrfs0t64 \
+ && rm -rf /var/lib/apt/lists/*
 
-# Run as non-root user
+#COPY --from=license /third_party /third_party
+COPY --from=builder /workspace/bin/gkm-extract /gkm-extract
+
+# Run as non-root user (same UID as distroless nonroot)
 USER 65532:65532
 
-ENTRYPOINT ["gkm-extract"]
+ENTRYPOINT ["/gkm-extract"]
