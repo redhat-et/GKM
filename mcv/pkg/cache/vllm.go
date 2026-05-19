@@ -110,14 +110,25 @@ func processHashEntry(hashDir, entryName string, tc **TritonCache) (*VLLMCacheMe
 	}, nil
 }
 
-// detectAndProcessAOTCache detects AOT compile cache and returns metadata entries
+// detectAndProcessAOTCache detects AOT compile cache and returns metadata entries.
+// It first tries mega-AOT detection (which stores artifacts in torch_aot_compile/),
+// and only falls back to regular AOT compile detection if mega-AOT is not found.
 func detectAndProcessAOTCache(torchCompileCachePath string) (metadata []VLLMCacheMetadata, count int) {
 	aotCompilePath := filepath.Join(torchCompileCachePath, "torch_aot_compile")
 	if _, err := os.Stat(aotCompilePath); err != nil {
 		return metadata, count
 	}
 
-	logging.Debugf("Detecting AOT compile cache at: %s", aotCompilePath)
+	// First, try to detect mega-AOT caches (which live in torch_aot_compile/)
+	logging.Debugf("Detecting mega-AOT cache at: %s", aotCompilePath)
+	megaMetadata, megaCount := detectMegaAOTEntries(aotCompilePath)
+	if len(megaMetadata) > 0 {
+		logging.Debugf("Detected mega-AOT cache format with %d entries", len(megaMetadata))
+		return megaMetadata, megaCount
+	}
+
+	// Fall back to regular AOT compile detection if no mega-AOT found
+	logging.Debugf("No mega-AOT cache found, trying regular AOT compile cache at: %s", aotCompilePath)
 	aotCacheData, aotErr := detectAOTCompileCache(aotCompilePath)
 	if aotErr != nil {
 		logging.Debugf("No AOT compile cache detected: %v", aotErr)
