@@ -27,6 +27,13 @@ const (
 	// Cache format constants
 	BinaryCacheFormat = "binary"
 	CUDABackend       = "cuda"
+
+	// torchAOTCompileDirName is the extra directory vLLM introduces above
+	// the per-model hash dir when VLLM_USE_AOT_COMPILE is enabled.
+	torchAOTCompileDirName = "torch_aot_compile"
+	// megaAOTSaveFormat marks a BinaryCacheMetadata entry as produced by
+	// the mega-AOT flow (single bundled "model" blob per rank dir).
+	megaAOTSaveFormat = "mega-aot"
 )
 
 // VLLMCache represents a VLLM-style compile cache (e.g., torch_inductor or fxgraph)
@@ -63,7 +70,8 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 		name := d.Name()
 		if strings.HasSuffix(name, "vllm_compile_cache.py") ||
 			strings.Contains(path, "inductor_cache") ||
-			strings.Contains(path, "fxgraph") {
+			strings.Contains(path, "fxgraph") ||
+			strings.Contains(path, torchAOTCompileDirName) {
 			found = true
 			return filepath.SkipDir
 		}
@@ -88,6 +96,19 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 				if !entry.IsDir() {
 					continue
 				}
+
+				// Mega-AOT layout wraps per-model hash dirs under
+				// torch_aot_compile/. Recurse one level and treat each
+				// child as a hash dir.
+				if entry.Name() == torchAOTCompileDirName {
+					aotMeta, aotCount := detectMegaAOTEntries(
+						filepath.Join(torchCompileCachePath, entry.Name()),
+					)
+					metadata = append(metadata, aotMeta...)
+					count += aotCount
+					continue
+				}
+
 				count++
 				hashDir := filepath.Join(torchCompileCachePath, entry.Name())
 
@@ -282,6 +303,73 @@ func detectBinaryCache(hashDir string) ([]BinaryCacheMetadata, error) {
 	}
 
 	return binaryCaches, nil
+}
+
+// detectMegaAOTEntries walks torch_aot_compile/ and returns metadata for
+// each child hash dir that contains a mega-AOT bundle. The count return
+// is the number of hash directories considered (whether or not they
+// yielded valid metadata), so the caller can keep its entry count in sync.
+func detectMegaAOTEntries(aotDir string) (entries []VLLMCacheMetadata, count int) {
+	dirEntries, err := os.ReadDir(aotDir)
+	if err != nil {
+		logging.Warnf("Failed to read %s: %v", aotDir, err)
+		return nil, 0
+	}
+
+	for _, entry := range dirEntries {
+		if !entry.IsDir() {
+			continue
+		}
+		count++
+		hashDir := filepath.Join(aotDir, entry.Name())
+		megaData, megaErr := detectMegaAOTCache(hashDir)
+		if megaErr != nil || len(megaData) == 0 {
+			logging.Warnf("No mega-AOT artifacts in %s: %v", hashDir, megaErr)
+			continue
+		}
+		logging.Debugf("Detected mega-AOT cache for hash: %s", entry.Name())
+		entries = append(entries, VLLMCacheMetadata{
+			VllmHash:           entry.Name(),
+			CacheFormat:        BinaryCacheFormat,
+			BinaryCacheEntries: megaData,
+		})
+	}
+	return entries, count
+}
+
+// detectMegaAOTCache detects the mega-AOT bundle layout in a hash directory.
+// The layout places one bundled artifact at {hashDir}/rank_X_Y/model, with
+// inductor/triton state as a shared sibling at {hashDir}/inductor_cache/.
+// Unlike the per-piecewise binary format, no cache_key_factors.json is
+// emitted, so hash/env fields are left empty.
+func detectMegaAOTCache(hashDir string) ([]BinaryCacheMetadata, error) {
+	entries, err := os.ReadDir(hashDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read hash directory: %w", err)
+	}
+
+	var out []BinaryCacheMetadata
+	rankDirRegex := regexp.MustCompile(`^rank_\d+_\d+$`)
+	for _, entry := range entries {
+		if !entry.IsDir() || !rankDirRegex.MatchString(entry.Name()) {
+			continue
+		}
+		modelPath := filepath.Join(hashDir, entry.Name(), "model")
+		info, err := os.Stat(modelPath)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		out = append(out, BinaryCacheMetadata{
+			Rank:            entry.Name(),
+			ArtifactCount:   1,
+			ArtifactNames:   []string{"model"},
+			CacheSaveFormat: megaAOTSaveFormat,
+		})
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no mega-AOT artifacts detected")
+	}
+	return out, nil
 }
 
 func (v *VLLMCache) Name() string { return constants.VLLM }

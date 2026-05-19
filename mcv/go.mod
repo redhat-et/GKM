@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/NVIDIA/go-nvml v0.13.0-1
-	github.com/containers/buildah v1.42.1
+	github.com/containers/buildah v1.43.0
 	github.com/containers/podman/v5 v5.7.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/google/go-containerregistry v0.20.7
@@ -15,9 +15,9 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	go.podman.io/common v0.66.1-0.20251111134650-36964d15757a
-	go.podman.io/image/v5 v5.38.1-0.20251111134650-36964d15757a
-	go.podman.io/storage v1.61.1-0.20251111134650-36964d15757a
+	go.podman.io/common v0.67.0
+	go.podman.io/image/v5 v5.39.1
+	go.podman.io/storage v1.62.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 )
 
@@ -86,7 +86,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
-	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
+	github.com/mistifyio/go-zfs/v3 v3.1.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/buildkit v0.30.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -106,7 +106,7 @@ require (
 	github.com/opencontainers/cgroups v0.0.6 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/opencontainers/runc v1.3.3 // indirect
+	github.com/opencontainers/runc v1.3.4 // indirect
 	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116 // indirect
 	github.com/opencontainers/selinux v1.13.1 // indirect
