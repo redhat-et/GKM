@@ -14,6 +14,8 @@ import (
 	logging "github.com/sirupsen/logrus"
 )
 
+const hashKey = "hash"
+
 // getCacheInvalidatingEnvVars retrieves environment variables affecting cache using a Python Triton call.
 func getCacheInvalidatingEnvVars() (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -125,7 +127,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	}
 	components["source"] = map[string]string{
 		"content": sourceHash,
-		"hash":    generateSHA256(sourceHash),
+		hashKey:    generateSHA256(sourceHash),
 	}
 
 	var backendInfo string
@@ -140,7 +142,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	}
 	components["backend"] = map[string]string{
 		"info": backendInfo,
-		"hash": generateSHA256(backendInfo),
+		hashKey: generateSHA256(backendInfo),
 	}
 
 	// Build options from metadata if available
@@ -167,7 +169,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	sortedOptions := sortJSON(options)
 	components["options"] = map[string]string{
 		"values": sortedOptions,
-		"hash":   generateSHA256(sortedOptions),
+		hashKey:   generateSHA256(sortedOptions),
 	}
 
 	envVars, err := getCacheInvalidatingEnvVars()
@@ -177,16 +179,16 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	sortedEnvVars := sortJSON(envVars)
 	components["environment"] = map[string]string{
 		"variables": sortedEnvVars,
-		"hash":      generateSHA256(sortedEnvVars),
+		hashKey:      generateSHA256(sortedEnvVars),
 	}
 
 	// Composite string used for final hash
 	keyComponents := fmt.Sprintf("%s-%s-%s-%s-%s",
 		components["triton_key"],
-		components["source"].(map[string]string)["hash"],
-		components["backend"].(map[string]string)["hash"],
-		components["options"].(map[string]string)["hash"],
-		components["environment"].(map[string]string)["hash"],
+		components["source"].(map[string]string)[hashKey],
+		components["backend"].(map[string]string)[hashKey],
+		components["options"].(map[string]string)[hashKey],
+		components["environment"].(map[string]string)[hashKey],
 	)
 
 	components["final_composite"] = keyComponents

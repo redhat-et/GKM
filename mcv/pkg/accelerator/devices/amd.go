@@ -214,7 +214,7 @@ type AMDListInfo struct {
 }
 
 var gpuToGFXMap = map[string]string{
-	"Instinct MI210":                                 "gfx90a", // Aldebaran/MI200 [Instinct MI210]
+	"Instinct MI210":                                 gfxArchMI210, // Aldebaran/MI200 [Instinct MI210]
 	"Instinct MI300":                                 "gfx90c", // MI300 series
 	"Polaris 10 (RX 400 series)":                     "gfx803",
 	"Polaris 11 (RX 500 series)":                     "gfx804",
@@ -231,7 +231,7 @@ var gpuToGFXMap = map[string]string{
 func TranslateGPUToArch(productName string) string {
 	switch {
 	case strings.Contains(productName, "Instinct MI210"):
-		return "gfx90a" // Aldebaran/MI200 [Instinct MI210]
+		return gfxArchMI210 // Aldebaran/MI200 [Instinct MI210]
 	case strings.Contains(productName, "Instinct MI300"):
 		return "gfx90c" // MI300 series
 	case strings.Contains(productName, "Polaris 10"):
@@ -330,7 +330,7 @@ func (r *gpuAMD) Init() error {
 				Arch:              TranslateGPUToArch(info.Board.ProductName),
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal,
-				Backend:           "hip",
+				Backend:           hipBackend,
 				ID:                gpuID,
 			},
 			Summary: DeviceSummary{

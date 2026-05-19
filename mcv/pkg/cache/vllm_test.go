@@ -9,7 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const megaAOTHash = "d5313e9d59c8842ac8d3b743f0c1c018ea9b101c4f9ae1134b8c85e61557f070"
+const (
+	megaAOTHash = "d5313e9d59c8842ac8d3b743f0c1c018ea9b101c4f9ae1134b8c85e61557f070"
+	testRank00  = "rank_0_0"
+)
 
 // writeTestFile is a test helper that creates parent dirs and writes content.
 func writeTestFile(t *testing.T, path string, content []byte) {
@@ -36,7 +39,7 @@ func TestDetectVLLMCache_NoCacheReturnsNil(t *testing.T) {
 
 func TestDetectVLLMCache_MegaAOTSingleRank(t *testing.T) {
 	cacheDir := t.TempDir()
-	newMegaAOTCache(t, cacheDir, megaAOTHash, []string{"rank_0_0"})
+	newMegaAOTCache(t, cacheDir, megaAOTHash, []string{testRank00})
 
 	got := DetectVLLMCache(cacheDir)
 	assert.NotNil(t, got)
@@ -52,7 +55,7 @@ func TestDetectVLLMCache_MegaAOTSingleRank(t *testing.T) {
 	assert.Len(t, entry.BinaryCacheEntries, 1)
 
 	bin := entry.BinaryCacheEntries[0]
-	assert.Equal(t, "rank_0_0", bin.Rank)
+	assert.Equal(t, testRank00, bin.Rank)
 	assert.Equal(t, 1, bin.ArtifactCount)
 	assert.Equal(t, []string{"model"}, bin.ArtifactNames)
 	assert.Equal(t, megaAOTSaveFormat, bin.CacheSaveFormat)
@@ -66,7 +69,7 @@ func TestDetectVLLMCache_MegaAOTSingleRank(t *testing.T) {
 
 func TestDetectVLLMCache_MegaAOTMultiRank(t *testing.T) {
 	cacheDir := t.TempDir()
-	newMegaAOTCache(t, cacheDir, megaAOTHash, []string{"rank_0_0", "rank_1_0"})
+	newMegaAOTCache(t, cacheDir, megaAOTHash, []string{testRank00, "rank_1_0"})
 
 	got := DetectVLLMCache(cacheDir)
 	assert.NotNil(t, got)
@@ -78,14 +81,14 @@ func TestDetectVLLMCache_MegaAOTMultiRank(t *testing.T) {
 	assert.Len(t, entry.BinaryCacheEntries, 2)
 
 	ranks := []string{entry.BinaryCacheEntries[0].Rank, entry.BinaryCacheEntries[1].Rank}
-	assert.ElementsMatch(t, []string{"rank_0_0", "rank_1_0"}, ranks)
+	assert.ElementsMatch(t, []string{testRank00, "rank_1_0"}, ranks)
 }
 
 func TestDetectVLLMCache_MegaAOTSkipsRankWithoutModel(t *testing.T) {
 	cacheDir := t.TempDir()
 	hashDir := filepath.Join(cacheDir, "torch_compile_cache", torchAOTCompileDirName, megaAOTHash)
 	// rank_0_0 has model; rank_1_0 is an empty dir (e.g. partial write).
-	writeTestFile(t, filepath.Join(hashDir, "rank_0_0", "model"), []byte("blob"))
+	writeTestFile(t, filepath.Join(hashDir, testRank00, "model"), []byte("blob"))
 	assert.NoError(t, os.MkdirAll(filepath.Join(hashDir, "rank_1_0"), 0o755))
 	writeTestFile(t, filepath.Join(hashDir, "inductor_cache", "fxgraph", "key"), []byte("x"))
 
@@ -93,12 +96,12 @@ func TestDetectVLLMCache_MegaAOTSkipsRankWithoutModel(t *testing.T) {
 	assert.NotNil(t, got)
 	entry := got.Metadata()[0].(VLLMCacheMetadata)
 	assert.Len(t, entry.BinaryCacheEntries, 1)
-	assert.Equal(t, "rank_0_0", entry.BinaryCacheEntries[0].Rank)
+	assert.Equal(t, testRank00, entry.BinaryCacheEntries[0].Rank)
 }
 
 func TestDetectVLLMCache_MegaAOTMetadataMarshalsToManifest(t *testing.T) {
 	cacheDir := t.TempDir()
-	newMegaAOTCache(t, cacheDir, megaAOTHash, []string{"rank_0_0"})
+	newMegaAOTCache(t, cacheDir, megaAOTHash, []string{testRank00})
 
 	got := DetectVLLMCache(cacheDir)
 	assert.NotNil(t, got)

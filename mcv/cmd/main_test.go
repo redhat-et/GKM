@@ -4,6 +4,11 @@ import (
 	"testing"
 )
 
+const (
+	testImageName    = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+	testCacheDirName = "../example/vector-add-cache"
+)
+
 func TestValidateFlagCombinations(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -19,14 +24,14 @@ func TestValidateFlagCombinations(t *testing.T) {
 		{
 			name:         "Valid create flag with image and dir",
 			createFlag:   true,
-			imageName:    "quay.io/gkm/cache-examples:vector-add-cache-cuda",
-			cacheDirName: "../example/vector-add-cache",
+			imageName:    testImageName,
+			cacheDirName: testCacheDirName,
 			expectError:  false,
 		},
 		{
 			name:         "Missing image name for create",
 			createFlag:   true,
-			cacheDirName: "../example/vector-add-cache",
+			cacheDirName: testCacheDirName,
 			expectError:  true,
 		},
 		{
@@ -40,7 +45,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 			name:         "Invalid image name format",
 			createFlag:   true,
 			imageName:    "invalid:image_name",
-			cacheDirName: "../example/vector-add-cache",
+			cacheDirName: testCacheDirName,
 			expectError:  true,
 		},
 		{

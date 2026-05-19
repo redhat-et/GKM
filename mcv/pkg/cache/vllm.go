@@ -41,6 +41,8 @@ const (
 	// megaAOTSaveFormat marks a BinaryCacheMetadata entry as produced by
 	// the mega-AOT flow (single bundled "model" blob per rank dir).
 	megaAOTSaveFormat = "mega-aot"
+	// modelFileName is the standard filename for AOT and Mega-AOT model artifacts
+	modelFileName = "model"
 )
 
 // VLLMCache represents a VLLM-style compile cache (e.g., torch_inductor or fxgraph)
@@ -61,6 +63,92 @@ type VLLMCacheMetadata struct {
 }
 
 // DetectVLLMCache walks the given root directory to detect whether VLLM-style cache artifacts exist
+// processHashEntry processes a single hash directory entry and returns metadata if cache is found
+func processHashEntry(hashDir, entryName string, tc **TritonCache) (*VLLMCacheMetadata, error) {
+	// Try to detect binary cache format first (newer format)
+	binaryCacheData, binaryErr := detectBinaryCache(hashDir)
+	if binaryErr == nil && len(binaryCacheData) > 0 {
+		logging.Debugf("Detected binary cache format for hash: %s", entryName)
+		return &VLLMCacheMetadata{
+			VllmHash:           entryName,
+			CacheFormat:        BinaryCacheFormat,
+			BinaryCacheEntries: binaryCacheData,
+		}, nil
+	}
+
+	// Fall back to triton cache format (older format)
+	var tritonCachePath string
+	err := filepath.WalkDir(hashDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && d.Name() == "triton_cache" {
+			tritonCachePath = path
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil || tritonCachePath == "" {
+		return nil, fmt.Errorf("neither binary cache nor triton cache found")
+	}
+
+	// Check if tritonCachePath exists
+	if _, err := os.Stat(tritonCachePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("triton cache path does not exist: %s", tritonCachePath)
+	}
+
+	logging.Debugf("Inspecting potential Triton cache at: %s", tritonCachePath)
+	_tc := DetectTritonCache(tritonCachePath)
+	if _tc == nil {
+		return nil, fmt.Errorf("failed to detect Triton cache")
+	}
+	*tc = _tc
+	return &VLLMCacheMetadata{
+		VllmHash:           entryName,
+		CacheFormat:        TritonCacheFormat,
+		TritonCacheEntries: (*tc).Metadata(),
+	}, nil
+}
+
+// detectAndProcessAOTCache detects AOT compile cache and returns metadata entries
+func detectAndProcessAOTCache(torchCompileCachePath string) (metadata []VLLMCacheMetadata, count int) {
+	aotCompilePath := filepath.Join(torchCompileCachePath, "torch_aot_compile")
+	if _, err := os.Stat(aotCompilePath); err != nil {
+		return metadata, count
+	}
+
+	logging.Debugf("Detecting AOT compile cache at: %s", aotCompilePath)
+	aotCacheData, aotErr := detectAOTCompileCache(aotCompilePath)
+	if aotErr != nil {
+		logging.Debugf("No AOT compile cache detected: %v", aotErr)
+		return metadata, count
+	}
+	if len(aotCacheData) == 0 {
+		return metadata, count
+	}
+
+	logging.Debugf("Detected AOT compile cache format with %d entries", len(aotCacheData))
+	// Group AOT cache entries by hash
+	aotByHash := make(map[string][]AOTCompileCacheMetadata)
+	for _, aotCache := range aotCacheData {
+		aotByHash[aotCache.Hash] = append(aotByHash[aotCache.Hash], aotCache)
+	}
+
+	// Create metadata entries for each hash
+	for hash, entries := range aotByHash {
+		vllmMetadata := VLLMCacheMetadata{
+			VllmHash:          hash,
+			CacheFormat:       AOTCompileCacheFormat,
+			AOTCompileEntries: entries,
+		}
+		logging.Debugf("Adding VLLM AOT compile cache metadata: %+v", vllmMetadata)
+		metadata = append(metadata, vllmMetadata)
+		count++
+	}
+
+	return metadata, count
+}
+
 func DetectVLLMCache(cacheDir string) *VLLMCache {
 	found := false
 	var torchCompileCachePath string
@@ -106,7 +194,6 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 				}
 
 				// Skip torch_aot_compile directory - it's handled separately
-				// by detectAOTCompileCache() below and should NOT be treated as Mega-AOT
 				if entry.Name() == torchAOTCompileDirName {
 					logging.Debugf("Skipping %s directory (handled by detectAOTCompileCache)", torchAOTCompileDirName)
 					continue
@@ -115,88 +202,20 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 				count++
 				hashDir := filepath.Join(torchCompileCachePath, entry.Name())
 
-				// Try to detect binary cache format first (newer format)
-				binaryCacheData, binaryErr := detectBinaryCache(hashDir)
-				if binaryErr == nil && len(binaryCacheData) > 0 {
-					logging.Debugf("Detected binary cache format for hash: %s", entry.Name())
-					vllmMetadata := VLLMCacheMetadata{
-						VllmHash:           entry.Name(),
-						CacheFormat:        BinaryCacheFormat,
-						BinaryCacheEntries: binaryCacheData,
-					}
-					logging.Debugf("Adding VLLM binary cache metadata: %+v", vllmMetadata)
-					metadata = append(metadata, vllmMetadata)
+				// Process hash entry (binary or triton cache)
+				vllmMetadata, err := processHashEntry(hashDir, entry.Name(), &tc)
+				if err != nil {
+					logging.Warnf("Failed to process hash entry %s: %v", entry.Name(), err)
 					continue
 				}
-
-				// Fall back to triton cache format (older format)
-				var tritonCachePath string
-				err := filepath.WalkDir(hashDir, func(path string, d fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					if d.IsDir() && d.Name() == "triton_cache" {
-						tritonCachePath = path
-						return filepath.SkipDir
-					}
-					return nil
-				})
-				if err != nil || tritonCachePath == "" {
-					logging.Warnf("Neither binary cache nor triton cache found for entry: %s", entry.Name())
-					continue
-				}
-
-				// Check if tritonCachePath exists
-				if _, err := os.Stat(tritonCachePath); os.IsNotExist(err) {
-					logging.Warnf("Triton cache path does not exist: %s", tritonCachePath)
-					continue
-				}
-
-				logging.Debugf("Inspecting potential Triton cache at: %s", tritonCachePath)
-				_tc := DetectTritonCache(tritonCachePath)
-				if _tc == nil {
-					logging.Warnf("Failed to detect Triton cache at: %s", tritonCachePath)
-					continue
-				}
-				tc = _tc
-				vllmMetadata := VLLMCacheMetadata{
-					VllmHash:           entry.Name(),
-					CacheFormat:        TritonCacheFormat,
-					TritonCacheEntries: tc.Metadata(),
-				}
-
-				logging.Debugf("Adding VLLM triton cache metadata: %+v", vllmMetadata)
-				metadata = append(metadata, vllmMetadata)
+				logging.Debugf("Adding VLLM cache metadata: %+v", vllmMetadata)
+				metadata = append(metadata, *vllmMetadata)
 			}
 
-			// Check for AOT compile cache at torch_compile_cache/torch_aot_compile/
-			aotCompilePath := filepath.Join(torchCompileCachePath, "torch_aot_compile")
-			if _, err := os.Stat(aotCompilePath); err == nil {
-				logging.Debugf("Detecting AOT compile cache at: %s", aotCompilePath)
-				aotCacheData, aotErr := detectAOTCompileCache(aotCompilePath)
-				if aotErr == nil && len(aotCacheData) > 0 {
-					logging.Debugf("Detected AOT compile cache format with %d entries", len(aotCacheData))
-					// Group AOT cache entries by hash
-					aotByHash := make(map[string][]AOTCompileCacheMetadata)
-					for _, aotCache := range aotCacheData {
-						aotByHash[aotCache.Hash] = append(aotByHash[aotCache.Hash], aotCache)
-					}
-
-					// Create metadata entries for each hash
-					for hash, entries := range aotByHash {
-						vllmMetadata := VLLMCacheMetadata{
-							VllmHash:          hash,
-							CacheFormat:       AOTCompileCacheFormat,
-							AOTCompileEntries: entries,
-						}
-						logging.Debugf("Adding VLLM AOT compile cache metadata: %+v", vllmMetadata)
-						metadata = append(metadata, vllmMetadata)
-						count++
-					}
-				} else if aotErr != nil {
-					logging.Debugf("No AOT compile cache detected: %v", aotErr)
-				}
-			}
+			// Detect and process AOT compile cache
+			aotMetadata, aotCount := detectAndProcessAOTCache(torchCompileCachePath)
+			metadata = append(metadata, aotMetadata...)
+			count += aotCount
 		}
 	}
 
@@ -386,7 +405,7 @@ func detectMegaAOTCache(hashDir string) ([]BinaryCacheMetadata, error) {
 		if !entry.IsDir() || !rankDirRegex.MatchString(entry.Name()) {
 			continue
 		}
-		modelPath := filepath.Join(hashDir, entry.Name(), "model")
+		modelPath := filepath.Join(hashDir, entry.Name(), modelFileName)
 		info, err := os.Stat(modelPath)
 		if err != nil || info.IsDir() {
 			continue
@@ -394,7 +413,7 @@ func detectMegaAOTCache(hashDir string) ([]BinaryCacheMetadata, error) {
 		out = append(out, BinaryCacheMetadata{
 			Rank:            entry.Name(),
 			ArtifactCount:   1,
-			ArtifactNames:   []string{"model"},
+			ArtifactNames:   []string{modelFileName},
 			CacheSaveFormat: megaAOTSaveFormat,
 		})
 	}
@@ -445,7 +464,7 @@ func detectAOTCompileCache(aotPath string) ([]AOTCompileCacheMetadata, error) {
 			}
 
 			// Check for model file
-			modelPath := filepath.Join(hashDir, rankEntry.Name(), "model")
+			modelPath := filepath.Join(hashDir, rankEntry.Name(), modelFileName)
 			stat, err := os.Stat(modelPath)
 			if err != nil {
 				logging.Debugf("No model file found at %s: %v", modelPath, err)
@@ -455,7 +474,7 @@ func detectAOTCompileCache(aotPath string) ([]AOTCompileCacheMetadata, error) {
 			aotCache := AOTCompileCacheMetadata{
 				Hash:      hashEntry.Name(),
 				Rank:      rankEntry.Name(),
-				ModelFile: "model",
+				ModelFile: modelFileName,
 				FileSize:  stat.Size(),
 			}
 

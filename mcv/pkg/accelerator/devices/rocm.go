@@ -189,7 +189,7 @@ func (r *gpuROCm) Init() error {
 				Arch:              info.GFXVersion,
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal / (1024 * 1024),
-				Backend:           "hip",
+				Backend:           hipBackend,
 				ID:                gpuID,
 			},
 			Summary: DeviceSummary{

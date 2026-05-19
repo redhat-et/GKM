@@ -80,7 +80,7 @@ func NewStubbedDeviceCache() *DeviceCache {
 	return &DeviceCache{
 		Devices: map[string]CachedDevice{
 			"gpu": {
-				Name:       "STUBBED AMD",
+				Name:       stubbedAMDName,
 				DeviceType: 1, // DeviceType for GPU, adjust if you have a constant
 				HwType:     "gpu",
 				TritonInfo: []TritonGPUInfo{
@@ -88,22 +88,22 @@ func NewStubbedDeviceCache() *DeviceCache {
 						Name:              "card0",
 						UUID:              "daff740f-0000-1000-8062-0165038984ec",
 						ComputeCapability: "",
-						Arch:              "gfx90a",
+						Arch:              gfxArchMI210,
 						WarpSize:          64,
 						MemoryTotalMB:     65520,
 						PTXVersion:        0,
-						Backend:           "hip",
+						Backend:           hipBackend,
 						ID:                0,
 					},
 					{
 						Name:              "card1",
 						UUID:              "acff740f-0000-1000-806b-c6ef57f28db1",
 						ComputeCapability: "",
-						Arch:              "gfx90a",
+						Arch:              gfxArchMI210,
 						WarpSize:          64,
 						MemoryTotalMB:     65520,
 						PTXVersion:        0,
-						Backend:           "hip",
+						Backend:           hipBackend,
 						ID:                1,
 					},
 				},

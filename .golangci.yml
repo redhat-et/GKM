@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   allow-parallel-runners: true
@@ -36,7 +38,6 @@ linters:
     - prealloc
     - revive
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
