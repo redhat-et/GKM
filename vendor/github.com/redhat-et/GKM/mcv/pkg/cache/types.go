@@ -1,9 +1,11 @@
 package cache
 
 type SummaryTargetInfo struct {
-	Backend  string `json:"backend"`
-	Arch     string `json:"arch"`
-	WarpSize int    `json:"warp_size"`
+	Backend     string `json:"backend"`
+	Arch        string `json:"arch"`
+	WarpSize    int    `json:"warp_size"`
+	PTXVersion  int    `json:"ptx_version,omitempty"`  // CUDA PTX version (for CUDA backend)
+	CUDAVersion string `json:"cuda_version,omitempty"` // CUDA toolkit version (e.g., "12.9")
 }
 
 type Summary struct {
@@ -87,4 +89,14 @@ type CacheKeyFactors struct {
 	CompilerHash string                 `json:"compiler_hash"`
 	ConfigHash   string                 `json:"config_hash"`
 	Env          map[string]interface{} `json:"env"`
+}
+
+// AOTCompileCacheMetadata represents metadata for AOT compile cache artifacts
+// These are created when VLLM_USE_AOT_COMPILE=1 and stored at:
+// torch_compile_cache/torch_aot_compile/{hash}/rank_{rank}_{dp_rank}/model
+type AOTCompileCacheMetadata struct {
+	Hash      string `json:"hash"`       // Full hash from directory name
+	Rank      string `json:"rank"`       // rank_X_Y format
+	ModelFile string `json:"model_file"` // Always "model"
+	FileSize  int64  `json:"file_size"`  // Size of model file in bytes
 }

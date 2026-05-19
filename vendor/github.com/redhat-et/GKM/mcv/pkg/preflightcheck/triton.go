@@ -63,7 +63,11 @@ func CompareTritonEntriesToGPU(entries []cache.TritonCacheMetadata, devInfo []de
 
 		for _, gpuInfo := range devInfo {
 			backendMatches := entry.Backend == gpuInfo.Backend
-			archMatches := entry.Arch == gpuInfo.Arch
+			// Normalize architectures for comparison (handles "75" vs "sm_75" for CUDA)
+			entryArchStr := cache.ConvertArchToString(entry.Arch)
+			normalizedEntryArch := normalizeArchForComparison(entry.Backend, entryArchStr)
+			normalizedGPUArch := normalizeArchForComparison(gpuInfo.Backend, gpuInfo.Arch)
+			archMatches := normalizedEntryArch == normalizedGPUArch
 			warpMatches := entry.WarpSize == gpuInfo.WarpSize
 
 			ptxMatches := true

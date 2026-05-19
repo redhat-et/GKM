@@ -37,11 +37,11 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo) {
 					Address: "0000:00:01.0",
 					PCIDevice: &pci.Device{
 						Vendor: &pcidb.Vendor{
-							Name: "STUBBED AMD",
+							Name: stubbedAMDName,
 							ID:   "1002",
 						},
 						Product: &pcidb.Product{
-							Name: "STUBBED AMD",
+							Name: stubbedAMDName,
 							ID:   "STUBBED Aldebaran/MI200",
 						},
 						Driver: "dummy",
@@ -55,7 +55,7 @@ func DetectAccelerators() (accInfo *ghw.AcceleratorInfo) {
 					Address: "0000:00:02.0",
 					PCIDevice: &pci.Device{
 						Vendor: &pcidb.Vendor{
-							Name: "STUBBED AMD",
+							Name: stubbedAMDName,
 							ID:   "1002",
 						},
 						Product: &pcidb.Product{
