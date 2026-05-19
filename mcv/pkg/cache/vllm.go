@@ -27,11 +27,13 @@ const (
 	cacheVLLMImageFormat     = cacheVLLMImagePrefix + "/format"
 
 	// Cache format constants
-	BinaryCacheFormat = "binary"
-	CUDABackend       = "cuda"
-	ROCmBackend       = "rocm"
-	HIPBackend        = "hip"
-	UnknownBackend    = "UnknownBackend"
+	BinaryCacheFormat     = "binary"
+	AOTCompileCacheFormat = "aot_compile"
+	TritonCacheFormat     = "triton"
+	CUDABackend           = "cuda"
+	ROCmBackend           = "rocm"
+	HIPBackend            = "hip"
+	UnknownBackend        = "UnknownBackend"
 
 	// torchAOTCompileDirName is the extra directory vLLM introduces above
 	// the per-model hash dir when VLLM_USE_AOT_COMPILE is enabled.
@@ -164,7 +166,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 				tc = _tc
 				vllmMetadata := VLLMCacheMetadata{
 					VllmHash:           entry.Name(),
-					CacheFormat:        "triton",
+					CacheFormat:        TritonCacheFormat,
 					TritonCacheEntries: tc.Metadata(),
 				}
 
@@ -189,7 +191,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					for hash, entries := range aotByHash {
 						vllmMetadata := VLLMCacheMetadata{
 							VllmHash:          hash,
-							CacheFormat:       "aot_compile",
+							CacheFormat:       AOTCompileCacheFormat,
 							AOTCompileEntries: entries,
 						}
 						logging.Debugf("Adding VLLM AOT compile cache metadata: %+v", vllmMetadata)
@@ -705,12 +707,29 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 }
 
 func (v *VLLMCache) Labels() map[string]string {
-	// Determine the cache format from metadata
-	// Default to "unpacked" for triton cache format (older unpacked format)
-	// or "binary" for new binary format
+	// Determine the cache format(s) from metadata
+	// Collect all unique formats present
+	formatSet := make(map[string]bool)
+	for _, meta := range v.allMetadata {
+		formatSet[meta.CacheFormat] = true
+	}
+
+	// Build comma-separated list of formats, prioritizing: aot_compile, binary, triton
+	var formats []string
+	if formatSet[AOTCompileCacheFormat] {
+		formats = append(formats, AOTCompileCacheFormat)
+	}
+	if formatSet[BinaryCacheFormat] {
+		formats = append(formats, BinaryCacheFormat)
+	}
+	if formatSet[TritonCacheFormat] {
+		formats = append(formats, TritonCacheFormat)
+	}
+
+	// Default to "unpacked" if no recognized formats found
 	cacheFormat := "unpacked"
-	if len(v.allMetadata) > 0 && v.allMetadata[0].CacheFormat == BinaryCacheFormat {
-		cacheFormat = BinaryCacheFormat
+	if len(formats) > 0 {
+		cacheFormat = strings.Join(formats, ",")
 	}
 
 	return map[string]string{

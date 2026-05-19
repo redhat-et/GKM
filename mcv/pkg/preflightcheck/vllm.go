@@ -26,19 +26,19 @@ func CompareVLLMCacheManifestToGPU(manifestPath string, devInfo []devices.Triton
 	for _, entry := range manifest.VLLM {
 		// Check cache format and validate accordingly
 		switch entry.CacheFormat {
-		case "binary":
+		case cache.BinaryCacheFormat:
 			if len(entry.BinaryCacheEntries) > 0 {
 				if err := compareBinaryCacheEntriesToGPU(entry.BinaryCacheEntries, devInfo); err != nil {
 					return err
 				}
 			}
-		case "aot_compile":
+		case cache.AOTCompileCacheFormat:
 			if len(entry.AOTCompileEntries) > 0 {
 				if err := compareAOTCompileCacheEntriesToGPU(entry.AOTCompileEntries, devInfo); err != nil {
 					return err
 				}
 			}
-		case "triton":
+		case cache.TritonCacheFormat:
 			if len(entry.TritonCacheEntries) > 0 {
 				// Handle triton cache format (legacy)
 				// TritonCacheEntries contains JSON-unmarshalled map[string]interface{} values,
