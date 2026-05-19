@@ -105,15 +105,10 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					continue
 				}
 
-				// Mega-AOT layout wraps per-model hash dirs under
-				// torch_aot_compile/. Recurse one level and treat each
-				// child as a hash dir.
+				// Skip torch_aot_compile directory - it's handled separately
+				// by detectAOTCompileCache() below and should NOT be treated as Mega-AOT
 				if entry.Name() == torchAOTCompileDirName {
-					aotMeta, aotCount := detectMegaAOTEntries(
-						filepath.Join(torchCompileCachePath, entry.Name()),
-					)
-					metadata = append(metadata, aotMeta...)
-					count += aotCount
+					logging.Debugf("Skipping %s directory (handled by detectAOTCompileCache)", torchAOTCompileDirName)
 					continue
 				}
 
