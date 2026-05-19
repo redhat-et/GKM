@@ -34,16 +34,17 @@ The key differences are **inside the prefix directory**:
 
 **Note**: The `VLLM_USE_AOT_COMPILE=1` workflow uses a different structure at
 `torch_compile_cache/torch_aot_compile/{hash}/rank_{rank}_{dp_rank}/model` and is
-not currently supported by MCV.
+fully supported by MCV via `detectAOTCompileCache()` and AOT-specific preflight validation.
 
-This document describes the **vLLM Binary and Mega AOT Artifact Formats** and how
+This document describes the **vLLM Binary, Mega AOT Artifact, and AOT Compile Formats** and how
 torch.compile caching works with MCV.
 
 **Important**: This document covers compilation mode 3 (`VLLM_COMPILE`) which uses
 `~/.cache/vllm/torch_compile_cache/`. There is a separate vLLM feature controlled
 by `VLLM_USE_AOT_COMPILE=1` (enabled by default in PyTorch 2.10+) that creates an
 additional cache at `torch_compile_cache/torch_aot_compile/` with a different
-structure. MCV does not currently support this AOT compile workflow.
+structure. MCV fully supports this AOT compile workflow through automatic detection
+and compatibility validation using the cache summary label.
 
 ## Torch Compile Architecture
 
@@ -108,7 +109,7 @@ These are **two different features** that are often confused:
 - Enabled by default in PyTorch 2.10+
 - Creates cache at: `torch_compile_cache/torch_aot_compile/{hash}/rank_X_Y/model`
 - Single `model` file (~6.5MB) instead of multiple artifacts
-- **Not currently supported by MCV** (different directory structure)
+- **Fully supported by MCV** via `detectAOTCompileCache()` function
 
 **`VLLM_USE_MEGA_AOT_ARTIFACT`** (serialization format):
 - Enabled by default in PyTorch 2.12+
@@ -332,7 +333,7 @@ MCV automatically detects hardware information from the system and combines it w
 ```json
 {
   "backend": "cuda",
-  "arch": "75",
+  "arch": "sm_75",
   "warp_size": 32,
   "ptx_version": 590,
   "cuda_version": "12.9"
@@ -340,12 +341,12 @@ MCV automatically detects hardware information from the system and combines it w
 ```
 
 - **Backend**: Extracted from `VLLM_TARGET_DEVICE` environment variable
-- **Arch**: **Detected from actual GPU** on the system as numerical compute capability (e.g., `75` for Tesla T4, `80` for A100, `89` for RTX 4090)
+- **Arch**: **Detected from actual GPU** on the system with "sm_" prefix (e.g., `sm_75` for Tesla T4, `sm_80` for A100, `sm_89` for RTX 4090). CUDA architectures are formatted with the "sm_" prefix to match NVIDIA conventions.
 - **Warp Size**: 32 (CUDA default)
 - **PTX Version**: PTX version from NVIDIA driver (e.g., 590 for driver 590.48.01)
 - **CUDA Version**: CUDA toolkit version from `VLLM_MAIN_CUDA_VERSION` (e.g., "12.9")
 
-**Important**: MCV detects the **actual GPU compute capability** from the system, not from environment variables. Compute capability is stored as a numerical value (e.g., `75` = sm_7.5 = Turing architecture). This ensures accurate compatibility checking between cached kernels and the target GPU.
+**Important**: MCV detects the **actual GPU compute capability** from the system, not from environment variables. NVIDIA architectures are formatted as "sm_XX" (e.g., `sm_75` = sm_7.5 = Turing architecture) per `mcv/pkg/cache/vllm.go:buildBinaryCacheSummary()`. This ensures accurate compatibility checking between cached kernels and the target GPU.
 
 ### ROCm/HIP
 
@@ -508,9 +509,9 @@ inspect` or `skopeo inspect` without reading the full manifest.
 | **Env Var** | - | `VLLM_USE_MEGA_AOT_ARTIFACT=0` | `VLLM_USE_MEGA_AOT_ARTIFACT=1` |
 | **MCV Support** | ✅ Yes | ✅ Yes | ✅ Yes |
 
-**Note**: The `VLLM_USE_AOT_COMPILE=1` workflow creates a different structure at
-`torch_compile_cache/torch_aot_compile/` and is **not** shown in this table as it
-is not currently supported by MCV.
+**Note**: The `VLLM_USE_AOT_COMPILE=1` workflow creates a cache at
+`torch_compile_cache/torch_aot_compile/` and is fully supported by MCV through
+`detectAOTCompileCache()` and preflight validation using the summary label.
 
 ## Complete Workflow Example
 

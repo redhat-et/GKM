@@ -606,15 +606,15 @@ func detectActualGPUInfo() (backend, arch string, warpSize, ptxVersion int) {
 func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 	targetMap := make(map[string]SummaryTargetInfo)
 
+	// Detect actual GPU from the system once (not per metadata entry)
+	// NOTE: We detect the actual system GPU rather than trusting VLLM_TARGET_DEVICE
+	// because caches may be copied from other systems
+	detectedBackend, detectedArch, detectedWarpSize, detectedPTX := detectActualGPUInfo()
+
 	for _, meta := range metadata {
 		if meta.CacheFormat != BinaryCacheFormat {
 			continue
 		}
-
-		// Detect actual GPU from the system once per metadata entry
-		// NOTE: We detect the actual system GPU rather than trusting VLLM_TARGET_DEVICE
-		// because caches may be copied from other systems
-		detectedBackend, detectedArch, detectedWarpSize, detectedPTX := detectActualGPUInfo()
 
 		for i := range meta.BinaryCacheEntries {
 			binaryCache := &meta.BinaryCacheEntries[i]
@@ -624,12 +624,6 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 			arch := detectedArch
 			warpSize := detectedWarpSize
 			ptxVersion := detectedPTX
-
-			// For vLLM binary cache, CUDA uses sm_ prefix (e.g., sm_75)
-			// AMD/ROCm already has gfx prefix (e.g., gfx1151)
-			if backend == CUDABackend {
-				arch = fmt.Sprintf("sm_%s", arch)
-			}
 
 			// Extract toolkit versions from cache environment for reference
 			cudaVersion := ""
@@ -643,6 +637,29 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 				if backend == "" {
 					backend = CUDABackend // Default if not specified
 				}
+
+				// Also try to extract arch from cache metadata environment
+				if archEnv, ok := binaryCache.Env["VLLM_PAGED_ATTN_ARCH"]; ok {
+					if archStr, ok := archEnv.(string); ok && archStr != "" {
+						arch = archStr
+						logging.Debugf("Using arch from cache env VLLM_PAGED_ATTN_ARCH: %s", arch)
+					}
+				}
+
+				// If arch is still unknown, set a default based on backend
+				if arch == UnknownBackend || arch == "" {
+					switch backend {
+					case CUDABackend:
+						arch = "75" // Default to sm_75 (Turing/T4) for CUDA
+						logging.Debugf("Using default CUDA arch: %s", arch)
+					case ROCmBackend, HIPBackend:
+						arch = "gfx908" // Default to gfx908 (MI100) for AMD
+						logging.Debugf("Using default ROCm arch: %s", arch)
+					default:
+						arch = "unknown"
+					}
+				}
+
 				// Set default warp sizes
 				switch backend {
 				case ROCmBackend, HIPBackend:
@@ -654,6 +671,13 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 				case "cpu":
 					warpSize = 1
 				}
+			}
+
+			// For vLLM binary cache, CUDA uses sm_ prefix (e.g., sm_75)
+			// AMD/ROCm already has gfx prefix (e.g., gfx1151)
+			// Apply sm_ prefix AFTER fallback logic so arch is properly set
+			if backend == CUDABackend && !strings.HasPrefix(arch, "sm_") {
+				arch = fmt.Sprintf("sm_%s", arch)
 			}
 
 			// Extract toolkit version info from environment
