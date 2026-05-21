@@ -41,7 +41,7 @@ torch.compile caching works with MCV.
 
 **Important**: This document covers compilation mode 3 (`VLLM_COMPILE`) which uses
 `~/.cache/vllm/torch_compile_cache/`. There is a separate vLLM feature controlled
-by `VLLM_USE_AOT_COMPILE=1` (enabled by default in PyTorch 2.10+) that creates an
+by `VLLM_USE_AOT_COMPILE=1` (enabled by default in PyTorch 2.12+) that creates an
 additional cache at `torch_compile_cache/torch_aot_compile/` with a different
 structure. MCV fully supports this AOT compile workflow through automatic detection
 and compatibility validation using the cache summary label.
@@ -106,7 +106,7 @@ and use the same detection and packaging logic:
 These are **two different features** that are often confused:
 
 **`VLLM_USE_AOT_COMPILE`** (directory structure change):
-- Enabled by default in PyTorch 2.10+
+- Enabled by default in PyTorch 2.12+
 - Creates cache at: `torch_compile_cache/torch_aot_compile/{hash}/rank_X_Y/model`
 - Single `model` file (~6.5MB) instead of multiple artifacts
 - **Fully supported by MCV** via `detectAOTCompileCache()` function
@@ -848,7 +848,7 @@ Key files in vLLM that implement binary cache:
 3. **Include full env in manifest** for cache compatibility checking
 4. **Verify hardware match** using image labels before deployment
 5. **Check cache_save_format** in manifest when extracting caches
-6. **Use AOT artifacts for cross-PyTorch-version portability** (requires PyTorch 2.10+)
+6. **Use AOT artifacts for cross-PyTorch-version portability** (requires PyTorch 2.12+)
 
 ## Migration from vLLM Triton Cache to vLLM Binary Cache
 
@@ -873,7 +873,7 @@ export VLLM_USE_MEGA_AOT_ARTIFACT=false  # or omit (default)
 
 # For AOT format (more portable):
 export VLLM_COMPILE_CACHE_SAVE_FORMAT=binary
-export VLLM_USE_MEGA_AOT_ARTIFACT=true  # requires PyTorch 2.10+
+export VLLM_USE_MEGA_AOT_ARTIFACT=true  # requires PyTorch 2.12+
 ```
 
 **Run vLLM Warmup**:
