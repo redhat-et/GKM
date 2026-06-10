@@ -51,10 +51,8 @@ func (d *gpuAMD) SetHwType(hwType string) {
 func (d *gpuAMD) SetTritonInfo(info []TritonGPUInfo) {
 	d.tritonInfo = info
 
-	// Rebuild devices map from cached triton info
-	if d.devices == nil {
-		d.devices = make(map[int]GPUDevice)
-	}
+	// Reinitialize to prevent stale GPUs from previous state
+	d.devices = make(map[int]GPUDevice, len(info))
 	for _, tritonInfo := range info {
 		d.devices[tritonInfo.ID] = GPUDevice{
 			ID:         tritonInfo.ID,

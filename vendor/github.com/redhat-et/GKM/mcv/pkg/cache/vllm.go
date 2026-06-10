@@ -382,7 +382,6 @@ func detectMegaAOTEntries(aotDir string) (entries []VLLMCacheMetadata, count int
 		if !entry.IsDir() {
 			continue
 		}
-		count++
 		hashDir := filepath.Join(aotDir, entry.Name())
 		megaData, megaErr := detectMegaAOTCache(hashDir)
 		if megaErr != nil || len(megaData) == 0 {
@@ -390,6 +389,7 @@ func detectMegaAOTEntries(aotDir string) (entries []VLLMCacheMetadata, count int
 			continue
 		}
 		logging.Debugf("Detected mega-AOT cache for hash: %s", entry.Name())
+		count++
 		entries = append(entries, VLLMCacheMetadata{
 			VllmHash:           entry.Name(),
 			CacheFormat:        BinaryCacheFormat,
