@@ -1,5 +1,5 @@
-# Build stage - follow KServe pattern with golang:1.25
-FROM golang:1.25-trixie AS deps
+# ---- Dependency stage - follow KServe pattern with golang:1.25 ----
+FROM golang:1.25 AS deps
 
 WORKDIR /workspace
 COPY mcv/ mcv/
@@ -40,18 +40,66 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 #RUN --mount=type=cache,target=/go/pkg/mod \
 #    go-licenses save --save_path /third_party/library ./gkm-extract
 
-# Runtime stage - use debian:trixie-slim to match golang:1.25 base (Debian 13)
-# KServe pattern uses distroless/static for CGO_ENABLED=0, but we need CGO
-# golang:1.25 is based on Debian trixie (13), so runtime must match
-FROM debian:trixie-slim
+# ---- Runtime stage ----
+# UNIFIED TARGET: For mixed GPU environments (NVIDIA + AMD support)
+# Includes both CUDA/NVML and ROCm libraries for auto-detection
+FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS mcv-unified
 
+ARG ROCM_VERSION=7.0.1
+ARG AMDGPU_VERSION=7.0.1.70001
+ARG OPT_ROCM_VERSION=7.0.1
+
+# Install base runtime dependencies
+# CUDA base already provides: libnvidia-ml.so.1 (NVML library)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libgpgme11t64 \
-    libbtrfs0t64 \
+    libbtrfs0 \
+    libffi8 \
+    libc6 \
+    buildah \
+    netavark aardvark-dns \
+    fuse-overlayfs fuse3 \
+    hwdata \
+    # ROCm dependencies
+    wget \
+    gnupg2 \
+    curl \
+    lsb-release \
+    software-properties-common \
+    python3-setuptools \
+    python3-wheel \
+    pciutils \
  && rm -rf /var/lib/apt/lists/*
 
-#COPY --from=license /third_party /third_party
+# Install ROCm tools for AMD GPU detection
+# Note: Using Ubuntu 22.04 (jammy) packages as ROCm doesn't officially support Ubuntu 24.04 yet
+RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        amd-smi-lib \
+        rocm-smi-lib \
+        libdrm2 && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/local/bin/amd-smi && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/local/bin/rocm-smi && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* ./*.deb
+
+# Configure container storage
+RUN mkdir -p /etc/containers && \
+ printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+   > /etc/containers/storage.conf
+
+COPY --from=builder /workspace/bin/gkm-extract /gkm-extract
+
+LABEL description="MCV Unified - includes both NVIDIA (CUDA/NVML) and AMD (ROCm) GPU support for auto-detection"
+LABEL variant="unified"
+LABEL gpu-support="nvidia,amd"
+LABEL base-image="nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04"
+LABEL rocm-version="7.0.1"
+
 COPY --from=builder /workspace/bin/gkm-extract /gkm-extract
 
 # Run as non-root user (same UID as distroless nonroot)
