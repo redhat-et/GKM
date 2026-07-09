@@ -124,11 +124,10 @@ func CleanupWithTimeout() error {
 	return utils.CleanupMCVDirs(ctx, "")
 }
 
+// NormalizeImageTag ensures a mutable image reference has an explicit tag.
+// See utils.NormalizeImageTag.
 func NormalizeImageTag(imageName string) string {
-	if !strings.Contains(imageName, ":") {
-		return fmt.Sprintf("%s:latest", imageName)
-	}
-	return imageName
+	return utils.NormalizeImageTag(imageName)
 }
 
 func DockerfilePath(buildRoot string) string {
