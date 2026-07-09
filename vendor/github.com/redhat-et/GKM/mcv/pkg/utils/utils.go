@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
 )
@@ -28,6 +29,38 @@ func FilePathExists(path string) (bool, error) {
 func HasApp(app string) bool {
 	_, err := exec.LookPath(app)
 	return err == nil
+}
+
+// NormalizeImageTag ensures a mutable image reference has an explicit tag.
+// Uses go-containerregistry parsing so host:port registries (e.g. localhost:5000/foo)
+// correctly receive ":latest", while digests, already-tagged refs, and short names
+// (e.g. "foo" → "foo:latest") keep their original form.
+func NormalizeImageTag(imageName string) string {
+	if imageName == "" || strings.Contains(imageName, "@") {
+		return imageName
+	}
+
+	ref, err := name.ParseReference(imageName, name.WeakValidation)
+	if err != nil {
+		if !strings.Contains(imageName, ":") {
+			return imageName + ":latest"
+		}
+		return imageName
+	}
+	if _, isDigest := ref.(name.Digest); isDigest {
+		return imageName
+	}
+	tag, ok := ref.(name.Tag)
+	if !ok {
+		return imageName
+	}
+	// Input already included an explicit tag.
+	if strings.HasSuffix(imageName, ":"+tag.TagStr()) {
+		return imageName
+	}
+	// ParseReference applied the default tag — append it to the original string
+	// so short names and host:port refs are preserved.
+	return imageName + ":" + tag.TagStr()
 }
 
 // CleanupMCVDirs removes the temporary MCV directory using os.RemoveAll.
