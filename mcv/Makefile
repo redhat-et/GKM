@@ -113,10 +113,35 @@ lint:
 	@echo
 	@echo
 
-test:
-	@echo "******     testing     ******"
+##@ Testing
+.PHONY: test
+test: ## Run unit tests
+	@echo "******     running unit tests     ******"
 	@echo
-	go test github.com/redhat-et/GKM/mcv/...
+	go test ./... -v
+
+.PHONY: test-short
+test-short: ## Run unit tests without verbose output
+	@echo "******     running unit tests (short)     ******"
+	@echo
+	go test ./...
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage report
+	@echo "******     generating test coverage     ******"
+	@echo
+	go test ./... -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+.PHONY: test-e2e
+test-e2e: build ## Run end-to-end tests
+	@echo "******     running end-to-end tests     ******"
+	@echo
+	cd test/e2e && go test -v -tags=e2e
+
+.PHONY: test-all
+test-all: test test-e2e ## Run all tests (unit and e2e)
 
 ##@ Installation
 .PHONY: install

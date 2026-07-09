@@ -24,7 +24,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -147,10 +146,7 @@ func (i *imgFetcher) FetchImg(imgName string) (v1.Image, error) {
 		return nil, fmt.Errorf("failed to configure fetcher")
 	}
 
-	imageWithTag := imgName
-	if !strings.Contains(imgName, ":") {
-		imageWithTag = fmt.Sprintf("%s:latest", imgName)
-	}
+	imageWithTag := utils.NormalizeImageTag(imgName)
 
 	img, err := i.fetcher.FetchImg(imageWithTag)
 	if err != nil {
