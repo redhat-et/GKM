@@ -63,6 +63,7 @@ func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
 		NoCache:    true,
 		Remove:     false,
 		Labels:     prep.Labels,
+		Squash:     true, // Squash layers for cosign compatibility
 	}
 
 	buildResponse, err := apiClient.ImageBuild(context.Background(), tar, buildOptions)

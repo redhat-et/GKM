@@ -213,7 +213,7 @@ type AMDListInfo struct {
 
 var gpuToGFXMap = map[string]string{
 	"Instinct MI210":                                 gfxArchMI210, // Aldebaran/MI200 [Instinct MI210]
-	"Instinct MI300":                                 "gfx90c", // MI300 series
+	"Instinct MI300":                                 "gfx90c",     // MI300 series
 	"Polaris 10 (RX 400 series)":                     "gfx803",
 	"Polaris 11 (RX 500 series)":                     "gfx804",
 	"Polaris 30 (RX Vega series)":                    "gfx810",

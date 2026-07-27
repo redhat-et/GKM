@@ -10,6 +10,7 @@ A Model/GPU kernel cache container packaging utility inspired by
 - Build container images containing GPU Kernel/Model caches.
 - Extract a cache from an OCI image
 - Compatible with docker or buildah
+- **Single-layer image output** (squashed) for cosign compatibility
 - Client API for retrieving and extracting images
 - Artifact and image signing via cosign (indirectly)
 
@@ -17,6 +18,7 @@ A Model/GPU kernel cache container packaging utility inspired by
 
 - Cache artifact signing with Cosign
 - Container image signing support with Cosign
+- **Single-layer images**: MCV automatically squashes all layers into a single layer when building images with both Docker and Buildah, ensuring compatibility with cosign for signing and verification
 
 ## Build Instructions
 
@@ -162,12 +164,19 @@ INFO[2025-05-28 11:09:34] OCI image created successfully.
 To see the new image:
 
 ```bash
- docker images
+docker images
 REPOSITORY                     TAG     IMAGE ID       CREATED          SIZE
 quay.io/tkm/vector-add-cache   latest  32572653bbbd   5 minutes ago    0B
 ```
 
-To inspect the docker image with Skopeo
+To verify the image has a single layer (important for cosign compatibility):
+
+```bash
+docker inspect quay.io/gkm/vector-add-cache:rocm | jq '.[0].RootFS.Layers | length'
+1
+```
+
+To inspect the docker image with Skopeo (note the **single layer** due to squashing):
 
 ```bash
 skopeo inspect docker-daemon:quay.io/gkm/vector-add-cache:rocm
@@ -186,20 +195,13 @@ skopeo inspect docker-daemon:quay.io/gkm/vector-add-cache:rocm
     "Architecture": "amd64",
     "Os": "linux",
     "Layers": [
-        "sha256:fe1632cee6d6de159c5c36233c73fbbaa9196af69d771fe016ae4b3a0b6ea698",
-        "sha256:a53fd74714b8956ec2d2e02c4c262e6800bc45b0a8f5e339923ea3baa2d1f1ff"
+        "sha256:6e3f1d58f222596e1f97b87f33985278c8afc86441e474f05df376324bb92fb9"
     ],
     "LayersData": [
         {
             "MIMEType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "Digest": "sha256:fe1632cee6d6de159c5c36233c73fbbaa9196af69d771fe016ae4b3a0b6ea698",
-            "Size": 91648,
-            "Annotations": null
-        },
-        {
-            "MIMEType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "Digest": "sha256:a53fd74714b8956ec2d2e02c4c262e6800bc45b0a8f5e339923ea3baa2d1f1ff",
-            "Size": 2560,
+            "Digest": "sha256:6e3f1d58f222596e1f97b87f33985278c8afc86441e474f05df376324bb92fb9",
+            "Size": 84000,
             "Annotations": null
         }
     ],
