@@ -165,8 +165,8 @@ To see the new image:
 
 ```bash
 docker images
-REPOSITORY                     TAG     IMAGE ID       CREATED          SIZE
-quay.io/tkm/vector-add-cache   latest  32572653bbbd   5 minutes ago    0B
+REPOSITORY                        TAG       IMAGE ID       CREATED          SIZE
+quay.io/gkm/vector-add-cache      rocm      c144a34c9296   5 minutes ago    80.7kB
 ```
 
 To verify the image has a single layer (important for cosign compatibility):
@@ -181,7 +181,7 @@ To inspect the docker image with Skopeo (note the **single layer** due to squash
 ```bash
 skopeo inspect docker-daemon:quay.io/gkm/vector-add-cache:rocm
 {
-    "Name": "quay.io/tkm/vector-add-cache",
+    "Name": "quay.io/gkm/vector-add-cache",
     "Digest": "sha256:326c155c3d6de9d285b0280d141cb75f1fd48475b410e19f4aef0b395b400ced",
     "RepoTags": [],
     "Created": "2025-05-28T15:09:34.032834736Z",
