@@ -127,7 +127,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	}
 	components["source"] = map[string]string{
 		"content": sourceHash,
-		hashKey:    generateSHA256(sourceHash),
+		hashKey:   generateSHA256(sourceHash),
 	}
 
 	var backendInfo string
@@ -141,7 +141,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 		}
 	}
 	components["backend"] = map[string]string{
-		"info": backendInfo,
+		"info":  backendInfo,
 		hashKey: generateSHA256(backendInfo),
 	}
 
@@ -169,7 +169,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	sortedOptions := sortJSON(options)
 	components["options"] = map[string]string{
 		"values": sortedOptions,
-		hashKey:   generateSHA256(sortedOptions),
+		hashKey:  generateSHA256(sortedOptions),
 	}
 
 	envVars, err := getCacheInvalidatingEnvVars()
@@ -179,7 +179,7 @@ func generateTritonCacheKey(sourceHash string, data *TritonCacheData) (string, C
 	sortedEnvVars := sortJSON(envVars)
 	components["environment"] = map[string]string{
 		"variables": sortedEnvVars,
-		hashKey:      generateSHA256(sortedEnvVars),
+		hashKey:     generateSHA256(sortedEnvVars),
 	}
 
 	// Composite string used for final hash
