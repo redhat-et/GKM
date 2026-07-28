@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/docker/docker/client"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -49,6 +50,9 @@ func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to build image: %w", err)
 	}
+	if prep.TempLayerFile != "" {
+		defer os.Remove(prep.TempLayerFile)
+	}
 
 	ctx := context.Background()
 	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -69,6 +73,7 @@ func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
 
 func loadImageIntoDocker(ctx context.Context, apiClient *client.Client, tag name.Tag, img v1.Image) error {
 	pr, pw := io.Pipe()
+	defer pr.Close()
 	go func() {
 		pw.CloseWithError(tarball.Write(tag, img, pw))
 	}()
