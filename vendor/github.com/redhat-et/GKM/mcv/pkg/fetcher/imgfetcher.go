@@ -365,18 +365,24 @@ func extractCompatImg(img v1.Image, cacheType string) ([]string, int64, error) {
 		return nil, 0, errors.New("number of layers must be greater than zero")
 	}
 
-	var allDirs []string
-	var totalBytes int64
+	var compatLayers []v1.Layer
 	for _, layer := range layers {
 		mt, err := layer.MediaType()
 		if err != nil {
 			return nil, 0, fmt.Errorf("could not get media type: %v", err)
 		}
-
-		if !isCompatLayerMediaType(mt) {
-			return nil, 0, fmt.Errorf("invalid media type %s (expect compat layer type)", mt)
+		if isCompatLayerMediaType(mt) {
+			compatLayers = append(compatLayers, layer)
 		}
+	}
 
+	if len(compatLayers) == 0 {
+		return nil, 0, errors.New("no compat layers found (expect docker or OCI gzip layer media type)")
+	}
+
+	var allDirs []string
+	var totalBytes int64
+	for _, layer := range compatLayers {
 		r, err := layer.Compressed()
 		if err != nil {
 			return nil, 0, fmt.Errorf("could not get layer content: %v", err)
