@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/containers/podman/v5/pkg/bindings/images"
+	"go.podman.io/podman/v6/pkg/bindings/images"
 	"github.com/docker/docker/client"
 )
 

@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/containers/podman/v5/pkg/bindings"
-	"github.com/containers/podman/v5/pkg/bindings/images"
+	"go.podman.io/podman/v6/pkg/bindings"
+	"go.podman.io/podman/v6/pkg/bindings/images"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	logging "github.com/sirupsen/logrus"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/containers/buildah"
+	"go.podman.io/buildah"
 	logging "github.com/sirupsen/logrus"
 	"go.podman.io/common/pkg/config"
 	is "go.podman.io/image/v5/storage"

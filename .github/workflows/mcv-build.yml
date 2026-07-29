@@ -20,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: 1.25.5
+          go-version: 1.26
 
       - name: Install required packages
         run: |
@@ -36,8 +36,7 @@ jobs:
       - name: Prepare vendored dependencies
         working-directory: mcv
         run: |
-          go mod tidy
-          go mod vendor
+          make tidy-vendor
 
       - name: Run golangci-lint
         working-directory: mcv
