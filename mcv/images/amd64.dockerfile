@@ -1,6 +1,6 @@
 FROM public.ecr.aws/docker/library/debian:bookworm-slim AS builder
 
-ARG GO_VERSION=1.24.6
+ARG GO_VERSION=1.25.0
 
 ENV CGO_ENABLED=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     libc-dev \
     libffi-dev \
-    linux-headers-amd64 \
     ca-certificates \
     wget \
     pkg-config \
@@ -20,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://go.dev/dl/go"${GO_VERSION}".linux-amd64.tar.gz -O /tmp/go.tgz \
+ && echo "2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613  /tmp/go.tgz" | sha256sum -c - \
  && rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go.tgz \
  && rm /tmp/go.tgz
 
@@ -32,7 +32,14 @@ WORKDIR /usr/src/mcv
 RUN make tidy-vendor
 RUN make build
 
-FROM public.ecr.aws/docker/library/debian:bookworm-slim
+# ============================================================================
+# MINIMAL TARGET: For cache creation/extraction with --no-gpu
+# No CUDA/ROCm libraries - uses cache metadata only
+# Build: docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/amd64.dockerfile .
+# Usage: mcv --create --image foo --dir /cache --no-gpu
+#        mcv --extract --image foo --no-gpu
+# ============================================================================
+FROM public.ecr.aws/docker/library/debian:bookworm-slim AS mcv-minimal
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgpgme11 \
@@ -40,6 +47,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi8 \
     libc6 \
     ca-certificates \
+    buildah \
+    netavark aardvark-dns \
+    fuse-overlayfs fuse3 \
+    hwdata \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/containers && \
+ printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+   > /etc/containers/storage.conf
+
+COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
+COPY mcv/images/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+LABEL description="MCV minimal - cache creation/extraction without GPU libraries (use --no-gpu flag)"
+LABEL variant="minimal"
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+# ============================================================================
+# FULL TARGET (default): For cache validation with actual GPU hardware
+# Includes ROCm libraries for GPU detection and preflight checks
+# Build: docker build --target mcv-amd -t quay.io/gkm/mcv:full -f mcv/images/amd64.dockerfile .
+#    OR: docker build -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .
+# Usage: mcv --check-compat --image foo
+#        mcv --extract --image foo  (with preflight check)
+# ============================================================================
+FROM mcv-minimal AS mcv-amd
+
+ARG ROCM_VERSION=7.0.1
+ARG AMDGPU_VERSION=7.0.1.70001
+ARG OPT_ROCM_VERSION=7.0.1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg2 \
     curl \
@@ -47,37 +89,134 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     python3-setuptools \
     python3-wheel \
-    dialog \
-    rsync \
     pciutils \
-   hwdata \
-   buildah \
-   netavark aardvark-dns \
-   fuse-overlayfs fuse3 \
+    hwdata \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install ROCm apt repo (using Ubuntu packages - ROCm doesn't officially support Debian)
+RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        amd-smi-lib \
+        rocm-smi-lib \
+        libdrm2 && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* ./*.deb
+
+LABEL description="MCV full - includes ROCm libraries for GPU detection and validation"
+LABEL variant="amd"
+
+# ============================================================================
+# NVIDIA TARGET: For NVIDIA GPU validation with CUDA/NVML support
+# Includes CUDA runtime and NVML libraries for GPU detection
+# Build: docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/amd64.dockerfile .
+# Usage: mcv --check-compat --image foo (on NVIDIA GPU systems)
+#        mcv --extract --image foo  (with NVIDIA GPU preflight check)
+# ============================================================================
+FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS mcv-nvidia
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgpgme11 \
+    libbtrfs0 \
+    libffi8 \
+    libc6 \
+    ca-certificates \
+    buildah \
+    netavark aardvark-dns \
+    fuse-overlayfs fuse3 \
+    hwdata \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
  printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
    > /etc/containers/storage.conf
 
-# Install ROCm apt repo
+COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
+COPY mcv/images/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+LABEL description="MCV NVIDIA - includes CUDA runtime and NVML for GPU detection"
+LABEL variant="nvidia"
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+# ============================================================================
+# UNIFIED TARGET: For mixed GPU environments (NVIDIA + AMD support)
+# Includes both CUDA/NVML and ROCm libraries for auto-detection
+# Build: docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/amd64.dockerfile .
+# Usage: mcv --check-compat --image foo (auto-detects GPU vendor)
+#        mcv --extract --image foo  (with auto GPU preflight check)
+# ============================================================================
+FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS mcv-unified
+
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
 
-# Install ROCm apt repo
-RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb
-RUN apt install -y ./*.deb
-RUN apt update &&  DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* && rm -rf ./*.deb
-RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi
-RUN ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
+# Install base runtime dependencies
+# CUDA base already provides: libnvidia-ml.so.1 (NVML library)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libgpgme11t64 \
+    libbtrfs0 \
+    libffi8 \
+    libc6 \
+    buildah \
+    netavark aardvark-dns \
+    fuse-overlayfs fuse3 \
+    hwdata \
+    # ROCm dependencies
+    wget \
+    gnupg2 \
+    curl \
+    lsb-release \
+    software-properties-common \
+    python3-setuptools \
+    python3-wheel \
+    pciutils \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install ROCm tools for AMD GPU detection
+# Note: Using Ubuntu 22.04 (jammy) packages as ROCm doesn't officially support Ubuntu 24.04 yet
+RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        amd-smi-lib \
+        rocm-smi-lib \
+        libdrm2 && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
+    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* ./*.deb
+
+# Configure container storage
+RUN mkdir -p /etc/containers && \
+ printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+   > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
+LABEL description="MCV Unified - includes both NVIDIA (CUDA/NVML) and AMD (ROCm) GPU support for auto-detection"
+LABEL variant="unified"
+LABEL gpu-support="nvidia,amd"
+LABEL base-image="nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04"
+LABEL rocm-version="7.0.1"
+
 ENTRYPOINT ["/entrypoint.sh"]
 
-# [ podman | docker ] build --progress=plain -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .
+# Build examples:
+# Minimal (no GPU libs):  docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/amd64.dockerfile .
+# AMD (with ROCm):        docker build --target mcv-amd -t quay.io/gkm/mcv:amd -f mcv/images/amd64.dockerfile .
+# NVIDIA (with CUDA):     docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/amd64.dockerfile .
+# Unified (NVIDIA+AMD):   docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/amd64.dockerfile .
+# Default (AMD):          docker build -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .
