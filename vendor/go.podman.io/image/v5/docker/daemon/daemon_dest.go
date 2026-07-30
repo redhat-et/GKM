@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
 	"go.podman.io/image/v5/docker/internal/tarfile"
 	"go.podman.io/image/v5/docker/reference"
@@ -89,24 +90,15 @@ func imageLoadGoroutine(ctx context.Context, c *client.Client, reader *io.PipeRe
 
 // imageLoad accepts tar stream on reader and sends it to c
 func imageLoad(ctx context.Context, c *client.Client, reader *io.PipeReader) error {
-	resp, err := c.ImageLoad(ctx, reader, client.ImageLoadWithQuiet(true))
+	res, err := c.ImageLoad(ctx, reader, client.ImageLoadWithQuiet(true))
 	if err != nil {
 		return fmt.Errorf("starting a load operation in docker engine: %w", err)
 	}
-	defer resp.Body.Close()
+	defer res.Close()
 
-	// jsonError and jsonMessage are small subsets of docker/docker/pkg/jsonmessage.JSONError and JSONMessage,
-	// copied here to minimize dependencies.
-	type jsonError struct {
-		Message string `json:"message,omitempty"`
-	}
-	type jsonMessage struct {
-		Error *jsonError `json:"errorDetail,omitempty"`
-	}
-
-	dec := json.NewDecoder(resp.Body)
+	dec := json.NewDecoder(res)
 	for {
-		var msg jsonMessage
+		var msg jsonstream.Message
 		if err := dec.Decode(&msg); err != nil {
 			if err == io.EOF {
 				break

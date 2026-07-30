@@ -1,5 +1,5 @@
-# ---- Dependency stage - follow KServe pattern with golang:1.25 ----
-FROM golang:1.25 AS deps
+# ---- Dependency stage - follow KServe pattern with golang:1.26 ----
+FROM golang:1.26 AS deps
 
 WORKDIR /workspace
 COPY mcv/ mcv/

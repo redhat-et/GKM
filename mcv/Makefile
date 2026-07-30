@@ -75,6 +75,7 @@ _build_local: format vet tidy-vendor ##  Build mcv binary locally.
 	@echo
 	@mkdir -p "$(BUILD_BINDIR)/$(GOOS)_$(GOARCH)"
 	+@$(GOENV) go build \
+		-mod=vendor \
 		-v -tags ${GO_BUILD_TAGS} \
 		-ldflags "$(LDFLAGS)" \
 		-o $(BUILD_BINDIR)/$(GOOS)_$(GOARCH)/mcv \

@@ -12,9 +12,7 @@ else
 SED ?= gsed
 endif
 
-MAKEFLAGS += --no-print-directory
 ARCH=$(shell go env GOARCH)
-
 # Define CONTAINER_FLAGS and include ARCH as an argument
 CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 
@@ -79,11 +77,6 @@ REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
-
-# Number of parallel jobs to use when running build-images. Default is 3, one for each image
-# being built. High number won't really speed it up. Parallels builds can be hard to debug,
-# so setting to 1 will make the builds sequential and easier to debug.
-MAX_JOBS ?= 3
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
@@ -228,8 +221,7 @@ build-image-gkm-extract:
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
-build-images: ## Build all container images in parallel (use MAX_JOBS=1 to build sequentially)
-	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-gkm-extract
+build-images: build-image-operator build-image-agent build-image-gkm-extract ## Build all container images.
 
 .PHONY: push-images
 push-images: ## Push all container image.
@@ -304,19 +296,10 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
 	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-ifeq ($(KIND_CLUSTER),true)
+ifdef NO_GPU
 	cd config/configMap && \
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \
-	    -e '/literals:/a\  - gkm.kindcluster=true' \
-	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
-	    kustomization.yaml.env > kustomization.yaml
-else ifeq ($(NO_GPU),true)
-	cd config/configMap && \
-	  $(SED) \
-	    -e '/literals:/a\  - gkm.nogpu=true' \
-	    -e '/literals:/a\  - gkm.kindcluster=false' \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
 	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
@@ -356,51 +339,14 @@ undeploy: kustomize delete-webhook-secret-file ## Undeploy operator and agent fr
 undeploy-force: ## Same as "make undeploy" but also delete any dependencies.
 	$(MAKE) undeploy FORCE=--force
 
-.PHONY: gen-apply-example
-gen-apply-example: kustomize
-	@cd examples; \
-	if ! EXAMPLE_YAML=$$(DEBUG=false ./generate-files.sh $(EXAMPLE_ACCESS) $(EXAMPLE_SCOPE) $(EXAMPLE_GPU) $(EXAMPLE_VER) $(EXAMPLE_ENV)); then \
-		echo; \
-		echo "FAILED: ./generate-files.sh $(EXAMPLE_ACCESS) $(EXAMPLE_SCOPE) $(EXAMPLE_GPU) $(EXAMPLE_VER) $(EXAMPLE_ENV)"; \
-		echo; \
-		exit 1; \
-	fi; \
-	$(KUBECTL) $$EXAMPLE_CMD -f $$EXAMPLE_YAML
-
-.PHONY: deploy-examples-kind
-deploy-examples-kind: ## Deploy the examples to a KIND K8s cluster
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD=apply
-
-.PHONY: deploy-examples-nfd-cuda
-deploy-examples-nfd-cuda: ## Deploy the examples to a K8s cluster running NFD and CUDA, AccessMode=ReadWriteOnce
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=cuda EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=cuda EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
-
-.PHONY: deploy-examples-nfd-rocm
-deploy-examples-nfd-rocm: ## Deploy the examples to a K8s cluster running NFD and ROCm, AccessMode=ReadWriteOnce
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD=apply
-
-.PHONY: undeploy-examples-kind
-undeploy-examples-kind: ## Undeploy the examples to a KIND K8s cluster
-	@echo "Remove Namespace based GKMCache"
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rox EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=kind EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-
-.PHONY: undeploy-examples-nfd-cuda
-undeploy-examples-nfd-cuda: ## Undeploy the examples to a K8s cluster running NFD and CUDA, AccessMode=ReadWriteOnce
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=cuda EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=cuda EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-
-.PHONY: undeploy-examples-nfd-rocm
-undeploy-examples-nfd-rocm: ## Undeploy the examples to a K8s cluster running NFD and ROCm, AccessMode=ReadWriteOnce
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=namespace EXAMPLE_GPU=rocm EXAMPLE_VER=v2 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
-	@$(MAKE) gen-apply-example EXAMPLE_ACCESS=rwo EXAMPLE_SCOPE=cluster EXAMPLE_GPU=rocm EXAMPLE_VER=v3 EXAMPLE_ENV=nfd EXAMPLE_CMD="delete --ignore-not-found=$(ignore-not-found)"
+.PHONY: deploy-examples
+deploy-examples: ## Deploy the examples to the K8s cluster specified in ~/.kube/config.
+	@echo "Create Namespace based GKMCache"
+	$(KUBECTL) apply -f examples/namespace/RWO/
+	$(KUBECTL) apply -f examples/namespace/ROX/
+	@echo "Create Cluster based ClusterGKMCache"
+	$(KUBECTL) apply -f examples/cluster/RWO/
+	$(KUBECTL) apply -f examples/cluster/ROX/
 
 .PHONY: undeploy-examples
 undeploy-examples: ## Undeploy the examples from the K8s cluster specified in ~/.kube/config.
@@ -600,11 +546,11 @@ deploy-on-kind: kind-load-images tmp-cleanup
 	@echo "Add label gkm-test-node=false to node kind-gpu-sim-worker2."
 	$(KUBECTL) label node kind-gpu-sim-worker2 gkm-test-node=false --overwrite
 	## NOTE: config/kind-gpu is an overlay of config/default
-	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true KIND_CLUSTER=true
+	$(MAKE) deploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
 
 .PHONY: redeploy-on-kind
 redeploy-on-kind: ## Redeploy controller and agent to Kind GPU cluster after run-on-kind and undeploy-on-kind have been called. Skips some onetime steps in deploy.
-	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu NO_GPU=true KIND_CLUSTER=true
+	$(MAKE) redeploy DEPLOY_PATH=config/kind-gpu NO_GPU=true
 	@echo "Deployment to $(DEPLOY_PATH) completed."
 
 .PHONY: undeploy-on-kind

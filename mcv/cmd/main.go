@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/buildah"
+	"go.podman.io/buildah"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/GKM/mcv/pkg/client"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
