@@ -11,6 +11,6 @@ configMapGenerator:
   - gkm.nogpu=false
   - gkm.kindcluster=false
   - gkm.agent.image=quay.io/gkm/agent:latest
-  - gkm.extract.image=quay.io/gkm/gkm-extract:latest
+  - gkm.extract.image=quay.io/gkm/mcv:latest
   name: config
   namespace: gkm-system

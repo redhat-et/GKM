@@ -18,9 +18,6 @@ ARCH=$(shell go env GOARCH)
 # Define CONTAINER_FLAGS and include ARCH as an argument
 CONTAINER_FLAGS ?= --build-arg TARGETARCH=$(ARCH)
 
-# NO_GPU flag for building without GPU support
-NO_GPU_BUILD ?= false
-
 # KYVERNO_ENABLED flag for enabling/disabling Kyverno verification (runtime only)
 KYVERNO_ENABLED ?= true
 
@@ -78,7 +75,7 @@ IMAGE_TAG ?= latest
 REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
-EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
+EXTRACT_IMG ?=$(REPO)/mcv:$(IMAGE_TAG)
 
 # Number of parallel jobs to use when running build-images. Default is 3, one for each image
 # being built. High number won't really speed it up. Parallels builds can be hard to debug,
@@ -218,18 +215,18 @@ build-image-operator:
 
 .PHONY: build-image-agent
 build-image-agent:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --build-arg NO_GPU=$(NO_GPU_BUILD) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
 
-.PHONY: build-image-gkm-extract
-build-image-gkm-extract:
-	$(CONTAINER_TOOL) build  $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${EXTRACT_IMG} .
+.PHONY: build-image-mcv
+build-image-mcv:
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-unified -f mcv/images/amd64.dockerfile -t ${EXTRACT_IMG} .
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
 build-images: ## Build all container images in parallel (use MAX_JOBS=1 to build sequentially)
-	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-gkm-extract
+	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-mcv
 
 .PHONY: push-images
 push-images: ## Push all container image.
@@ -569,7 +566,7 @@ kind-load-images: $(KIND_GPU_SIM_SCRIPT) get-example-images
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading gkm-extract image ${EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	@echo "Loading mcv image ${EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 

@@ -46,7 +46,7 @@ const (
 
 	// Job to Extract Cache
 	JobExtractName               = "gkm-kernel-cache-extract"
-	JobExtractImage              = "quay.io/gkm/gkm-extract:latest"
+	JobExtractImage              = "quay.io/gkm/mcv:latest"
 	JobInitImage                 = "quay.io/fedora/fedora-minimal"
 	JobExtractEnvCacheDir        = "GKM_CACHE_DIR"
 	JobExtractEnvImageUrl        = "GKM_IMAGE_URL"
