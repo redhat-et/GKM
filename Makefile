@@ -222,7 +222,7 @@ build-image-operator:
 
 .PHONY: build-image-agent
 build-image-agent:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent.unified -t ${AGENT_IMG} .
 
 .PHONY: build-image-agent-no-gpu
 build-image-agent-no-gpu: ## Build the GKM agent image without GPU libs (arm64/mac)
@@ -242,7 +242,7 @@ build-image-extract: ## Build the GKM Extract image with unified GPU support (NV
 
 .PHONY: build-image-extract-no-gpu
 build-image-extract-no-gpu: ## Build the GKM Extract image without GPU libs (arm64/mac)
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${GKM_EXTRACT_IMG_NO_GPU} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract.no-gpu -t ${GKM_EXTRACT_IMG_NO_GPU} .
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
