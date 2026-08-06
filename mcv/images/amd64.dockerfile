@@ -219,4 +219,4 @@ ENTRYPOINT ["/entrypoint.sh"]
 # AMD (with ROCm):        docker build --target mcv-amd -t quay.io/gkm/mcv:amd -f mcv/images/amd64.dockerfile .
 # NVIDIA (with CUDA):     docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/amd64.dockerfile .
 # Unified (NVIDIA+AMD):   docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/amd64.dockerfile .
-# Default (AMD):          docker build -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .
+# Default (unified):      docker build -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .

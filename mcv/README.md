@@ -556,7 +556,7 @@ docker run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
-        -d /example/vector-add-cache-rocm &&
+        -d /example/vector-add-cache-rocm --no-gpu &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
         docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
   '
@@ -600,7 +600,7 @@ podman run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
-        -d /example/vector-add-cache-rocm &&
+        -d /example/vector-add-cache-rocm --no-gpu &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
         oci-archive:/example/vector-add-cache-rocm.oci:quay.io/gkm/vector-add-cache:rocm
   '
