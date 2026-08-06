@@ -70,4 +70,7 @@ RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amd
 
 COPY --from=builder /workspace/bin/gkm-extract /gkm-extract
 
+# Runs as root: AMD preflight checks read /dev/kfd and /dev/dri, which require
+# group membership not available for the 65532 nonroot user. For no-gpu
+# workloads, use Containerfile.gkm-extract.no-gpu which runs as nonroot.
 ENTRYPOINT ["/gkm-extract"]

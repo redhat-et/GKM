@@ -41,12 +41,8 @@ jobs:
               type=ref,event=pr,suffix=-unified
               type=sha,format=long,suffix=-unified
               type=raw,value=unified,enable={{is_default_branch}}
-              type=ref,event=branch
-              type=ref,event=tag
-              type=ref,event=pr
-              type=sha,format=long
-              type=raw,value=latest,enable={{is_default_branch}}
           # No-GPU variant: no CUDA/ROCm libraries, for arm64/mac/CI environments
+          # :latest always resolves to the no-gpu variant (lighter, safer default)
           - registry: quay.io
             repository: gkm
             image: mcv
@@ -60,6 +56,7 @@ jobs:
               type=ref,event=pr,suffix=-no-gpu
               type=sha,format=long,suffix=-no-gpu
               type=raw,value=no-gpu,enable={{is_default_branch}}
+              type=raw,value=latest,enable={{is_default_branch}}
 
     name: Build Image (${{ matrix.image.image }}-${{ matrix.image.variant }})
     steps:

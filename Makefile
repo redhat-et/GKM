@@ -78,8 +78,9 @@ OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 AGENT_IMG_NO_GPU ?=$(REPO)/agent:$(IMAGE_TAG)-no-gpu
 # MCV: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
-MCV_IMG ?=$(REPO)/mcv:$(IMAGE_TAG)
-MCV_IMG_NO_GPU ?=$(REPO)/mcv:$(IMAGE_TAG)-no-gpu
+# :latest always resolves to :no-gpu; use :unified explicitly for GPU environments
+MCV_IMG ?=$(REPO)/mcv:unified
+MCV_IMG_NO_GPU ?=$(REPO)/mcv:no-gpu
 # GKM Extract: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
 GKM_EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
 GKM_EXTRACT_IMG_NO_GPU ?=$(REPO)/gkm-extract:$(IMAGE_TAG)-no-gpu
@@ -248,8 +249,12 @@ build-image-extract-no-gpu: ## Build the GKM Extract image without GPU libs (arm
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
-build-images: ## Build all container images in parallel (use MAX_JOBS=1 to build sequentially)
+build-images: ## Build all container images in parallel (includes mcv unified; use MAX_JOBS=1 to build sequentially)
 	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-mcv build-image-extract
+
+# Backward-compat alias: build-image-gkm-extract was renamed to build-image-extract
+.PHONY: build-image-gkm-extract
+build-image-gkm-extract: build-image-extract
 
 .PHONY: build-images-no-gpu
 build-images-no-gpu: ## Build all no-GPU container images in parallel (arm64/mac)

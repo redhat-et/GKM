@@ -120,7 +120,7 @@ LABEL variant="amd"
 FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS mcv-nvidia
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgpgme11 \
+    libgpgme11t64 \
     libbtrfs0 \
     libffi8 \
     libc6 \
