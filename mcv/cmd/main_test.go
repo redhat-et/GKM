@@ -82,6 +82,9 @@ func TestConfigureBoolFlagsNoGPU(t *testing.T) {
 		t.Fatalf("Initialize: %v", err)
 	}
 
+	origGPU := config.IsGPUEnabled()
+	t.Cleanup(func() { config.SetEnabledGPU(origGPU) })
+
 	configureBoolFlags(false, true, false)
 	if config.IsGPUEnabled() {
 		t.Error("expected GPU disabled after configureBoolFlags(noGPU=true), got enabled")

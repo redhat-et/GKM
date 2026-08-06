@@ -10,7 +10,7 @@ if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
     INIT_FILE="${CACHE_DIR}/.initialized"
 
     mkdir -p "${CACHE_DIR}"
-    chown -R 1000:1000 "${CACHE_DIR}" 2>/dev/null || true
+    chown 1000:1000 "${CACHE_DIR}" 2>/dev/null || true
 
     if [ -f "${INIT_FILE}" ]; then
         exit 0
@@ -22,7 +22,6 @@ if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
 
     # shellcheck disable=SC2086
     if ! /mcv ${ARGS}; then
-        sleep 300
         exit 1
     fi
     touch "${INIT_FILE}"
