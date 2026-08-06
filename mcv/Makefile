@@ -157,32 +157,6 @@ image-no-gpu: ## Build no-GPU container image (no GPU libraries, ~176MB) -- also
 image-minimal: ## [dev-only] Build minimal container image (alias for image-no-gpu)
 	$(MAKE) image-no-gpu
 
-.PHONY: image-amd
-image-amd: ## Build AMD container image (with ROCm libraries, ~923MB)
-	@if [ -z "$(CONTAINER_RUNTIME)" ]; then \
-		echo "Error: No container runtime found. Please install docker or podman"; \
-		exit 1; \
-	fi
-	@echo "Building AMD MCV image using $(CONTAINER_RUNTIME)..."
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 \
-		--target mcv-amd \
-		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):amd \
-		-f images/amd64.dockerfile \
-		..
-
-.PHONY: image-nvidia
-image-nvidia: ## Build NVIDIA container image (with CUDA+NVML, ~356MB)
-	@if [ -z "$(CONTAINER_RUNTIME)" ]; then \
-		echo "Error: No container runtime found. Please install docker or podman"; \
-		exit 1; \
-	fi
-	@echo "Building NVIDIA MCV image using $(CONTAINER_RUNTIME)..."
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 \
-		--target mcv-nvidia \
-		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):nvidia \
-		-f images/amd64.dockerfile \
-		..
-
 .PHONY: image-unified
 image-unified: ## Build unified container image (NVIDIA+AMD GPU support, ~533MB)
 	@if [ -z "$(CONTAINER_RUNTIME)" ]; then \

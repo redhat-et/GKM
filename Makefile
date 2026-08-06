@@ -76,14 +76,14 @@ REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 # GKM Agent: unified (NVIDIA+AMD GPU) and no-GPU variants
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
-AGENT_IMG_NO_GPU ?=$(REPO)/agent:$(IMAGE_TAG)-no-gpu
+AGENT_IMG_NO_GPU ?=$(REPO)/agent:no-gpu
 # MCV: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
 # :latest always resolves to :no-gpu; use :unified explicitly for GPU environments
 MCV_IMG ?=$(REPO)/mcv:unified
 MCV_IMG_NO_GPU ?=$(REPO)/mcv:no-gpu
 # GKM Extract: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
 GKM_EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
-GKM_EXTRACT_IMG_NO_GPU ?=$(REPO)/gkm-extract:$(IMAGE_TAG)-no-gpu
+GKM_EXTRACT_IMG_NO_GPU ?=$(REPO)/gkm-extract:no-gpu
 
 # Number of parallel jobs to use when running build-images. Default is 3, one for each image
 # being built. High number won't really speed it up. Parallels builds can be hard to debug,
@@ -261,7 +261,7 @@ build-images-no-gpu: ## Build all no-GPU container images in parallel (arm64/mac
 	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent-no-gpu build-image-mcv-no-gpu build-image-extract-no-gpu
 
 .PHONY: push-images
-push-images: ## Push all container image.
+push-images: ## Push all container image. MCV :no-gpu/:latest are pushed via mcv/Makefile image-push or CI.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_IMG}
 	$(CONTAINER_TOOL) push ${MCV_IMG}
