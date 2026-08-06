@@ -30,4 +30,7 @@ if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
     exit 0
 fi
 
-exec /mcv "$@"
+case "${1:-}" in
+  ""|-*|--*) exec /mcv "$@" ;;
+  *)         exec "$@" ;;
+esac
