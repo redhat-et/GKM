@@ -1,0 +1,49 @@
+# Build the agent binary
+FROM public.ecr.aws/docker/library/golang:1.25 AS builder
+
+WORKDIR /workspace
+
+# Install required system packages
+RUN apt-get update && \
+    apt-get install -y \
+        libgpgme-dev \
+        btrfs-progs \
+        libbtrfs-dev \
+        libgpgme11-dev \
+        libseccomp-dev \
+        pkg-config \
+        build-essential && \
+    apt-get clean
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+# Copy the go source
+COPY agent/main.go agent/main.go
+COPY api/ api/
+COPY pkg/ pkg/
+COPY internal/controller/ internal/controller/
+COPY vendor/ vendor/
+COPY Makefile Makefile
+
+# Build the agent binary
+RUN make build-gkm-agent
+
+# No GPU runtime - debian:bookworm-slim supports amd64 and arm64 (mac).
+# No CUDA or ROCm libraries; GPU detection is disabled at runtime via --no-gpu flag.
+FROM public.ecr.aws/docker/library/debian:bookworm-slim
+
+COPY --from=builder /workspace/bin/gkm-agent /agent
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libgpgme11 \
+        libbtrfs0 \
+        libffi8 \
+        libc6 \
+        libseccomp2 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/agent"]

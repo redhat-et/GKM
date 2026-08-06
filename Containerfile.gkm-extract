@@ -1,7 +1,6 @@
-# DEPRECATED: This Containerfile is deprecated in favor of reusing mcv:unified
-# See mcv/docs/mcv-containers-k8s-slides.md for the updated GKM architecture
-# GKM extraction Jobs now use quay.io/gkm/mcv:unified instead of a custom gkm-extract image
-# This simplifies maintenance (one less image to build/push) and reuses the unified MCV container
+# No-GPU runtime - debian:trixie-slim supports amd64 and arm64 (mac).
+# No CUDA or ROCm libraries; use this variant for arm64/mac environments or
+# when GPU detection is not required (pair with --no-gpu flag at runtime).
 
 # Build stage - follow KServe pattern with golang:1.25
 FROM golang:1.25-trixie AS deps

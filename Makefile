@@ -74,8 +74,15 @@ QUAY_USER ?= gkm
 IMAGE_TAG ?= latest
 REPO ?= quay.io/$(QUAY_USER)
 OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
+# GKM Agent: unified (NVIDIA+AMD GPU) and no-GPU variants
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
+AGENT_IMG_NO_GPU ?=$(REPO)/agent:$(IMAGE_TAG)-no-gpu
+# MCV: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
 EXTRACT_IMG ?=$(REPO)/mcv:$(IMAGE_TAG)
+MCV_IMG_NO_GPU ?=$(REPO)/mcv:$(IMAGE_TAG)-no-gpu
+# GKM Extract: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
+GKM_EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
+GKM_EXTRACT_IMG_NO_GPU ?=$(REPO)/gkm-extract:$(IMAGE_TAG)-no-gpu
 
 # Number of parallel jobs to use when running build-images. Default is 3, one for each image
 # being built. High number won't really speed it up. Parallels builds can be hard to debug,
@@ -217,22 +224,50 @@ build-image-operator:
 build-image-agent:
 	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent -t ${AGENT_IMG} .
 
+.PHONY: build-image-agent-no-gpu
+build-image-agent-no-gpu: ## Build the GKM agent image without GPU libs (arm64/mac)
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-agent.no-gpu -t ${AGENT_IMG_NO_GPU} .
+
 .PHONY: build-image-mcv
 build-image-mcv:
 	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-unified -f mcv/images/amd64.dockerfile -t ${EXTRACT_IMG} .
+
+.PHONY: build-image-mcv-no-gpu
+build-image-mcv-no-gpu: ## Build the MCV image without GPU libs (arm64/mac)
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-minimal -f mcv/images/amd64.dockerfile -t ${MCV_IMG_NO_GPU} .
+
+.PHONY: build-image-extract
+build-image-extract: ## Build the GKM Extract image with unified GPU support (NVIDIA+AMD)
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract.unified -t ${GKM_EXTRACT_IMG} .
+
+.PHONY: build-image-extract-no-gpu
+build-image-extract-no-gpu: ## Build the GKM Extract image without GPU libs (arm64/mac)
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load -f Containerfile.gkm-extract -t ${GKM_EXTRACT_IMG_NO_GPU} .
 
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: build-images
 build-images: ## Build all container images in parallel (use MAX_JOBS=1 to build sequentially)
-	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-mcv
+	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent build-image-mcv build-image-extract
+
+.PHONY: build-images-no-gpu
+build-images-no-gpu: ## Build all no-GPU container images in parallel (arm64/mac)
+	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent-no-gpu build-image-mcv-no-gpu build-image-extract-no-gpu
 
 .PHONY: push-images
 push-images: ## Push all container image.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_IMG}
 	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
+	$(CONTAINER_TOOL) push ${GKM_EXTRACT_IMG}
+
+.PHONY: push-images-no-gpu
+push-images-no-gpu: ## Push all no-GPU container images.
+	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
+	$(CONTAINER_TOOL) push ${AGENT_IMG_NO_GPU}
+	$(CONTAINER_TOOL) push ${MCV_IMG_NO_GPU}
+	$(CONTAINER_TOOL) push ${GKM_EXTRACT_IMG_NO_GPU}
 
 # Mapping old commands after rename
 .PHONY: docker-build
