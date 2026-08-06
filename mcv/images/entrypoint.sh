@@ -14,7 +14,7 @@ if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
     mkdir -p "${CACHE_DIR}"
     chown 1000:1000 "${CACHE_DIR}" 2>/dev/null || true
 
-    if [ -f "${INIT_FILE}" ]; then
+    if [ -f "${INIT_FILE}" ] && [ "$(cat "${INIT_FILE}")" = "${GKM_IMAGE_URL}" ]; then
         exit 0
     fi
 
@@ -26,7 +26,7 @@ if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
     if ! /mcv ${ARGS}; then
         exit 1
     fi
-    touch "${INIT_FILE}"
+    printf '%s\n' "${GKM_IMAGE_URL}" > "${INIT_FILE}"
     exit 0
 fi
 
