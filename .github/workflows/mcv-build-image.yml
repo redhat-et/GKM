@@ -46,6 +46,20 @@ jobs:
               type=ref,event=pr
               type=sha,format=long
               type=raw,value=latest,enable={{is_default_branch}}
+          # No-GPU variant: no CUDA/ROCm libraries, for arm64/mac/CI environments
+          - registry: quay.io
+            repository: gkm
+            image: mcv
+            variant: no-gpu
+            target: mcv-minimal
+            dockerfile: ./mcv/images/amd64.dockerfile
+            context: .
+            tags: |
+              type=ref,event=branch,suffix=-no-gpu
+              type=ref,event=tag,suffix=-no-gpu
+              type=ref,event=pr,suffix=-no-gpu
+              type=sha,format=long,suffix=-no-gpu
+              type=raw,value=no-gpu,enable={{is_default_branch}}
 
     name: Build Image (${{ matrix.image.image }}-${{ matrix.image.variant }})
     steps:
