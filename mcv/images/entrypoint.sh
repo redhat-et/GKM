@@ -20,13 +20,12 @@ if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
     [ "$NO_GPU" = "true" ] && ARGS="${ARGS} --no-gpu"
     [ -n "$GO_LOG" ]      && ARGS="${ARGS} --log-level ${GO_LOG}"
 
-    touch "${INIT_FILE}"
     # shellcheck disable=SC2086
     if ! /mcv ${ARGS}; then
-        rm -f "${INIT_FILE}"
         sleep 300
         exit 1
     fi
+    touch "${INIT_FILE}"
     exit 0
 fi
 

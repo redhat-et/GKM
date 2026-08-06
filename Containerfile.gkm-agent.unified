@@ -72,4 +72,7 @@ RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amd
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
 
+# Runs as root: GPU device files (/dev/kfd, /dev/dri) require group membership
+# that is not available in the 65532 nonroot user; root is the practical choice
+# for containers that must detect AMD/NVIDIA hardware at runtime.
 ENTRYPOINT ["/agent"]

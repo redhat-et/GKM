@@ -46,4 +46,7 @@ RUN apt-get update && \
         libseccomp2 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Run as non-root (no GPU device access required in no-gpu mode)
+USER 65532:65532
+
 ENTRYPOINT ["/agent"]
