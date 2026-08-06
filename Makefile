@@ -85,6 +85,21 @@ MCV_IMG_NO_GPU ?=$(REPO)/mcv:no-gpu
 GKM_EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
 GKM_EXTRACT_IMG_NO_GPU ?=$(REPO)/gkm-extract:no-gpu
 
+# Images selected by prepare-deploy and kind-load-images (NO_GPU=true → no-gpu variants)
+ifeq ($(NO_GPU),true)
+DEPLOY_AGENT_IMG := $(AGENT_IMG_NO_GPU)
+DEPLOY_EXTRACT_IMG := $(GKM_EXTRACT_IMG_NO_GPU)
+else
+DEPLOY_AGENT_IMG := $(AGENT_IMG)
+DEPLOY_EXTRACT_IMG := $(GKM_EXTRACT_IMG)
+endif
+
+ifeq ($(KIND_CLUSTER),true)
+GKM_KINDCLUSTER_CONFIG := -e '/literals:/a\  - gkm.kindcluster=true'
+else
+GKM_KINDCLUSTER_CONFIG := -e '/literals:/a\  - gkm.kindcluster=false'
+endif
+
 # Number of parallel jobs to use when running build-images. Default is 3, one for each image
 # being built. High number won't really speed it up. Parallels builds can be hard to debug,
 # so setting to 1 will make the builds sequential and easier to debug.
@@ -342,28 +357,28 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: prepare-deploy
 prepare-deploy:
 	cd config/operator && $(KUSTOMIZE) edit set image quay.io/gkm/operator=${OPERATOR_IMG}
-	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${AGENT_IMG}
-ifeq ($(KIND_CLUSTER),true)
+	cd config/agent && $(KUSTOMIZE) edit set image quay.io/gkm/agent=${DEPLOY_AGENT_IMG}
+ifeq ($(NO_GPU),true)
+	cd config/configMap && \
+	  $(SED) \
+	    -e '/literals:/a\  - gkm.nogpu=true' \
+	    $(GKM_KINDCLUSTER_CONFIG) \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(DEPLOY_AGENT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(DEPLOY_EXTRACT_IMG)@' \
+	    kustomization.yaml.env > kustomization.yaml
+else ifeq ($(KIND_CLUSTER),true)
 	cd config/configMap && \
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \
 	    -e '/literals:/a\  - gkm.kindcluster=true' \
-	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
-	    kustomization.yaml.env > kustomization.yaml
-else ifeq ($(NO_GPU),true)
-	cd config/configMap && \
-	  $(SED) \
-	    -e '/literals:/a\  - gkm.nogpu=true' \
-	    -e '/literals:/a\  - gkm.kindcluster=false' \
-	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG_NO_GPU)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG_NO_GPU)@' \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(DEPLOY_AGENT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(DEPLOY_EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 else
 	cd config/configMap && \
 	  $(SED) \
-	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(DEPLOY_AGENT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(DEPLOY_EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 endif
 ifneq ($(KYVERNO_ENABLED),true)
@@ -606,10 +621,10 @@ setup-kind: $(KIND_GPU_SIM_SCRIPT)
 kind-load-images: $(KIND_GPU_SIM_SCRIPT) get-example-images
 	@echo "Loading operator image ${OPERATOR_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading gkm-extract image ${GKM_EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${GKM_EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Loading agent image ${DEPLOY_AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${DEPLOY_AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Loading gkm-extract image ${DEPLOY_EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${DEPLOY_EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
 
@@ -633,7 +648,8 @@ endif
 	@echo "Cluster created, images loaded, and agent deployed on Kind GPU cluster."
 
 .PHONY: deploy-on-kind
-deploy-on-kind: kind-load-images tmp-cleanup
+deploy-on-kind: tmp-cleanup
+	$(MAKE) kind-load-images NO_GPU=true KIND_CLUSTER=true
 	@echo "Add label gkm-test-node=true to node kind-gpu-sim-worker."
 	$(KUBECTL) label node kind-gpu-sim-worker gkm-test-node=true --overwrite
 	@echo "Add label gkm-test-node=false to node kind-gpu-sim-worker2."
