@@ -30,8 +30,9 @@ images.
 Applications can leverage MCV to package up their caches into container images
 and use [cosign](https://github.com/sigstore/cosign) to sign the images.
 GKM will then use Kubernetes to distribute the cache images to workloads on
-various nodes in a given cluster and use MCV to extract the caches from the
-images. Using GKM, MCV, cosign and Kubernetes to manage and distribute kernel
+various nodes in a given cluster and use the gkm-extract Job to extract the
+caches from the images in-cluster (gkm-extract embeds MCV's extraction logic).
+Using GKM, MCV, cosign and Kubernetes to manage and distribute kernel
 images to containerized workloads ensures their validity before usage in
 containers and is crucial for performance, optimization and security.
 
