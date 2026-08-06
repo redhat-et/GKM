@@ -78,7 +78,7 @@ OPERATOR_IMG ?= $(REPO)/operator:$(IMAGE_TAG)
 AGENT_IMG ?=$(REPO)/agent:$(IMAGE_TAG)
 AGENT_IMG_NO_GPU ?=$(REPO)/agent:$(IMAGE_TAG)-no-gpu
 # MCV: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
-EXTRACT_IMG ?=$(REPO)/mcv:$(IMAGE_TAG)
+MCV_IMG ?=$(REPO)/mcv:$(IMAGE_TAG)
 MCV_IMG_NO_GPU ?=$(REPO)/mcv:$(IMAGE_TAG)-no-gpu
 # GKM Extract: unified (NVIDIA+AMD GPU) and no-GPU (arm64/mac) variants
 GKM_EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
@@ -230,7 +230,7 @@ build-image-agent-no-gpu: ## Build the GKM agent image without GPU libs (arm64/m
 
 .PHONY: build-image-mcv
 build-image-mcv:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-unified -f mcv/images/amd64.dockerfile -t ${EXTRACT_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-unified -f mcv/images/amd64.dockerfile -t ${MCV_IMG} .
 
 .PHONY: build-image-mcv-no-gpu
 build-image-mcv-no-gpu: ## Build the MCV image without GPU libs (arm64/mac)
@@ -259,7 +259,7 @@ build-images-no-gpu: ## Build all no-GPU container images in parallel (arm64/mac
 push-images: ## Push all container image.
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}
 	$(CONTAINER_TOOL) push ${AGENT_IMG}
-	$(CONTAINER_TOOL) push ${EXTRACT_IMG}
+	$(CONTAINER_TOOL) push ${MCV_IMG}
 	$(CONTAINER_TOOL) push ${GKM_EXTRACT_IMG}
 
 .PHONY: push-images-no-gpu
@@ -342,7 +342,7 @@ ifeq ($(KIND_CLUSTER),true)
 	    -e '/literals:/a\  - gkm.nogpu=true' \
 	    -e '/literals:/a\  - gkm.kindcluster=true' \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 else ifeq ($(NO_GPU),true)
 	cd config/configMap && \
@@ -350,13 +350,13 @@ else ifeq ($(NO_GPU),true)
 	    -e '/literals:/a\  - gkm.nogpu=true' \
 	    -e '/literals:/a\  - gkm.kindcluster=false' \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 else
 	cd config/configMap && \
 	  $(SED) \
 	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
 	    kustomization.yaml.env > kustomization.yaml
 endif
 ifneq ($(KYVERNO_ENABLED),true)
@@ -601,8 +601,10 @@ kind-load-images: $(KIND_GPU_SIM_SCRIPT) get-example-images
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading mcv image ${EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Loading MCV image ${MCV_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${MCV_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
+	@echo "Loading gkm-extract image ${GKM_EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
+	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${GKM_EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"
 
 
@@ -731,7 +733,7 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 	cd config/configMap && \
 	  $(SED) \
 	      -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	      -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(EXTRACT_IMG)@' \
+	      -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
 		  kustomization.yaml.env > kustomization.yaml
 ifneq ($(KYVERNO_ENABLED),true)
 	cd config/configMap && \
