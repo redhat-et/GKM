@@ -258,6 +258,8 @@ build-image-gkm-extract: build-image-extract
 
 .PHONY: build-images-no-gpu
 build-images-no-gpu: ## Build all no-GPU container images in parallel (arm64/mac)
+	# Note: mcv-no-gpu is built here for standalone cache-packaging workflows.
+	# kind-load-images loads operator, agent, and gkm-extract only — not MCV.
 	$(MAKE) -j$(MAX_JOBS) build-image-operator build-image-agent-no-gpu build-image-mcv-no-gpu build-image-extract-no-gpu
 
 .PHONY: push-images
@@ -606,8 +608,6 @@ kind-load-images: $(KIND_GPU_SIM_SCRIPT) get-example-images
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${OPERATOR_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading agent image ${AGENT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${AGENT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
-	@echo "Loading MCV image ${MCV_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
-	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${MCV_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Loading gkm-extract image ${GKM_EXTRACT_IMG} into Kind cluster: $(KIND_CLUSTER_NAME)"
 	cat $(KIND_GPU_SIM_SCRIPT) | bash -s load --image-name=${GKM_EXTRACT_IMG} --cluster-name=$(KIND_CLUSTER_NAME)
 	@echo "Images loaded successfully into Kind cluster: $(KIND_CLUSTER_NAME)"

@@ -2,9 +2,11 @@
 
 set -e
 
-# GKM compatibility mode: when run as a drop-in for gkm-extract, translate the
-# GKM_IMAGE_URL / GKM_CACHE_DIR / NO_GPU / GO_LOG env vars into mcv CLI flags.
-# This is triggered when no CLI args are passed but GKM_IMAGE_URL is set.
+# Optional GKM compatibility mode: accepts the same env vars as gkm-extract
+# (GKM_IMAGE_URL, GKM_CACHE_DIR, NO_GPU, GO_LOG) and translates them into mcv
+# CLI flags. GKM operator deployments normally schedule the gkm-extract Job
+# image instead; this mode is for running mcv as a manual drop-in replacement.
+# Triggered when no CLI args are passed but GKM_IMAGE_URL is set.
 if [ "$#" -eq 0 ] && [ -n "$GKM_IMAGE_URL" ]; then
     CACHE_DIR="${GKM_CACHE_DIR:-/mnt/kernel-caches}"
     INIT_FILE="${CACHE_DIR}/.initialized"
