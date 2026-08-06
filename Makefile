@@ -354,8 +354,8 @@ else ifeq ($(NO_GPU),true)
 	  $(SED) \
 	    -e '/literals:/a\  - gkm.nogpu=true' \
 	    -e '/literals:/a\  - gkm.kindcluster=false' \
-	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG)@' \
-	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG)@' \
+	    -e 's@gkm\.agent\.image=.*@gkm.agent.image=$(AGENT_IMG_NO_GPU)@' \
+	    -e 's@gkm\.extract\.image=.*@gkm.extract.image=$(GKM_EXTRACT_IMG_NO_GPU)@' \
 	    kustomization.yaml.env > kustomization.yaml
 else
 	cd config/configMap && \

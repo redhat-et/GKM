@@ -39,7 +39,6 @@ COPY --from=builder /workspace/bin/gkm-agent /agent
 
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
-ARG OPT_ROCM_VERSION=7.0.1
 
 # Install runtime dependencies (Ubuntu 24.04 / noble package names)
 RUN apt-get update && \
@@ -69,8 +68,8 @@ RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amd
     apt install -y ./*.deb && \
     apt update && DEBIAN_FRONTEND=noninteractive apt install -y amd-smi-lib rocm-smi-lib && \
     apt-get clean && rm -rf /var/lib/apt/lists/* ./*.deb && \
-    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
-    ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
+    ln -s /opt/rocm-${ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
+    ln -s /opt/rocm-${ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi
 
 # Runs as root: GPU device files (/dev/kfd, /dev/dri) require group membership
 # that is not available in the 65532 nonroot user; root is the practical choice
