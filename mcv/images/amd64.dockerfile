@@ -89,9 +89,14 @@ ENTRYPOINT ["/entrypoint.sh"]
 # ============================================================================
 FROM mcv-minimal AS mcv-amd
 
+ARG TARGETARCH
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
+
+# ROCm only publishes amd64 packages; fail fast on other architectures.
+RUN [ "$TARGETARCH" = "amd64" ] || \
+    { echo "ERROR: mcv-amd requires amd64 - ROCm does not support ${TARGETARCH}"; exit 1; }
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
@@ -187,31 +192,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
-    # ROCm dependencies
-    wget \
-    gnupg2 \
-    curl \
-    lsb-release \
-    software-properties-common \
-    python3-setuptools \
-    python3-wheel \
-    pciutils \
  && rm -rf /var/lib/apt/lists/*
 
-# Install ROCm tools for AMD GPU detection
-# Note: Using Ubuntu 22.04 (jammy) packages as ROCm doesn't officially support Ubuntu 24.04 yet
-RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+# Install ROCm tools for AMD GPU detection (amd64 only; ROCm has no arm64 packages).
+# On arm64 the image still provides NVIDIA/NVML support via the CUDA base.
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+    apt-get update && apt-get install -y --no-install-recommends \
+        wget gnupg2 curl lsb-release software-properties-common \
+        python3-setuptools python3-wheel pciutils && \
+    rm -rf /var/lib/apt/lists/* && \
+    wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        amd-smi-lib \
-        rocm-smi-lib \
-        libdrm2 && \
+        amd-smi-lib rocm-smi-lib libdrm2 && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* ./*.deb
+    rm -rf /var/lib/apt/lists/* ./*.deb; \
+fi
 
 # Configure container storage
 RUN mkdir -p /etc/containers && \
