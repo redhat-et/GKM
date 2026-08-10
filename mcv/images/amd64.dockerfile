@@ -1,6 +1,8 @@
 FROM public.ecr.aws/docker/library/debian:bookworm-slim AS builder
 
 ARG GO_VERSION=1.25.0
+ARG TARGETARCH
+RUN echo "Building for architecture: ${TARGETARCH}"
 
 ENV CGO_ENABLED=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,8 +20,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsqlite3-dev \
  && rm -rf /var/lib/apt/lists/*
 
-RUN wget https://go.dev/dl/go"${GO_VERSION}".linux-amd64.tar.gz -O /tmp/go.tgz \
- && echo "2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613  /tmp/go.tgz" | sha256sum -c - \
+RUN set -eux; \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        export GO_SHA256="2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613"; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        export GO_SHA256="05de75d6994a2783699815ee553bd5a9327d8b79991de36e38b66862782f54ae"; \
+    else \
+        echo "Unsupported architecture: $TARGETARCH" && exit 1; \
+    fi; \
+    wget https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH}.tar.gz -O /tmp/go.tgz \
+ && echo "${GO_SHA256}  /tmp/go.tgz" | sha256sum -c - \
  && rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go.tgz \
  && rm /tmp/go.tgz
 
@@ -41,6 +51,8 @@ RUN make build
 # ============================================================================
 FROM public.ecr.aws/docker/library/debian:bookworm-slim AS mcv-minimal
 
+ARG TARGETARCH
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgpgme11 \
     libbtrfs0 \
@@ -57,7 +69,7 @@ RUN mkdir -p /etc/containers && \
  printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
    > /etc/containers/storage.conf
 
-COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
+COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
@@ -110,6 +122,8 @@ RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amd
 LABEL description="MCV full - includes ROCm libraries for GPU detection and validation"
 LABEL variant="amd"
 
+# COPY and ENTRYPOINT are inherited from mcv-minimal base stage
+
 # ============================================================================
 # NVIDIA TARGET: For NVIDIA GPU validation with CUDA/NVML support
 # Includes CUDA runtime and NVML libraries for GPU detection
@@ -118,6 +132,8 @@ LABEL variant="amd"
 #        mcv --extract --image foo  (with NVIDIA GPU preflight check)
 # ============================================================================
 FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS mcv-nvidia
+
+ARG TARGETARCH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgpgme11t64 \
@@ -135,7 +151,7 @@ RUN mkdir -p /etc/containers && \
  printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
    > /etc/containers/storage.conf
 
-COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
+COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
@@ -154,6 +170,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 # ============================================================================
 FROM nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04 AS mcv-unified
 
+ARG TARGETARCH
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
@@ -201,7 +218,7 @@ RUN mkdir -p /etc/containers && \
  printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
    > /etc/containers/storage.conf
 
-COPY --from=builder /usr/src/mcv/_output/bin/linux_amd64/mcv /mcv
+COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh

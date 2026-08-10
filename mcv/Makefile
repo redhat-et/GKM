@@ -144,8 +144,8 @@ image-no-gpu: ## Build no-GPU container image (no GPU libraries, ~176MB) -- also
 		echo "Error: No container runtime found. Please install docker or podman"; \
 		exit 1; \
 	fi
-	@echo "Building no-GPU MCV image using $(CONTAINER_RUNTIME)..."
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 \
+	@echo "Building no-GPU MCV image for linux/$(GOARCH) using $(CONTAINER_RUNTIME)..."
+	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-minimal \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):no-gpu \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):latest \
@@ -163,8 +163,8 @@ image-unified: ## Build unified container image (NVIDIA+AMD GPU support, ~533MB)
 		echo "Error: No container runtime found. Please install docker or podman"; \
 		exit 1; \
 	fi
-	@echo "Building unified MCV image (NVIDIA+AMD) using $(CONTAINER_RUNTIME)..."
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 \
+	@echo "Building unified MCV image (NVIDIA+AMD) for linux/$(GOARCH) using $(CONTAINER_RUNTIME)..."
+	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-unified \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):unified \
 		-f images/amd64.dockerfile \
@@ -177,7 +177,8 @@ image-amd: ## [dev-only] Build AMD container image (with ROCm libraries)
 		echo "Error: No container runtime found. Please install docker or podman"; \
 		exit 1; \
 	fi
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 \
+	@echo "Building amd specific MCV image (AMD) for linux/$(GOARCH) using $(CONTAINER_RUNTIME)..."
+	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-amd \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):amd \
 		-f images/amd64.dockerfile \
@@ -189,7 +190,8 @@ image-nvidia: ## [dev-only] Build NVIDIA container image (with CUDA+NVML)
 		echo "Error: No container runtime found. Please install docker or podman"; \
 		exit 1; \
 	fi
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 \
+	@echo "Building nvidia specific MCV image (NVIDIA) for linux/$(GOARCH) using $(CONTAINER_RUNTIME)..."
+	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-nvidia \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):nvidia \
 		-f images/amd64.dockerfile \
