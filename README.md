@@ -61,6 +61,12 @@ the OCI Image.
 Signing the image is option but recommended in production.
 See [MCV](mcv/README.md) for details on packaging OCI Images and `cosign`.
 
+> **Note:** `quay.io/gkm/mcv:latest` resolves to the **no-GPU** variant (~176 MB,
+> no CUDA/ROCm libraries). It is suitable for cache creation and CI/CD pipelines
+> but **cannot perform GPU preflight checks**. For GPU validation or extraction
+> with hardware detection on NVIDIA or AMD nodes, use `quay.io/gkm/mcv:unified`
+> explicitly. See [mcv/README.md](mcv/README.md) for the full image variant guide.
+
 ```console
 cd $USER_SRC_DIR/GKM/
 mcv -c -i quay.io/$QUAY_USER/vector-add-cache:rocm -d ./mcv/example/vector-add-cache-rocm
