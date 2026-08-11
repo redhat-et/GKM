@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -65,6 +66,21 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		}
 	*/
 
+	// Acquire an exclusive file lock for this cacheDir to prevent concurrent
+	// extractions from multiple controller instances launching parallel Jobs.
+	// flock releases automatically when the file descriptor is closed.
+	lockPath := filepath.Join(cacheDir, ".extract.lock")
+	lf, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		log.Error(err, "unable to open extract lock", "lockPath", lockPath)
+		return err
+	}
+	defer func() { _ = lf.Close() }()
+	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX); err != nil {
+		log.Error(err, "unable to acquire extract lock", "lockPath", lockPath)
+		return err
+	}
+
 	// Only one initialization should occur per image URL.
 	// The init file stores the image URL used for extraction so that a different
 	// image triggers re-extraction rather than silently reusing stale cache.
@@ -80,11 +96,13 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		log.Info("image URL changed, clearing cache directory and re-extracting",
 			"existing", strings.TrimSpace(string(data)), "new", imageURL)
 		if err := clearDirectory(cacheDir); err != nil {
-			log.Info("unable to clear cache directory", "err", err)
+			log.Error(err, "unable to clear cache directory", "cacheDir", cacheDir)
+			return err
 		}
 	}
 	if err := os.WriteFile(initFileTmp, []byte(imageURL+"\n"), 0644); err != nil {
-		log.Info("unable to create init temp file", "err", err)
+		log.Error(err, "unable to create init temp file", "initFileTmp", initFileTmp)
+		return err
 	}
 
 	// For testing, like in a KIND Cluster, a real GPU may not be available.
