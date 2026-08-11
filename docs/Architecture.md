@@ -46,7 +46,7 @@ The GKM Operator focuses on:
 The GKM Agent focuses on:
 
 - Detecting GPU hardware and driver versions on each node.
-- Pulling and extracting the kernel cache container images.
+- Launching the gkm-extract Kubernetes Job to extract kernel cache images in-cluster.
 - Validating cache compatibility against the node's hardware (per GPU).
 - Reporting status to the control plane via node-specific CRs.
 - Tracking the status of all kernel caches for all GPUs on the node (via TCM).
