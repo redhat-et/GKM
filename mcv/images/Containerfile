@@ -78,6 +78,7 @@ LABEL description="MCV minimal - cache creation/extraction without GPU libraries
 LABEL variant="minimal"
 
 ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/mcv"]
 
 # ============================================================================
 # FULL TARGET (default): For cache validation with actual GPU hardware
@@ -93,6 +94,8 @@ ARG TARGETARCH
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
+# SHA-256 of amdgpu-install_7.0.1.70001-1_all.deb from repo.radeon.com — update when bumping AMDGPU_VERSION
+ARG AMDGPU_INSTALLER_SHA256=f4cec24612039c03271e6ab494bc1e18cb5647d59188755aa8e31b6d74bb06df
 
 # ROCm only publishes amd64 packages; fail fast on other architectures.
 RUN [ "$TARGETARCH" = "amd64" ] || \
@@ -111,9 +114,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Install ROCm apt repo (using Ubuntu packages - ROCm doesn't officially support Debian)
-RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+RUN wget -O /tmp/amdgpu-install.deb \
+        https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    echo "${AMDGPU_INSTALLER_SHA256}  /tmp/amdgpu-install.deb" | sha256sum -c - && \
     apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/amdgpu-install.deb && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         amd-smi-lib \
@@ -122,7 +127,7 @@ RUN wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amd
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* ./*.deb
+    rm -rf /var/lib/apt/lists/* /tmp/amdgpu-install.deb
 
 LABEL description="MCV full - includes ROCm libraries for GPU detection and validation"
 LABEL variant="amd"
@@ -165,6 +170,7 @@ LABEL description="MCV NVIDIA - includes CUDA runtime and NVML for GPU detection
 LABEL variant="nvidia"
 
 ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/mcv"]
 
 # ============================================================================
 # UNIFIED TARGET: For mixed GPU environments (NVIDIA + AMD support)
@@ -179,6 +185,8 @@ ARG TARGETARCH
 ARG ROCM_VERSION=7.0.1
 ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
+# SHA-256 of amdgpu-install_7.0.1.70001-1_all.deb from repo.radeon.com — update when bumping AMDGPU_VERSION
+ARG AMDGPU_INSTALLER_SHA256=f4cec24612039c03271e6ab494bc1e18cb5647d59188755aa8e31b6d74bb06df
 
 # Install base runtime dependencies
 # CUDA base already provides: libnvidia-ml.so.1 (NVML library)
@@ -201,16 +209,18 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         wget gnupg2 curl lsb-release software-properties-common \
         python3-setuptools python3-wheel pciutils && \
     rm -rf /var/lib/apt/lists/* && \
-    wget https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    wget -O /tmp/amdgpu-install.deb \
+        https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
+    echo "${AMDGPU_INSTALLER_SHA256}  /tmp/amdgpu-install.deb" | sha256sum -c - && \
     apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/amdgpu-install.deb && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         amd-smi-lib rocm-smi-lib libdrm2 && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* ./*.deb; \
+    rm -rf /var/lib/apt/lists/* /tmp/amdgpu-install.deb; \
 fi
 
 # Configure container storage
@@ -230,6 +240,7 @@ LABEL base-image="nvcr.io/nvidia/cuda:12.6.3-base-ubuntu24.04"
 LABEL rocm-version="7.0.1"
 
 ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/mcv"]
 
 # Build examples:
 # Minimal (no GPU libs):  docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/Containerfile .
