@@ -68,18 +68,23 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 	// Only one initialization should occur per image URL.
 	// The init file stores the image URL used for extraction so that a different
 	// image triggers re-extraction rather than silently reusing stale cache.
+	// The file is written atomically (via a temp file renamed on success) so that
+	// a crash mid-extraction does not leave a stale .initialized sentinel.
 	initFile := filepath.Join(cacheDir, ".initialized")
+	initFileTmp := initFile + ".tmp"
 	if data, err := os.ReadFile(initFile); err == nil {
 		if strings.TrimSpace(string(data)) == imageURL {
 			log.Info("init file already exists", "imageURL", imageURL, "cacheDir", cacheDir, "noGpu", noGpu)
 			return nil
 		}
-		log.Info("image URL changed, re-extracting", "existing", strings.TrimSpace(string(data)), "new", imageURL)
+		log.Info("image URL changed, clearing cache directory and re-extracting",
+			"existing", strings.TrimSpace(string(data)), "new", imageURL)
+		if err := clearDirectory(cacheDir); err != nil {
+			log.Info("unable to clear cache directory", "err", err)
+		}
 	}
-	if err := os.WriteFile(initFile, []byte(imageURL+"\n"), 0644); err != nil {
-		log.Info("unable to create init file", "err", err)
-	} else {
-		log.Info("init file created")
+	if err := os.WriteFile(initFileTmp, []byte(imageURL+"\n"), 0644); err != nil {
+		log.Info("unable to create init temp file", "err", err)
 	}
 
 	// For testing, like in a KIND Cluster, a real GPU may not be available.
@@ -93,15 +98,22 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 	if err != nil {
 		log.Error(err, "unable to extract cache", "imageURL", imageURL, "cacheDir", cacheDir, "enableGPU", enableGPU)
 
-		if err := deleteFile(initFile); err != nil {
-			log.Info("unable to delete init file", "err", err)
+		if err := deleteFile(initFileTmp); err != nil {
+			log.Info("unable to delete init temp file", "err", err)
 		} else {
-			log.Info("deleted init file because of extract error")
+			log.Info("deleted init temp file because of extract error")
 		}
 		time.Sleep(300 * time.Second)
 
 		return err
 	}
+	// Atomically promote the temp init file only after successful extraction.
+	if err := os.Rename(initFileTmp, initFile); err != nil {
+		log.Info("unable to finalize init file", "err", err)
+	} else {
+		log.Info("init file created")
+	}
+
 	log.Info("Cache Extracted", "matchedIds", matchedIds, "unmatchedIds", unmatchedIds)
 
 	log.Info("Walking Extracted Directory")
@@ -118,6 +130,20 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		return nil
 	})
 
+	return nil
+}
+
+// clearDirectory removes all entries inside dir without removing dir itself.
+func clearDirectory(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
