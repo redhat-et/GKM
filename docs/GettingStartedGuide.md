@@ -65,6 +65,7 @@ To create a `kind` cluster with a simulated GPU and latest GKM running:
 ```sh
 export KIND_EXPERIMENTAL_PROVIDER=podman
 export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
+make build-images-no-gpu
 make run-on-kind
 ```
 
@@ -225,8 +226,8 @@ Start by building and pushing the GKM images, then start `kind` cluster:
 
 ```sh
 export QUAY_USER=<UserName>
-make build-images
-make push-images
+make build-images-no-gpu
+make push-images-no-gpu
 make run-on-kind
 ```
 
@@ -258,6 +259,11 @@ When using no-GPU images:
 
 This is the recommended approach for KIND deployments since they use simulated
 GPUs and don't require actual ROCm libraries.
+
+> **Note on `:latest` tags:** For the `agent` and `gkm-extract` images, `:latest`
+> resolves to the `:unified` (GPU-capable) variant. Use `:no-gpu` explicitly for
+> KIND and non-GPU deployments. For MCV, `:latest` resolves to the `:no-gpu`
+> variant (lighter default for cache-packaging workflows without GPU hardware).
 
 ## Deployment Options
 

@@ -85,8 +85,11 @@ MCV_IMG_NO_GPU ?=$(REPO)/mcv:no-gpu
 GKM_EXTRACT_IMG ?=$(REPO)/gkm-extract:$(IMAGE_TAG)
 GKM_EXTRACT_IMG_NO_GPU ?=$(REPO)/gkm-extract:no-gpu
 
-# Images selected by prepare-deploy and kind-load-images (NO_GPU=true → no-gpu variants)
+# Images selected by prepare-deploy and kind-load-images (NO_GPU=true or KIND_CLUSTER=true → no-gpu variants)
 ifeq ($(NO_GPU),true)
+DEPLOY_AGENT_IMG := $(AGENT_IMG_NO_GPU)
+DEPLOY_EXTRACT_IMG := $(GKM_EXTRACT_IMG_NO_GPU)
+else ifeq ($(KIND_CLUSTER),true)
 DEPLOY_AGENT_IMG := $(AGENT_IMG_NO_GPU)
 DEPLOY_EXTRACT_IMG := $(GKM_EXTRACT_IMG_NO_GPU)
 else

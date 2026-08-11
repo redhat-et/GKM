@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -66,17 +65,21 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		}
 	*/
 
-	// Only one initialization should occur
+	// Only one initialization should occur per image URL.
+	// The init file stores the image URL used for extraction so that a different
+	// image triggers re-extraction rather than silently reusing stale cache.
 	initFile := filepath.Join(cacheDir, ".initialized")
-	if fileExists(initFile) {
-		log.Info("init file already exists", "imageURL", imageURL, "cacheDir", cacheDir, "noGpu", noGpu)
-		return nil
-	} else {
-		if err := createFile(initFile); err != nil {
-			log.Info("unable to create init file", "err", err)
-		} else {
-			log.Info("init file created")
+	if data, err := os.ReadFile(initFile); err == nil {
+		if strings.TrimSpace(string(data)) == imageURL {
+			log.Info("init file already exists", "imageURL", imageURL, "cacheDir", cacheDir, "noGpu", noGpu)
+			return nil
 		}
+		log.Info("image URL changed, re-extracting", "existing", strings.TrimSpace(string(data)), "new", imageURL)
+	}
+	if err := os.WriteFile(initFile, []byte(imageURL+"\n"), 0644); err != nil {
+		log.Info("unable to create init file", "err", err)
+	} else {
+		log.Info("init file created")
 	}
 
 	// For testing, like in a KIND Cluster, a real GPU may not be available.
@@ -116,26 +119,6 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 	})
 
 	return nil
-}
-
-// fileExists checks if the input filename exists.
-func fileExists(filename string) bool {
-	_, err := os.Stat(filename)
-	if errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	return err == nil
-}
-
-func createFile(name string) error {
-	// os.O_CREATE: create the file if it does not exist
-	// 0644: file permissions (read/write for owner, read for others)
-	file, err := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	// It's important to close the file to free up system resources
-	return file.Close()
 }
 
 func deleteFile(name string) error {
