@@ -121,16 +121,19 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		} else {
 			log.Info("deleted init temp file because of extract error")
 		}
+		// Release the lock before back-off sleep so other Jobs on the same
+		// cacheDir are not blocked for 5 minutes on a transient failure.
+		_ = syscall.Flock(int(lf.Fd()), syscall.LOCK_UN)
 		time.Sleep(300 * time.Second)
 
 		return err
 	}
 	// Atomically promote the temp init file only after successful extraction.
 	if err := os.Rename(initFileTmp, initFile); err != nil {
-		log.Info("unable to finalize init file", "err", err)
-	} else {
-		log.Info("init file created")
+		log.Error(err, "unable to finalize init file", "initFileTmp", initFileTmp, "initFile", initFile)
+		return err
 	}
+	log.Info("init file created")
 
 	log.Info("Cache Extracted", "matchedIds", matchedIds, "unmatchedIds", unmatchedIds)
 
@@ -152,12 +155,18 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 }
 
 // clearDirectory removes all entries inside dir without removing dir itself.
+// It preserves .extract.lock so the held flock inode is not replaced by a new
+// file that another Job could independently lock and run concurrently.
+// .initialized.tmp is also preserved so a concurrent writer does not race.
 func clearDirectory(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
+		if entry.Name() == ".extract.lock" || entry.Name() == ".initialized.tmp" {
+			continue
+		}
 		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
 			return err
 		}
