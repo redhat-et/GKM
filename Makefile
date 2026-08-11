@@ -246,11 +246,11 @@ build-image-agent-no-gpu: ## Build the GKM agent image without GPU libs (arm64/m
 
 .PHONY: build-image-mcv
 build-image-mcv:
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-unified -f mcv/images/amd64.dockerfile -t ${MCV_IMG} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-unified -f mcv/images/Containerfile -t ${MCV_IMG} .
 
 .PHONY: build-image-mcv-no-gpu
 build-image-mcv-no-gpu: ## Build the MCV image without GPU libs (arm64/mac)
-	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-minimal -f mcv/images/amd64.dockerfile -t ${MCV_IMG_NO_GPU} .
+	$(CONTAINER_TOOL) build $(CONTAINER_FLAGS) --progress=plain --load --target mcv-minimal -f mcv/images/Containerfile -t ${MCV_IMG_NO_GPU} .
 
 .PHONY: build-image-extract
 build-image-extract: ## Build the GKM Extract image with unified GPU support (NVIDIA+AMD)

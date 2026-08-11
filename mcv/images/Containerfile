@@ -45,7 +45,7 @@ RUN make build
 # ============================================================================
 # MINIMAL TARGET: For cache creation/extraction with --no-gpu
 # No CUDA/ROCm libraries - uses cache metadata only
-# Build: docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/amd64.dockerfile .
+# Build: docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/Containerfile .
 # Usage: mcv --create --image foo --dir /cache --no-gpu
 #        mcv --extract --image foo --no-gpu
 # ============================================================================
@@ -82,8 +82,8 @@ ENTRYPOINT ["/entrypoint.sh"]
 # ============================================================================
 # FULL TARGET (default): For cache validation with actual GPU hardware
 # Includes ROCm libraries for GPU detection and preflight checks
-# Build: docker build --target mcv-amd -t quay.io/gkm/mcv:full -f mcv/images/amd64.dockerfile .
-#    OR: docker build -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .
+# Build: docker build --target mcv-amd -t quay.io/gkm/mcv:full -f mcv/images/Containerfile .
+#    OR: docker build -t quay.io/gkm/mcv -f mcv/images/Containerfile .
 # Usage: mcv --check-compat --image foo
 #        mcv --extract --image foo  (with preflight check)
 # ============================================================================
@@ -132,7 +132,7 @@ LABEL variant="amd"
 # ============================================================================
 # NVIDIA TARGET: For NVIDIA GPU validation with CUDA/NVML support
 # Includes CUDA runtime and NVML libraries for GPU detection
-# Build: docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/amd64.dockerfile .
+# Build: docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/Containerfile .
 # Usage: mcv --check-compat --image foo (on NVIDIA GPU systems)
 #        mcv --extract --image foo  (with NVIDIA GPU preflight check)
 # ============================================================================
@@ -169,7 +169,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 # ============================================================================
 # UNIFIED TARGET: For mixed GPU environments (NVIDIA + AMD support)
 # Includes both CUDA/NVML and ROCm libraries for auto-detection
-# Build: docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/amd64.dockerfile .
+# Build: docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/Containerfile .
 # Usage: mcv --check-compat --image foo (auto-detects GPU vendor)
 #        mcv --extract --image foo  (with auto GPU preflight check)
 # ============================================================================
@@ -232,8 +232,8 @@ LABEL rocm-version="7.0.1"
 ENTRYPOINT ["/entrypoint.sh"]
 
 # Build examples:
-# Minimal (no GPU libs):  docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/amd64.dockerfile .
-# AMD (with ROCm):        docker build --target mcv-amd -t quay.io/gkm/mcv:amd -f mcv/images/amd64.dockerfile .
-# NVIDIA (with CUDA):     docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/amd64.dockerfile .
-# Unified (NVIDIA+AMD):   docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/amd64.dockerfile .
-# Default (unified):      docker build -t quay.io/gkm/mcv -f mcv/images/amd64.dockerfile .
+# Minimal (no GPU libs):  docker build --target mcv-minimal -t quay.io/gkm/mcv:minimal -f mcv/images/Containerfile .
+# AMD (with ROCm):        docker build --target mcv-amd -t quay.io/gkm/mcv:amd -f mcv/images/Containerfile .
+# NVIDIA (with CUDA):     docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/Containerfile .
+# Unified (NVIDIA+AMD):   docker build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/Containerfile .
+# Default (unified):      docker build -t quay.io/gkm/mcv -f mcv/images/Containerfile .

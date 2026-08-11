@@ -149,7 +149,7 @@ image-no-gpu: ## Build no-GPU container image (no GPU libraries, ~176MB) -- also
 		--target mcv-minimal \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):no-gpu \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):latest \
-		-f images/amd64.dockerfile \
+		-f images/Containerfile \
 		..
 
 # Dev-only: kept for local testing; not published to quay.io
@@ -167,7 +167,7 @@ image-unified: ## Build unified container image (NVIDIA+AMD GPU support, ~533MB)
 	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-unified \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):unified \
-		-f images/amd64.dockerfile \
+		-f images/Containerfile \
 		..
 
 # Dev-only targets: kept for local testing; not published to quay.io. Use image-unified for production.
@@ -181,7 +181,7 @@ image-amd: ## [dev-only] Build AMD container image (with ROCm libraries)
 	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-amd \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):amd \
-		-f images/amd64.dockerfile \
+		-f images/Containerfile \
 		..
 
 .PHONY: image-nvidia
@@ -194,7 +194,7 @@ image-nvidia: ## [dev-only] Build NVIDIA container image (with CUDA+NVML)
 	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
 		--target mcv-nvidia \
 		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):nvidia \
-		-f images/amd64.dockerfile \
+		-f images/Containerfile \
 		..
 
 .PHONY: images

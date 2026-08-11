@@ -35,6 +35,7 @@ jobs:
             image: operator
             dockerfile: ./Containerfile.gkm-operator
             context: .
+            platforms: linux/amd64
             tags: |
               type=ref,event=branch
               type=ref,event=tag
@@ -50,6 +51,7 @@ jobs:
             variant: unified
             dockerfile: ./Containerfile.gkm-agent.unified
             context: .
+            platforms: linux/amd64
             tags: |
               type=ref,event=branch,suffix=-unified
               type=ref,event=tag,suffix=-unified
@@ -69,6 +71,7 @@ jobs:
             variant: no-gpu
             dockerfile: ./Containerfile.gkm-agent.no-gpu
             context: .
+            platforms: linux/amd64,linux/arm64
             tags: |
               type=ref,event=branch,suffix=-no-gpu
               type=ref,event=tag,suffix=-no-gpu
@@ -83,6 +86,7 @@ jobs:
             variant: unified
             dockerfile: ./Containerfile.gkm-extract.unified
             context: .
+            platforms: linux/amd64
             tags: |
               type=ref,event=branch,suffix=-unified
               type=ref,event=tag,suffix=-unified
@@ -102,6 +106,7 @@ jobs:
             variant: no-gpu
             dockerfile: ./Containerfile.gkm-extract.no-gpu
             context: .
+            platforms: linux/amd64,linux/arm64
             tags: |
               type=ref,event=branch,suffix=-no-gpu
               type=ref,event=tag,suffix=-no-gpu
@@ -161,9 +166,7 @@ jobs:
         id: build-push-image
         uses: docker/build-push-action@v7
         with:
-          platforms: linux/amd64
-          # platforms: linux/amd64, linux/arm64, linux/ppc64le, linux/s390x
-          # builds with rocm will fail on linux/arm64
+          platforms: ${{ matrix.image.platforms }}
           push: ${{ fromJSON(steps.set-push.outputs.push_flag) }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
