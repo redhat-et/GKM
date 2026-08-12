@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	testImageName    = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
-	testCacheDirName = "../example/vector-add-cache"
+	testImageName       = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+	testCacheDirName    = "../example/vector-add-cache"
+	testGitHubIssuer    = "https://token.actions.githubusercontent.com"
+	testCertIdentity    = "user@example.com"
 )
 
 func TestValidateFlagCombinations(t *testing.T) {
@@ -172,7 +174,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				verify:         true,
 				imageName:      testImageName,
 				certIdentity:   "https://github.com/org/repo/.github/workflows/ci.yml@refs/heads/main",
-				certOidcIssuer: "https://token.actions.githubusercontent.com",
+				certOidcIssuer: testGitHubIssuer,
 			},
 		},
 		{
@@ -209,7 +211,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				verify:         true,
 				imageName:      testImageName,
 				certIdentity:   "https://github.com/org/repo/.github/workflows/ci.yml@refs/heads/main",
-				certOidcIssuer: "https://token.actions.githubusercontent.com",
+				certOidcIssuer: testGitHubIssuer,
 			},
 		},
 		{
@@ -228,7 +230,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				pull:         true,
 				verify:       true,
 				imageName:    testImageName,
-				certIdentity: "user@example.com",
+				certIdentity: testCertIdentity,
 			},
 			expectError: true,
 		},
@@ -239,8 +241,8 @@ func TestValidateFlagCombinations(t *testing.T) {
 				verify:         true,
 				imageName:      testImageName,
 				keyPath:        keyFile,
-				certIdentity:   "user@example.com",
-				certOidcIssuer: "https://token.actions.githubusercontent.com",
+				certIdentity:   testCertIdentity,
+				certOidcIssuer: testGitHubIssuer,
 			},
 			expectError: true,
 		},
@@ -318,8 +320,8 @@ func TestValidateFlagCombinations(t *testing.T) {
 			flags: cliFlags{
 				pull:           true,
 				imageName:      testImageName,
-				certIdentity:   "user@example.com",
-				certOidcIssuer: "https://token.actions.githubusercontent.com",
+				certIdentity:   testCertIdentity,
+				certOidcIssuer: testGitHubIssuer,
 			},
 			expectError: true,
 		},
@@ -329,7 +331,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				pull:                 true,
 				verify:               true,
 				imageName:            testImageName,
-				certIdentity:         "user@example.com",
+				certIdentity:         testCertIdentity,
 				certOidcIssuerRegexp: "https://.*",
 			},
 		},
@@ -339,7 +341,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				pull:               true,
 				verify:             true,
 				imageName:          testImageName,
-				certIdentity:       "user@example.com",
+				certIdentity:       testCertIdentity,
 				certIdentityRegexp: ".*@example.com",
 				certOidcIssuer:     "https://token.actions.githubusercontent.com",
 			},
@@ -351,7 +353,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				pull:                 true,
 				verify:               true,
 				imageName:            testImageName,
-				certIdentity:         "user@example.com",
+				certIdentity:         testCertIdentity,
 				certOidcIssuer:       "https://token.actions.githubusercontent.com",
 				certOidcIssuerRegexp: "https://.*",
 			},
@@ -363,7 +365,7 @@ func TestValidateFlagCombinations(t *testing.T) {
 				pull:           true,
 				verify:         true,
 				imageName:      testImageName,
-				certOidcIssuer: "https://token.actions.githubusercontent.com",
+				certOidcIssuer: testGitHubIssuer,
 			},
 			expectError: true,
 		},
