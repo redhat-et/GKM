@@ -194,7 +194,30 @@ func handleRunCommand(f *cliFlags) {
 	}
 }
 
-func (f cliFlags) validate() error {
+func (f *cliFlags) validate() error {
+	if err := f.validatePrimaryActions(); err != nil {
+		return err
+	}
+	if err := f.validateSignVerifyCompatibility(); err != nil {
+		return err
+	}
+	if err := f.validateImageName(); err != nil {
+		return err
+	}
+	if err := f.validateFlagRequirements(); err != nil {
+		return err
+	}
+	if err := f.validateKeyPath(); err != nil {
+		return err
+	}
+	if err := f.validateCertificateFlags(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validatePrimaryActions ensures only one primary action is specified.
+func (f *cliFlags) validatePrimaryActions() error {
 	primary := []bool{f.create, f.extract, f.gpuInfo, f.checkCompat, f.push, f.pull}
 	primaryCount := 0
 	for _, set := range primary {
@@ -214,14 +237,22 @@ func (f cliFlags) validate() error {
 	if standaloneSign && standaloneVerify {
 		return fmt.Errorf("only one action flag can be specified at a time")
 	}
+	return nil
+}
 
+// validateSignVerifyCompatibility ensures --sign and --verify are used correctly.
+func (f *cliFlags) validateSignVerifyCompatibility() error {
 	if f.sign && (f.create || f.extract || f.gpuInfo || f.checkCompat || f.pull || f.verify) {
 		return fmt.Errorf("--sign can only be used alone or with --push")
 	}
 	if f.verify && (f.create || f.extract || f.gpuInfo || f.checkCompat || f.push || f.sign) {
 		return fmt.Errorf("--verify can only be used alone or with --pull")
 	}
+	return nil
+}
 
+// validateImageName checks that --image is provided when required and is valid.
+func (f *cliFlags) validateImageName() error {
 	if (f.create || f.extract || f.checkCompat || f.push || f.pull || f.sign || f.verify) && f.imageName == "" {
 		return fmt.Errorf("--image is required when using --create, --extract, --check-compat, --push, --pull, --sign, or --verify")
 	}
@@ -230,7 +261,11 @@ func (f cliFlags) validate() error {
 			return fmt.Errorf("error validating image name: %v", err)
 		}
 	}
+	return nil
+}
 
+// validateFlagRequirements validates individual flag requirements.
+func (f *cliFlags) validateFlagRequirements() error {
 	if f.create && f.cacheDirName == "" {
 		return fmt.Errorf("--dir is required when using --create")
 	}
@@ -240,7 +275,11 @@ func (f cliFlags) validate() error {
 	if f.yes && !f.sign {
 		return fmt.Errorf("--yes can only be used with --sign")
 	}
+	return nil
+}
 
+// validateKeyPath validates the --key flag and key file existence.
+func (f *cliFlags) validateKeyPath() error {
 	if f.keyPath != "" {
 		if !f.sign && !f.verify {
 			return fmt.Errorf("--key can only be used with --sign or --verify")
@@ -253,7 +292,11 @@ func (f cliFlags) validate() error {
 			}
 		}
 	}
+	return nil
+}
 
+// validateCertificateFlags validates certificate identity and OIDC issuer flags.
+func (f *cliFlags) validateCertificateFlags() error {
 	if f.certIdentity != "" && f.certIdentityRegexp != "" {
 		return fmt.Errorf("--certificate-identity and --certificate-identity-regexp are mutually exclusive")
 	}
@@ -277,7 +320,6 @@ func (f cliFlags) validate() error {
 	if f.ignoreTlog && !f.verify {
 		return fmt.Errorf("--insecure-ignore-tlog can only be used with --verify")
 	}
-
 	return nil
 }
 
