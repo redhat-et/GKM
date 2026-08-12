@@ -84,7 +84,7 @@ func TestCosignSignEmptyImageRef(t *testing.T) {
 }
 
 func TestCosignVerifyEmptyImageRef(t *testing.T) {
-	err := Verify("", VerifyOptions{})
+	err := Verify("", &VerifyOptions{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "image reference is empty")
 }
@@ -151,7 +151,7 @@ func TestCosignVerifyKeylessIdentityConstraints(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := Verify("localhost:5000/test:latest", tt.opts)
+			err := Verify("localhost:5000/test:latest", &tt.opts)
 			assert.Error(t, err)
 			if tt.wantErr != "" {
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -204,7 +204,7 @@ func TestCosignSignAndVerifyNetworkFailures(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("Verify/"+tt.name, func(t *testing.T) {
-			err := Verify("localhost:5000/test:latest", tt.opts)
+			err := Verify("localhost:5000/test:latest", &tt.opts)
 			assert.Error(t, err) // Expected without registry/key material
 		})
 	}
