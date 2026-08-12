@@ -182,9 +182,9 @@ func (b *buildahBuilder) PushImage(imageRef string) (string, error) {
 
 	streamDigestRef := ""
 	if dgst != "" {
-		ref, err := name.ParseReference(imageRef)
-		if err != nil {
-			return "", fmt.Errorf("failed to parse pushed image reference %q: %w", imageRef, err)
+		ref, parseErr := name.ParseReference(imageRef)
+		if parseErr != nil {
+			return "", fmt.Errorf("failed to parse pushed image reference %q: %w", imageRef, parseErr)
 		}
 		streamDigestRef = ref.Context().Digest(dgst.String()).String()
 	}

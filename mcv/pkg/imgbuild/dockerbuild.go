@@ -512,8 +512,8 @@ func (d *dockerBuilder) PushImage(imageRef string) (string, error) {
 
 	var captured bytes.Buffer
 	stream := io.TeeReader(responseBody, &captured)
-	if err := jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, 0, false, nil); err != nil {
-		return "", wrapDockerRegistryErr("docker push", err)
+	if displayErr := jsonmessage.DisplayJSONMessagesStream(stream, os.Stdout, 0, false, nil); displayErr != nil {
+		return "", wrapDockerRegistryErr("docker push", displayErr)
 	}
 
 	streamDigestRef, err := extractPushedDigest(captured.Bytes(), imageRef)
