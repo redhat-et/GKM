@@ -18,15 +18,18 @@ import (
 )
 
 const (
-	exitNormal       = 0
-	exitExtractError = 1
-	exitCreateError  = 2
-	exitLogError     = 3
-	exitPushError    = 4
-	exitPullError    = 5
-	exitSignError    = 6
-	exitVerifyError  = 7
-	version          = "1.0.0" // Application version
+	exitNormal          = 0
+	exitExtractError    = 1
+	exitCreateError     = 2
+	exitLogError        = 3
+	exitPushError       = 4
+	exitPullError       = 5
+	exitSignError       = 6
+	exitVerifyError     = 7
+	exitGPUError        = 8
+	exitValidationError = 9
+	exitCompatError = 10
+	version             = "1.0.0" // Application version
 )
 
 func main() {
@@ -101,6 +104,12 @@ pushing and pulling registry images, Cosign sign/verify, and hardware compatibil
 				logFatal("Error configuring logging", err, exitLogError)
 			}
 		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := f.validate(); err != nil {
+				logFatal("Error validating flags", err, exitValidationError)
+			}
+			return nil
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			handleRunCommand(f)
 		},
@@ -162,14 +171,6 @@ func addFlags(cmd *cobra.Command, f *cliFlags) {
 }
 
 func handleRunCommand(f cliFlags) {
-	if err := f.validate(); err != nil {
-		logging.Error(err)
-		os.Exit(exitLogError)
-	}
-
-	// Configure flags before any operations so --no-gpu works with --create
-	configureBoolFlags(baremetalFlag, noGPUFlag, stubFlag)
-
 	switch {
 	case f.create:
 		runCreate(f.imageName, f.cacheDirName, f.builder)
@@ -280,18 +281,19 @@ func (f cliFlags) validate() error {
 	return nil
 }
 
+// handleGPUInfo retrieves and displays GPU information for the system.
 func handleGPUInfo(timeout int) {
 	stub := config.IsStubEnabled()
 	summary, err := client.GetSystemGPUInfo(client.HwOptions{EnableStub: &stub, Timeout: timeout})
 	if err != nil && summary == nil {
-		logging.Errorf("Error getting system hardware: %v", err)
-		os.Exit(exitLogError)
+		logFatal("Error getting system hardware", err, exitGPUError)
 	}
 	client.PrintGPUSummary(summary)
 
 	os.Exit(exitNormal)
 }
 
+// handleCheckCompat checks GPU compatibility between the system and the specified image.
 func handleCheckCompat(imageName string) {
 	matched, unmatched, err := client.PreflightCheck(imageName)
 	if err != nil {
@@ -312,11 +314,12 @@ func handleCheckCompat(imageName string) {
 
 	if err != nil || len(matched) == 0 {
 		logging.Warn("Exiting: no compatible GPU(s) detected or error occurred during compatibility check")
-		os.Exit(exitExtractError)
+		os.Exit(exitCompatError)
 	}
 	os.Exit(exitNormal)
 }
 
+// configureBoolFlags sets global configuration flags for baremetal, GPU, and stub modes.
 func configureBoolFlags(baremetalFlag, noGPUFlag, stub bool) {
 	config.SetEnabledBaremetal(baremetalFlag)
 	config.SetEnabledStub(stub)
@@ -332,29 +335,35 @@ func configureBoolFlags(baremetalFlag, noGPUFlag, stub bool) {
 	}
 }
 
+// runCreate creates an OCI image from a local cache directory.
 func runCreate(imageName, cacheDir, builder string) {
 	// Check if the cache directory exists
 	if _, err := utils.FilePathExists(cacheDir); err != nil {
-		logging.Errorf("Error checking cache file path: %v", err)
-		os.Exit(exitCreateError)
+		logFatal("Error checking cache file path", err, exitCreateError)
 	}
 
 	builderInstance, err := imgbuild.NewWithBuilder(builder)
 	if err != nil {
-		logging.Errorf("Failed to create builder: %v", err)
-		os.Exit(exitCreateError)
+		logFatal("Failed to create builder", err, exitCreateError)
 	}
 
 	// Create the OCI image
 	if err := builderInstance.CreateImage(imageName, cacheDir); err != nil {
-		logging.Errorf("Failed to create the OCI image: %v", err)
-		os.Exit(exitCreateError)
+		logFatal("Failed to create the OCI image", err, exitCreateError)
 	}
 
 	logging.Info("OCI image created successfully.")
 }
 
+// runExtract extracts the cache from an OCI image to a local directory.
 func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
+	// Ensure cache directory exists if specified
+	if cacheDir != "" {
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			logFatal("Failed to create cache directory", err, exitExtractError)
+		}
+	}
+
 	gpuEnabled := config.IsGPUEnabled()
 	opts := client.Options{
 		ImageName:       imageName,
@@ -364,22 +373,20 @@ func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
 		EnableBaremetal: &baremetalFlag,
 	}
 	if _, _, err := client.ExtractCache(opts); err != nil {
-		logging.Errorf("Error extracting image: %v", err)
-		os.Exit(exitExtractError)
+		logFatal("Error extracting image", err, exitExtractError)
 	}
 }
 
+// runPush pushes an OCI image to a registry, optionally signing it after the push.
 func runPush(imageName string, signFlag bool, keyPath string, yesFlag bool, builder string) {
 	builderInstance, err := imgbuild.NewWithBuilder(builder)
 	if err != nil {
-		logging.Errorf("Failed to create builder: %v", err)
-		os.Exit(exitPushError)
+		logFatal("Failed to create builder", err, exitPushError)
 	}
 
 	pushedDigestRef, err := builderInstance.PushImage(imageName)
 	if err != nil {
-		logging.Errorf("Failed to push the OCI image: %v", err)
-		os.Exit(exitPushError)
+		logFatal("Failed to push the OCI image", err, exitPushError)
 	}
 
 	logging.Info("OCI image pushed to registry successfully.")
@@ -401,53 +408,50 @@ func runPush(imageName string, signFlag bool, keyPath string, yesFlag bool, buil
 			logging.Infof("Resolved pushed image digest from registry: %s", digestRef)
 		}
 		if err := signDigestRef(digestRef, keyPath, yesFlag); err != nil {
-			logging.Errorf("%v", err)
-			logging.Errorf("Image was pushed but not signed; re-run with --sign after fixing access, or sign manually")
-			os.Exit(exitSignError)
+			logFatal("Image was pushed but not signed; re-run with --sign after fixing access, or sign manually", err, exitSignError)
 		}
 	}
 }
 
+// runPull pulls an OCI image from a registry, optionally verifying its signature first.
 func runPull(f cliFlags) {
 	pullRef := f.imageName
 
 	if f.verify {
 		digestRef, err := verifyImage(f)
 		if err != nil {
-			logging.Errorf("%v", err)
-			os.Exit(exitVerifyError)
+			logFatal("Image verification failed", err, exitVerifyError)
 		}
 		pullRef = digestRef
 	}
 
 	builderInstance, err := imgbuild.NewWithBuilder(f.builder)
 	if err != nil {
-		logging.Errorf("Failed to create builder: %v", err)
-		os.Exit(exitPullError)
+		logFatal("Failed to create builder", err, exitPullError)
 	}
 
 	if err := builderInstance.PullImage(pullRef); err != nil {
-		logging.Errorf("Failed to pull the OCI image: %v", err)
-		os.Exit(exitPullError)
+		logFatal("Failed to pull the OCI image", err, exitPullError)
 	}
 
 	logging.Info("OCI image pulled from registry successfully.")
 }
 
+// runSign signs an OCI image using Cosign.
 func runSign(imageName, keyPath string, yesFlag bool) {
 	if err := signImage(imageName, keyPath, yesFlag); err != nil {
-		logging.Errorf("%v", err)
-		os.Exit(exitSignError)
+		logFatal("Image signing failed", err, exitSignError)
 	}
 }
 
+// runVerify verifies an OCI image signature using Cosign.
 func runVerify(f cliFlags) {
 	if _, err := verifyImage(f); err != nil {
-		logging.Errorf("%v", err)
-		os.Exit(exitVerifyError)
+		logFatal("Image verification failed", err, exitVerifyError)
 	}
 }
 
+// signImage resolves an image name to its digest and signs it.
 func signImage(imageName, keyPath string, yesFlag bool) error {
 	digestRef, err := imgbuild.ResolveDigest(imageName)
 	if err != nil {
@@ -456,6 +460,7 @@ func signImage(imageName, keyPath string, yesFlag bool) error {
 	return signDigestRef(digestRef, keyPath, yesFlag)
 }
 
+// signDigestRef signs an image by its digest reference using Cosign.
 func signDigestRef(digestRef, keyPath string, yesFlag bool) error {
 	logging.Infof("Signing image digest: %s", digestRef)
 
@@ -466,6 +471,7 @@ func signDigestRef(digestRef, keyPath string, yesFlag bool) error {
 	return nil
 }
 
+// verifyImage resolves and verifies an image signature using Cosign, returning the digest reference.
 func verifyImage(f cliFlags) (string, error) {
 	digestRef, err := imgbuild.ResolveRegistryDigest(f.imageName)
 	if err != nil {
