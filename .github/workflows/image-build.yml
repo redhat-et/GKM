@@ -35,6 +35,7 @@ jobs:
             image: operator
             dockerfile: ./Containerfile.gkm-operator
             context: .
+            platforms: linux/amd64
             tags: |
               type=ref,event=branch
               type=ref,event=tag
@@ -43,33 +44,77 @@ jobs:
               # set latest tag for default branch
               type=raw,value=latest,enable={{is_default_branch}}
 
+          # Agent unified: NVIDIA + AMD GPU support; :latest points here for backward compat
           - registry: quay.io
             repository: gkm
             image: agent
-            dockerfile: ./Containerfile.gkm-agent
+            variant: unified
+            dockerfile: ./Containerfile.gkm-agent.unified
             context: .
+            platforms: linux/amd64
             tags: |
+              type=ref,event=branch,suffix=-unified
+              type=ref,event=tag,suffix=-unified
+              type=ref,event=pr,suffix=-unified
+              type=sha,format=long,suffix=-unified
+              type=raw,value=unified,enable={{is_default_branch}}
               type=ref,event=branch
               type=ref,event=tag
               type=ref,event=pr
               type=sha,format=long
-              # set latest tag for default branch
               type=raw,value=latest,enable={{is_default_branch}}
 
+          # Agent no-gpu: no CUDA/ROCm libraries, for arm64/mac/CI environments
+          - registry: quay.io
+            repository: gkm
+            image: agent
+            variant: no-gpu
+            dockerfile: ./Containerfile.gkm-agent.no-gpu
+            context: .
+            platforms: linux/amd64,linux/arm64
+            tags: |
+              type=ref,event=branch,suffix=-no-gpu
+              type=ref,event=tag,suffix=-no-gpu
+              type=ref,event=pr,suffix=-no-gpu
+              type=sha,format=long,suffix=-no-gpu
+              type=raw,value=no-gpu,enable={{is_default_branch}}
+
+          # GKM Extract unified: NVIDIA + AMD GPU support; :latest points here for backward compat
           - registry: quay.io
             repository: gkm
             image: gkm-extract
-            dockerfile: ./Containerfile.gkm-extract
+            variant: unified
+            dockerfile: ./Containerfile.gkm-extract.unified
             context: .
+            platforms: linux/amd64
             tags: |
+              type=ref,event=branch,suffix=-unified
+              type=ref,event=tag,suffix=-unified
+              type=ref,event=pr,suffix=-unified
+              type=sha,format=long,suffix=-unified
+              type=raw,value=unified,enable={{is_default_branch}}
               type=ref,event=branch
               type=ref,event=tag
               type=ref,event=pr
               type=sha,format=long
-              # set latest tag for default branch
               type=raw,value=latest,enable={{is_default_branch}}
 
-    name: Build Image (${{ matrix.image.image }})
+          # GKM Extract no-gpu: no CUDA/ROCm libraries, for arm64/mac/CI environments
+          - registry: quay.io
+            repository: gkm
+            image: gkm-extract
+            variant: no-gpu
+            dockerfile: ./Containerfile.gkm-extract.no-gpu
+            context: .
+            platforms: linux/amd64,linux/arm64
+            tags: |
+              type=ref,event=branch,suffix=-no-gpu
+              type=ref,event=tag,suffix=-no-gpu
+              type=ref,event=pr,suffix=-no-gpu
+              type=sha,format=long,suffix=-no-gpu
+              type=raw,value=no-gpu,enable={{is_default_branch}}
+
+    name: Build Image (${{ matrix.image.image }}${{ matrix.image.variant && format('-{0}', matrix.image.variant) || '' }})
     steps:
       # Set a `push_flag`. This is only true if the github action is a push and the repository
       # organization is `redhat-et`. This keeps credential fails from occurring on push to forks.
@@ -121,17 +166,15 @@ jobs:
         id: build-push-image
         uses: docker/build-push-action@v7
         with:
-          platforms: linux/amd64
-          # platforms: linux/amd64, linux/arm64, linux/ppc64le, linux/s390x
-          # builds with rocm will fail on linux/arm64
+          platforms: ${{ matrix.image.platforms }}
           push: ${{ fromJSON(steps.set-push.outputs.push_flag) }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           file: ${{ matrix.image.dockerfile }}
           build-args: BUILDPLATFORM=linux/amd64
           context: ${{ matrix.image.context }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image.image }}-${{ matrix.image.variant || 'default' }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.image }}-${{ matrix.image.variant || 'default' }}
 
       - name: Sign the images with GitHub OIDC Token
         if: ${{ fromJSON(steps.set-push.outputs.push_flag) }}

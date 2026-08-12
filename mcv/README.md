@@ -107,6 +107,44 @@ Flags:
 > By default MCV prefers Buildah when installed, otherwise Docker; use `--builder buildah|docker` to force one.
 > Compat image layout details: [spec-compat.md](./docs/spec-compat.md).
 
+### No-GPU Mode
+
+MCV supports creating and extracting cache images **without GPU hardware** using the `--no-gpu` flag. This is useful for CI/CD pipelines, development environments, and containerized workflows where GPU access isn't available.
+
+**Quick Start:**
+
+```bash
+# Create cache image without GPU
+mcv --create --image quay.io/myorg/cache:v1 --dir /path/to/cache --no-gpu
+
+# Extract cache without GPU validation
+mcv --extract --image quay.io/myorg/cache:v1 --dir /path/to/cache --no-gpu
+```
+
+**Container Images:**
+
+Two image variants are available:
+
+1. **Unified** (~533MB) - NVIDIA + AMD GPU support, auto-detects GPU vendor at runtime
+   ```bash
+   make build-image-mcv
+   # or directly:
+   podman build --target mcv-unified -t quay.io/gkm/mcv:unified -f mcv/images/Containerfile .
+   ```
+
+2. **No-GPU** (~176MB) - For `--no-gpu` workflows, arm64/mac; no CUDA/ROCm libraries
+   ```bash
+   make build-image-mcv-no-gpu
+   # or directly:
+   podman build --target mcv-minimal -t quay.io/gkm/mcv:no-gpu -f mcv/images/Containerfile .
+   ```
+
+**How it works:** With `--no-gpu`, MCV extracts GPU information (backend, architecture, warp size) from cache metadata rather than detecting actual hardware. The cache files created by vLLM/Triton already contain all necessary GPU information in environment variables.
+
+**GPU access flags** (e.g., `--gpus all` for NVIDIA, `--device /dev/kfd --device /dev/dri` for AMD) are **ONLY** required for GPU validation/preflight checks. They are **NOT** needed when using `--no-gpu` for cache creation or extraction.
+
+For detailed usage examples, container configuration, GPU access requirements, and CI/CD integration, see [docs/no-gpu-usage.md](./docs/no-gpu-usage.md).
+
 ## Dependencies
 
 - [buildah dependencies](https://github.com/containers/buildah/blob/main/install.md#building-from-scratch)
@@ -694,7 +732,7 @@ docker run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
-        -d /example/vector-add-cache-rocm &&
+        -d /example/vector-add-cache-rocm --no-gpu &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
         docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
   '
@@ -739,7 +777,7 @@ podman run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
-        -d /example/vector-add-cache-rocm &&
+        -d /example/vector-add-cache-rocm --no-gpu &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
         oci-archive:/example/vector-add-cache-rocm.oci:quay.io/gkm/vector-add-cache:rocm
   '

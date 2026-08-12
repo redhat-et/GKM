@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/redhat-et/GKM/mcv/pkg/config"
 )
 
 const (
@@ -395,5 +397,26 @@ func TestValidateFlagCombinations(t *testing.T) {
 				t.Errorf("Expected error: %v, got: %v", tt.expectError, err)
 			}
 		})
+	}
+}
+
+// TestConfigureBoolFlagsNoGPU verifies that configureBoolFlags disables GPU
+// detection when noGPUFlag is true, and re-enables it when noGPUFlag is false.
+func TestConfigureBoolFlagsNoGPU(t *testing.T) {
+	if _, err := config.Initialize(t.TempDir()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+
+	origGPU := config.IsGPUEnabled()
+	t.Cleanup(func() { config.SetEnabledGPU(origGPU) })
+
+	configureBoolFlags(false, true, false)
+	if config.IsGPUEnabled() {
+		t.Error("expected GPU disabled after configureBoolFlags(noGPU=true), got enabled")
+	}
+
+	configureBoolFlags(false, false, false)
+	if !config.IsGPUEnabled() {
+		t.Error("expected GPU enabled after configureBoolFlags(noGPU=false), got disabled")
 	}
 }

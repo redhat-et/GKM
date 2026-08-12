@@ -1,11 +1,11 @@
 package main
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -66,17 +66,43 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 		}
 	*/
 
-	// Only one initialization should occur
+	// Acquire an exclusive file lock for this cacheDir to prevent concurrent
+	// extractions from multiple controller instances launching parallel Jobs.
+	// flock releases automatically when the file descriptor is closed.
+	lockPath := filepath.Join(cacheDir, ".extract.lock")
+	lf, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		log.Error(err, "unable to open extract lock", "lockPath", lockPath)
+		return err
+	}
+	defer func() { _ = lf.Close() }()
+	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX); err != nil {
+		log.Error(err, "unable to acquire extract lock", "lockPath", lockPath)
+		return err
+	}
+
+	// Only one initialization should occur per image URL.
+	// The init file stores the image URL used for extraction so that a different
+	// image triggers re-extraction rather than silently reusing stale cache.
+	// The file is written atomically (via a temp file renamed on success) so that
+	// a crash mid-extraction does not leave a stale .initialized sentinel.
 	initFile := filepath.Join(cacheDir, ".initialized")
-	if fileExists(initFile) {
-		log.Info("init file already exists", "imageURL", imageURL, "cacheDir", cacheDir, "noGpu", noGpu)
-		return nil
-	} else {
-		if err := createFile(initFile); err != nil {
-			log.Info("unable to create init file", "err", err)
-		} else {
-			log.Info("init file created")
+	initFileTmp := initFile + ".tmp"
+	if data, err := os.ReadFile(initFile); err == nil {
+		if strings.TrimSpace(string(data)) == imageURL {
+			log.Info("init file already exists", "imageURL", imageURL, "cacheDir", cacheDir, "noGpu", noGpu)
+			return nil
 		}
+		log.Info("image URL changed, clearing cache directory and re-extracting",
+			"existing", strings.TrimSpace(string(data)), "new", imageURL)
+		if err := clearDirectory(cacheDir); err != nil {
+			log.Error(err, "unable to clear cache directory", "cacheDir", cacheDir)
+			return err
+		}
+	}
+	if err := os.WriteFile(initFileTmp, []byte(imageURL+"\n"), 0644); err != nil {
+		log.Error(err, "unable to create init temp file", "initFileTmp", initFileTmp)
+		return err
 	}
 
 	// For testing, like in a KIND Cluster, a real GPU may not be available.
@@ -90,15 +116,25 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 	if err != nil {
 		log.Error(err, "unable to extract cache", "imageURL", imageURL, "cacheDir", cacheDir, "enableGPU", enableGPU)
 
-		if err := deleteFile(initFile); err != nil {
-			log.Info("unable to delete init file", "err", err)
+		if err := deleteFile(initFileTmp); err != nil {
+			log.Info("unable to delete init temp file", "err", err)
 		} else {
-			log.Info("deleted init file because of extract error")
+			log.Info("deleted init temp file because of extract error")
 		}
+		// Release the lock before back-off sleep so other Jobs on the same
+		// cacheDir are not blocked for 5 minutes on a transient failure.
+		_ = syscall.Flock(int(lf.Fd()), syscall.LOCK_UN)
 		time.Sleep(300 * time.Second)
 
 		return err
 	}
+	// Atomically promote the temp init file only after successful extraction.
+	if err := os.Rename(initFileTmp, initFile); err != nil {
+		log.Error(err, "unable to finalize init file", "initFileTmp", initFileTmp, "initFile", initFile)
+		return err
+	}
+	log.Info("init file created")
+
 	log.Info("Cache Extracted", "matchedIds", matchedIds, "unmatchedIds", unmatchedIds)
 
 	log.Info("Walking Extracted Directory")
@@ -118,24 +154,24 @@ func ExtractCache(cacheDir, imageURL string, noGpu bool, log logr.Logger) (err e
 	return nil
 }
 
-// fileExists checks if the input filename exists.
-func fileExists(filename string) bool {
-	_, err := os.Stat(filename)
-	if errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	return err == nil
-}
-
-func createFile(name string) error {
-	// os.O_CREATE: create the file if it does not exist
-	// 0644: file permissions (read/write for owner, read for others)
-	file, err := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0644)
+// clearDirectory removes all entries inside dir without removing dir itself.
+// It preserves .extract.lock so the held flock inode is not replaced by a new
+// file that another Job could independently lock and run concurrently.
+// .initialized.tmp is also preserved so a concurrent writer does not race.
+func clearDirectory(dir string) error {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
-	// It's important to close the file to free up system resources
-	return file.Close()
+	for _, entry := range entries {
+		if entry.Name() == ".extract.lock" || entry.Name() == ".initialized.tmp" {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func deleteFile(name string) error {

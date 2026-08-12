@@ -65,6 +65,7 @@ To create a `kind` cluster with a simulated GPU and latest GKM running:
 ```sh
 export KIND_EXPERIMENTAL_PROVIDER=podman
 export DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock
+make build-images-no-gpu
 make run-on-kind
 ```
 
@@ -225,37 +226,44 @@ Start by building and pushing the GKM images, then start `kind` cluster:
 
 ```sh
 export QUAY_USER=<UserName>
-make build-images
-make push-images
+make build-images-no-gpu
+make push-images-no-gpu
 make run-on-kind
 ```
 
 ### Building Without GPU Support
 
 For environments without GPU hardware (e.g., KIND clusters with simulated GPUs),
-you can build the agent image without ROCm packages to reduce image size and
-build time. This is useful for development and testing scenarios.
+use the dedicated no-GPU image variants to reduce image size and build time.
+Each image has a separate `:no-gpu` tag that excludes ROCm/CUDA libraries.
 
-To build the agent image without GPU support:
-
-```sh
-make build-image-agent NO_GPU_BUILD=true
-```
-
-Or to build all images (only the agent will skip ROCm installation):
+To build individual no-GPU images:
 
 ```sh
-make build-images NO_GPU_BUILD=true
+make build-image-agent-no-gpu
+make build-image-extract-no-gpu
+make build-image-operator        # operator has no GPU libs regardless
 ```
 
-When built with `NO_GPU_BUILD=true`:
+Or to build all no-GPU images at once:
 
-- ROCm packages are not installed in the agent container
-- The `NO_GPU` environment variable is set to `true` in the container
-- The agent will run in no-GPU mode as indicated in the logs
+```sh
+make build-images-no-gpu
+```
+
+When using no-GPU images:
+
+- ROCm/CUDA packages are not installed in the agent and gkm-extract containers
+- The agent and gkm-extract run in no-GPU mode
+- MCV cache operations use `--no-gpu` (metadata-based, no hardware detection)
 
 This is the recommended approach for KIND deployments since they use simulated
 GPUs and don't require actual ROCm libraries.
+
+> **Note on `:latest` tags:** For the `agent` and `gkm-extract` images, `:latest`
+> resolves to the `:unified` (GPU-capable) variant. Use `:no-gpu` explicitly for
+> KIND and non-GPU deployments. For MCV, `:latest` resolves to the `:no-gpu`
+> variant (lighter default for cache-packaging workflows without GPU hardware).
 
 ## Deployment Options
 
@@ -275,10 +283,9 @@ environments.
 Below are set of commands to manage the lifecycle of a KIND Cluster with the GKM
 Operator when no KIND Cluster exists:
 
-> **Note:** When building images for KIND deployments, it's recommended to use
-> `NO_GPU_BUILD=true` to skip ROCm installation since KIND uses simulated GPUs.
-> For example: `make build-images NO_GPU_BUILD=true` before running
-> `make run-on-kind`.
+> **Note:** When building images for KIND deployments, use the no-GPU variants
+> to skip ROCm installation since KIND uses simulated GPUs.
+> Run `make build-images-no-gpu` before `make run-on-kind`.
 
 - `make run-on-kind`: This command creates a KIND Cluster with GKM and
   cert-manager installed and simulated GPUs.
@@ -306,10 +313,9 @@ This assumes that the GPUs are properly being simulated in the existing KIND
 Cluster.
 See [kind-gpu-sim](https://github.com/maryamtahhan/kind-gpu-sim) for reference.
 
-> **Note:** When building images for KIND deployments, it's recommended to use
-> `NO_GPU_BUILD=true` to skip ROCm installation since KIND uses simulated GPUs.
-> For example: `make build-images NO_GPU_BUILD=true` before running
-> `make deploy-on-kind`.
+> **Note:** When building images for KIND deployments, use the no-GPU variants
+> to skip ROCm installation since KIND uses simulated GPUs.
+> Run `make build-images-no-gpu` before `make deploy-on-kind`.
 
 - `make deploy-on-kind`: This command deploys GKM and cert-manager in the
   existing KIND Cluster.
