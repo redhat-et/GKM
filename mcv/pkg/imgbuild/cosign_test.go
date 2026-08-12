@@ -16,6 +16,18 @@ import (
 	"go.podman.io/storage"
 )
 
+const (
+	testGitHubIssuer       = "testGitHubIssuer"
+	testCertIdentity       = "testCertIdentity"
+	testCertIdentityRegexp = "testCertIdentityRegexp"
+	testOidcIssuerRegexp   = "testOidcIssuerRegexp"
+	testQuayRegistry       = "quay.io"
+	testAuthKey            = "auth"
+	testAuthsKey           = "auths"
+	errCertIdentity        = "certificate-identity"
+	errCertOidcIssuer      = "certificate-oidc-issuer"
+)
+
 func setIsolatedRegistryAuthEnv(t *testing.T) (homeDir, dockerConfigDir string) {
 	t.Helper()
 	homeDir = t.TempDir()
@@ -49,7 +61,7 @@ func setIsolatedHomeEnv(t *testing.T) string {
 func writeEmptyDockerConfig(t *testing.T, dockerConfigDir string) {
 	t.Helper()
 	data, err := json.Marshal(map[string]any{
-		"auths":      map[string]any{},
+		testAuthsKey:      map[string]any{},
 		"credsStore": "mcv-test-disabled",
 	})
 	assert.NoError(t, err)
@@ -85,55 +97,55 @@ func TestCosignVerifyKeylessIdentityConstraints(t *testing.T) {
 	}{
 		{
 			name:    "only certificate-identity",
-			opts:    VerifyOptions{CertIdentity: "user@example.com"},
-			wantErr: "certificate-identity",
+			opts:    VerifyOptions{CertIdentity: testCertIdentity},
+			wantErr: errCertIdentity,
 		},
 		{
 			name:    "only certificate-oidc-issuer",
-			opts:    VerifyOptions{CertOidcIssuer: "https://token.actions.githubusercontent.com"},
-			wantErr: "certificate-oidc-issuer",
+			opts:    VerifyOptions{CertOidcIssuer: testGitHubIssuer},
+			wantErr: errCertOidcIssuer,
 		},
 		{
 			name:    "only identity regexp",
-			opts:    VerifyOptions{CertIdentityRegexp: ".*@example.com"},
-			wantErr: "certificate-identity",
+			opts:    VerifyOptions{CertIdentityRegexp: testCertIdentityRegexp},
+			wantErr: errCertIdentity,
 		},
 		{
 			name:    "only issuer regexp",
-			opts:    VerifyOptions{CertOidcIssuerRegexp: "https://.*"},
-			wantErr: "certificate-oidc-issuer",
+			opts:    VerifyOptions{CertOidcIssuerRegexp: testOidcIssuerRegexp},
+			wantErr: errCertOidcIssuer,
 		},
 		{
 			name: "exact identity and issuer pass pairing validation",
 			opts: VerifyOptions{
-				CertIdentity:   "user@example.com",
-				CertOidcIssuer: "https://token.actions.githubusercontent.com",
+				CertIdentity:   testCertIdentity,
+				CertOidcIssuer: testGitHubIssuer,
 			},
 		},
 		{
 			name: "mixed exact identity and issuer regexp pass pairing validation",
 			opts: VerifyOptions{
-				CertIdentity:         "user@example.com",
-				CertOidcIssuerRegexp: "https://.*",
+				CertIdentity:         testCertIdentity,
+				CertOidcIssuerRegexp: testOidcIssuerRegexp,
 			},
 		},
 		{
 			name: "both identity exact and regexp",
 			opts: VerifyOptions{
-				CertIdentity:       "user@example.com",
-				CertIdentityRegexp: ".*@example.com",
-				CertOidcIssuer:     "https://token.actions.githubusercontent.com",
+				CertIdentity:       "testCertIdentity",
+				CertIdentityRegexp: "testCertIdentityRegexp",
+				CertOidcIssuer:     "testGitHubIssuer",
 			},
-			wantErr: "certificate-identity",
+			wantErr: errCertIdentity,
 		},
 		{
 			name: "both issuer exact and regexp",
 			opts: VerifyOptions{
-				CertIdentity:         "user@example.com",
-				CertOidcIssuer:       "https://token.actions.githubusercontent.com",
-				CertOidcIssuerRegexp: "https://.*",
+				CertIdentity:         testCertIdentity,
+				CertOidcIssuer:       "testGitHubIssuer",
+				CertOidcIssuerRegexp: testOidcIssuerRegexp,
 			},
-			wantErr: "certificate-oidc-issuer",
+			wantErr: errCertOidcIssuer,
 		},
 	}
 
@@ -166,14 +178,14 @@ func TestCosignSignAndVerifyNetworkFailures(t *testing.T) {
 			name: "Keyless with exact identity constraints",
 			opts: VerifyOptions{
 				CertIdentity:   "https://github.com/org/repo/.github/workflows/ci.yml@refs/heads/main",
-				CertOidcIssuer: "https://token.actions.githubusercontent.com",
+				CertOidcIssuer: testGitHubIssuer,
 			},
 		},
 		{
 			name: "Keyless with regexp identity constraints",
 			opts: VerifyOptions{
-				CertIdentityRegexp:   ".*@example.com",
-				CertOidcIssuerRegexp: "https://.*",
+				CertIdentityRegexp:   "testCertIdentityRegexp",
+				CertOidcIssuerRegexp: testOidcIssuerRegexp,
 			},
 		},
 		{
@@ -375,9 +387,9 @@ func TestDockerAndBuildahEmptyImageRef(t *testing.T) {
 func TestEncodedRegistryAuth_FromDockerConfig(t *testing.T) {
 	dir := t.TempDir()
 	cfg := map[string]any{
-		"auths": map[string]any{
-			"quay.io": map[string]string{
-				"auth": base64.StdEncoding.EncodeToString([]byte("user:pass")),
+		testAuthsKey: map[string]any{
+			testQuayRegistry: map[string]string{
+				testAuthKey: base64.StdEncoding.EncodeToString([]byte("user:pass")),
 			},
 		},
 	}
@@ -425,8 +437,8 @@ func TestCosignRegistryOptions_NoCredentials(t *testing.T) {
 func TestRegistryAuthConfig_ContainersAuthFallbackWhenDockerConfigUnset(t *testing.T) {
 	homeDir := setIsolatedHomeEnv(t)
 	writeContainersAuthConfig(t, homeDir, map[string]any{
-		"quay.io": map[string]string{
-			"auth": base64.StdEncoding.EncodeToString([]byte("podman-user:podman-pass")),
+		testQuayRegistry: map[string]string{
+			testAuthKey: base64.StdEncoding.EncodeToString([]byte("podman-user:podman-pass")),
 		},
 	})
 
@@ -451,8 +463,8 @@ func TestRegistryAuthConfig_ContainersAuthSkippedWhenDOCKER_CONFIGSet(t *testing
 	homeDir, dockerConfigDir := setIsolatedRegistryAuthEnv(t)
 	writeEmptyDockerConfig(t, dockerConfigDir)
 	writeContainersAuthConfig(t, homeDir, map[string]any{
-		"quay.io": map[string]string{
-			"auth": base64.StdEncoding.EncodeToString([]byte("podman-user:podman-pass")),
+		testQuayRegistry: map[string]string{
+			testAuthKey: base64.StdEncoding.EncodeToString([]byte("podman-user:podman-pass")),
 		},
 	})
 
@@ -468,8 +480,8 @@ func TestRegistryAuthConfig_ContainersAuthSkippedWhenDOCKER_CONFIGSet(t *testing
 func TestCosignRegistryOptions_IdentityToken(t *testing.T) {
 	dir := t.TempDir()
 	cfg := map[string]any{
-		"auths": map[string]any{
-			"quay.io": map[string]string{
+		testAuthsKey: map[string]any{
+			testQuayRegistry: map[string]string{
 				"identitytoken": "oidc-token-value",
 			},
 		},
@@ -506,9 +518,9 @@ func TestEncodedRegistryAuth_NoCredentials(t *testing.T) {
 func TestRegistrySystemContext_FromDockerAuthField(t *testing.T) {
 	dir := t.TempDir()
 	cfg := map[string]any{
-		"auths": map[string]any{
-			"quay.io": map[string]string{
-				"auth": base64.StdEncoding.EncodeToString([]byte("buildah-user:buildah-pass")),
+		testAuthsKey: map[string]any{
+			testQuayRegistry: map[string]string{
+				testAuthKey: base64.StdEncoding.EncodeToString([]byte("buildah-user:buildah-pass")),
 			},
 		},
 	}
