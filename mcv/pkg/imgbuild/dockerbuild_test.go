@@ -7,10 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testDigestSHA256 = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 func TestExtractPushedDigest(t *testing.T) {
 	const (
 		imageRef = "localhost:5000/gkm/cache:test"
-		digest   = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+		digest   = testDigestSHA256
 		wantRef  = "localhost:5000/gkm/cache@" + digest
 	)
 
@@ -121,7 +123,7 @@ func TestExtractPushedDigest(t *testing.T) {
 }
 
 func TestNormalizeManifestDigest(t *testing.T) {
-	valid := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	valid := testDigestSHA256
 	assert.Equal(t, valid, normalizeManifestDigest(valid))
 	assert.Equal(t, valid, normalizeManifestDigest("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
 	assert.Equal(t, valid, normalizeManifestDigest("SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"))
@@ -132,7 +134,7 @@ func TestNormalizeManifestDigest(t *testing.T) {
 }
 
 func TestDigestFromPushStatus(t *testing.T) {
-	d := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	d := testDigestSHA256
 	assert.Equal(t, d, digestFromPushStatus("latest: digest: "+d+" size: 1234"))
 	assert.Equal(t, "", digestFromPushStatus("DIGEST: "+d))
 	assert.Equal(t, "", digestFromPushStatus("Pushing [====>] 1B/2B"))
@@ -140,14 +142,14 @@ func TestDigestFromPushStatus(t *testing.T) {
 }
 
 func TestDigestFromManifestPushAux(t *testing.T) {
-	d := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	d := testDigestSHA256
 	assert.Equal(t, d, digestFromManifestPushAux(json.RawMessage(`{"Tag":"latest","Digest":"`+d+`"}`)))
 	assert.Equal(t, "", digestFromManifestPushAux(json.RawMessage(`{"Digest":"`+d+`"}`)))
 	assert.Equal(t, "", digestFromManifestPushAux(json.RawMessage(`{"Tag":"latest","Digest":""}`)))
 }
 
 func TestConfirmPushedDigest_Reconcile(t *testing.T) {
-	const digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	const digest = testDigestSHA256
 	imageRef := "localhost:5000/gkm/cache:test"
 	streamRef := "localhost:5000/gkm/cache@" + digest
 
