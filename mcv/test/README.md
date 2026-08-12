@@ -211,10 +211,10 @@ func TestMyNewFunction(t *testing.T) {
 
 func TestMCVMyFeature(t *testing.T) {
     mcvBinary := findMCVBinary(t)
-    
+
     cmd := exec.Command(mcvBinary, "--my-flag")
     output, err := cmd.CombinedOutput()
-    
+
     assert.NoError(t, err)
     assert.Contains(t, string(output), "expected output")
 }
