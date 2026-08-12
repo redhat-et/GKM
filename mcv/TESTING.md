@@ -255,10 +255,8 @@ Create or update `*_test.go` file in the same package:
 func TestMyNewFunction(t *testing.T) {
     // Arrange
     input := "test"
-    
     // Act
     result, err := MyNewFunction(input)
-    
     // Assert
     assert.NoError(t, err)
     assert.Equal(t, "expected", result)
@@ -274,10 +272,8 @@ Add to [test/e2e/mcv_e2e_test.go](test/e2e/mcv_e2e_test.go):
 
 func TestMCVMyFeature(t *testing.T) {
     mcvBinary := findMCVBinary(t)
-    
     cmd := exec.Command(mcvBinary, "--my-flag")
     output, err := cmd.CombinedOutput()
-    
     assert.NoError(t, err)
     assert.Contains(t, string(output), "expected output")
 }
