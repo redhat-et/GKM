@@ -299,17 +299,34 @@ func resolveLocalDigestFromContainersStorage(ref name.Reference) (string, error)
 
 // manifestDigestFromStorageImage returns a manifest digest, never the image
 // config ID. containers/storage may list the image ID in Digests/Digest.
+// Supports any hash algorithm (SHA256, SHA384, SHA512) for both image IDs
+// and manifest digests.
 func manifestDigestFromStorageImage(img *storage.Image) (string, error) {
 	if img == nil {
 		return "", fmt.Errorf("image is nil")
 	}
-	idHex := strings.TrimPrefix(img.ID, "sha256:")
+
+	// Extract the hex portion of the image ID for comparison (algorithm-agnostic)
+	var imageIDHex string
+	if idx := strings.Index(img.ID, ":"); idx > 0 {
+		imageIDHex = img.ID[idx+1:]
+	} else {
+		imageIDHex = img.ID
+	}
+
 	isImageID := func(d string) bool {
 		if d == "" {
 			return true
 		}
-		hex := strings.TrimPrefix(d, "sha256:")
-		return hex == idHex || d == img.ID
+		// Direct match
+		if d == img.ID {
+			return true
+		}
+		// Check if it's the image ID with a different or missing algorithm prefix
+		if idx := strings.Index(d, ":"); idx > 0 {
+			return d[idx+1:] == imageIDHex
+		}
+		return d == imageIDHex
 	}
 
 	for _, d := range img.Digests {
