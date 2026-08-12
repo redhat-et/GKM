@@ -1,5 +1,7 @@
 # MCV Testing Guide
 
+> **Note:** This is a quick reference guide for the test suite. For comprehensive testing documentation, see [TESTING.md](../TESTING.md).
+
 This directory contains various test suites for MCV (Model Cache Vault).
 
 ## Test Types
@@ -207,7 +209,7 @@ func TestMyNewFunction(t *testing.T) {
 ### E2E Test Template
 
 ```go
-// +build e2e
+//go:build e2e
 
 func TestMCVMyFeature(t *testing.T) {
     mcvBinary := findMCVBinary(t)
