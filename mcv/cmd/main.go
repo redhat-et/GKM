@@ -113,7 +113,7 @@ pushing and pulling registry images, Cosign sign/verify, and hardware compatibil
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			handleRunCommand(f)
+			handleRunCommand(&f)
 		},
 	}
 
@@ -182,7 +182,7 @@ func addCaptureFlags(cmd *cobra.Command, sources *[]string, mountAt *string, pla
 		"After extract, move extra cache trees from --dir to the absolute paths recorded in the image (writes outside --dir)")
 }
 
-func handleRunCommand(f cliFlags) {
+func handleRunCommand(f *cliFlags) {
 	if err := validateCaptureFlags(f.create, f.extract, f.mountAt, f.sources, f.placeExtraTrees); err != nil {
 		logging.Error(err)
 		os.Exit(exitCreateError)
@@ -443,7 +443,7 @@ func runPush(imageName string, signFlag bool, keyPath string, yesFlag bool, buil
 }
 
 // runPull pulls an OCI image from a registry, optionally verifying its signature first.
-func runPull(f cliFlags) {
+func runPull(f *cliFlags) {
 	pullRef := f.imageName
 
 	if f.verify {
@@ -474,7 +474,7 @@ func runSign(imageName, keyPath string, yesFlag bool) {
 }
 
 // runVerify verifies an OCI image signature using Cosign.
-func runVerify(f cliFlags) {
+func runVerify(f *cliFlags) {
 	if _, err := verifyImage(f); err != nil {
 		logFatal("Image verification failed", err, exitVerifyError)
 	}
@@ -501,14 +501,14 @@ func signDigestRef(digestRef, keyPath string, yesFlag bool) error {
 }
 
 // verifyImage resolves and verifies an image signature using Cosign, returning the digest reference.
-func verifyImage(f cliFlags) (string, error) {
+func verifyImage(f *cliFlags) (string, error) {
 	digestRef, err := imgbuild.ResolveRegistryDigest(f.imageName)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve image digest: %w", err)
 	}
 	logging.Infof("Resolved image to digest: %s", digestRef)
 
-	if err := imgbuild.Verify(digestRef, imgbuild.VerifyOptions{
+	if err := imgbuild.Verify(digestRef, &imgbuild.VerifyOptions{
 		KeyPath:              f.keyPath,
 		CertIdentity:         f.certIdentity,
 		CertIdentityRegexp:   f.certIdentityRegexp,
