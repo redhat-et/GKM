@@ -394,7 +394,7 @@ type VerifyOptions struct {
 // When no certificate identity flags are set, any valid Fulcio-issued identity
 // is accepted (convenient for local testing; constrain identity for production).
 // If KeyPath is provided, uses key-based verification with the specified public key.
-func Verify(imageRef string, opts VerifyOptions) error {
+func Verify(imageRef string, opts *VerifyOptions) error {
 	if imageRef == "" {
 		return fmt.Errorf("image reference is empty")
 	}
