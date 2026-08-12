@@ -234,11 +234,11 @@ func ResolveDigest(imageRef string) (string, error) {
 		return dig.String(), nil
 	}
 
-	if remoteDig, err := ResolveRegistryDigest(normalized); err == nil {
+	remoteDig, err := ResolveRegistryDigest(normalized)
+	if err == nil {
 		return remoteDig, nil
-	} else {
-		logging.Debugf("registry digest resolve failed, trying local image: %v", err)
 	}
+	logging.Debugf("registry digest resolve failed, trying local image: %v", err)
 
 	localDig, err := resolveLocalImageDigest(ref)
 	if err != nil {
@@ -255,16 +255,18 @@ func ResolveDigest(imageRef string) (string, error) {
 // manifest digest, never the image config ID.
 func resolveLocalImageDigest(ref name.Reference) (string, error) {
 	var errs []error
-	if dig, err := resolveLocalDigestFromContainersStorage(ref); err == nil {
+
+	dig, err := resolveLocalDigestFromContainersStorage(ref)
+	if err == nil {
 		return dig, nil
-	} else {
-		errs = append(errs, err)
 	}
-	if dig, err := resolveLocalDigestFromDocker(ref); err == nil {
+	errs = append(errs, err)
+
+	dig, err = resolveLocalDigestFromDocker(ref)
+	if err == nil {
 		return dig, nil
-	} else {
-		errs = append(errs, err)
 	}
+	errs = append(errs, err)
 	return "", fmt.Errorf("local digest lookup failed: %v", errs)
 }
 

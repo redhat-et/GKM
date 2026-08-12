@@ -7,10 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+)
+
+const (
+	testImage = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+	unreachableImage   = "invalid.invalid/gkm/e2e-cosign:test"
 )
 
 // TestMCVGPUInfo tests the GPU info functionality
@@ -23,25 +27,23 @@ func TestMCVGPUInfo(t *testing.T) {
 
 	// This might fail if stub mode isn't properly configured, but shouldn't crash
 	if err != nil {
-		t.Logf("GPU info with stub mode: %s", string(output))
-	} else {
-		assert.Contains(t, string(output), "GPU")
+		t.Skipf("GPU info with stub mode: %s", string(output))
 	}
+
+	assert.Contains(t, string(output), "GPU")
 }
 
 // TestMCVCheckCompat tests the compatibility check functionality
 func TestMCVCheckCompat(t *testing.T) {
 	mcvBinary := findMCVBinary(t)
 
-	// Use a known public image for testing
-	testImage := "quay.io/gkm/cache-examples:vector-add-cache-cuda"
-
 	cmd := exec.Command(mcvBinary, "--check-compat", "--image", testImage)
-	output, _ := cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 
-	t.Logf("Compatibility check output: %s", string(output))
+	t.Logf("Compatibility check output: %s, err: %v", string(output), err)
 
-	assert.NotNil(t, output)
+	// Verify command ran with output; success or failure not important
+	assert.NotEmpty(t, output, "Expected compatibility check output")
 }
 
 // TestMCVVersionFlag tests the version flag
@@ -54,7 +56,7 @@ func TestMCVVersionFlag(t *testing.T) {
 
 	// Verify version output contains expected format
 	outputStr := string(output)
-	assert.True(t, strings.Contains(outputStr, "mcv") || strings.Contains(outputStr, "version") || strings.Contains(outputStr, "1.0"))
+	assert.Regexp(t, `mcv.*version.*\d+\.\d+`, outputStr, "Version should contain 'mcv version X.Y'")
 }
 
 // TestMCVHelpFlag tests the help flag
@@ -66,17 +68,14 @@ func TestMCVHelpFlag(t *testing.T) {
 	assert.NoError(t, err, "Failed to get help: %s", string(output))
 
 	outputStr := string(output)
-	assert.Contains(t, outputStr, "Usage")
-	assert.Contains(t, outputStr, "Flags")
-	assert.Contains(t, outputStr, "create")
-	assert.Contains(t, outputStr, "extract")
-	assert.Contains(t, outputStr, "push")
-	assert.Contains(t, outputStr, "pull")
-	assert.Contains(t, outputStr, "sign")
-	assert.Contains(t, outputStr, "verify")
-	assert.Contains(t, outputStr, "certificate-identity")
-	assert.Contains(t, outputStr, "certificate-oidc-issuer")
-	assert.Contains(t, outputStr, "insecure-ignore-tlog")
+	expectedFlags := []string{
+		"Usage", "Flags", "create", "extract", "push", "pull",
+		"sign", "verify", "certificate-identity",
+		"certificate-oidc-issuer", "insecure-ignore-tlog",
+	}
+	for _, flag := range expectedFlags {
+		assert.Contains(t, outputStr, flag)
+	}
 }
 
 // TestMCVPushPullSignVerifyCLI exercises push/pull/sign/verify through the real
@@ -85,7 +84,6 @@ func TestMCVHelpFlag(t *testing.T) {
 // validate() alone cannot (cobra MarkFlagsMutuallyExclusive, exit paths).
 func TestMCVPushPullSignVerifyCLI(t *testing.T) {
 	mcvBinary := findMCVBinary(t)
-	const testImage = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
 
 	tests := []struct {
 		name       string
@@ -210,32 +208,30 @@ func TestMCVPushPullSignVerifyCLI(t *testing.T) {
 // than being rejected only at flag parsing.
 func TestMCVSignVerifyUnreachableImage(t *testing.T) {
 	mcvBinary := findMCVBinary(t)
-	// RFC 2606 reserved TLD — should not resolve to a real registry.
-	badImage := "invalid.invalid/gkm/e2e-cosign:test"
 
 	t.Run("sign", func(t *testing.T) {
-		cmd := exec.Command(mcvBinary, "--sign", "--image", badImage, "--yes")
+		cmd := exec.Command(mcvBinary, "--sign", "--image", unreachableImage, "--yes")
 		output, err := cmd.CombinedOutput()
 		assert.Error(t, err, "sign should fail for unreachable image: %s", string(output))
 		assert.NotContains(t, string(output), "--image is required")
 	})
 
 	t.Run("verify", func(t *testing.T) {
-		cmd := exec.Command(mcvBinary, "--verify", "--image", badImage)
+		cmd := exec.Command(mcvBinary, "--verify", "--image", unreachableImage)
 		output, err := cmd.CombinedOutput()
 		assert.Error(t, err, "verify should fail for unreachable image: %s", string(output))
 		assert.NotContains(t, string(output), "--image is required")
 	})
 
 	t.Run("push", func(t *testing.T) {
-		cmd := exec.Command(mcvBinary, "--push", "--image", badImage)
+		cmd := exec.Command(mcvBinary, "--push", "--image", unreachableImage)
 		output, err := cmd.CombinedOutput()
 		assert.Error(t, err, "push should fail for missing local image: %s", string(output))
 		assert.NotContains(t, string(output), "--image is required")
 	})
 
 	t.Run("pull", func(t *testing.T) {
-		cmd := exec.Command(mcvBinary, "--pull", "--image", badImage)
+		cmd := exec.Command(mcvBinary, "--pull", "--image", unreachableImage)
 		output, err := cmd.CombinedOutput()
 		assert.Error(t, err, "pull should fail for unreachable image: %s", string(output))
 		assert.NotContains(t, string(output), "--image is required")
