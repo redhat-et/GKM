@@ -247,7 +247,7 @@ func (f cliFlags) validate() error {
 		}
 		// Validate key path exists (only for file paths, not URIs).
 		// URIs include: aws://, gcpkms://, azurekms://, vault://, pkcs11:, k8s://, github://, gitlab://
-		if !(strings.Contains(f.keyPath, "://") || strings.HasPrefix(f.keyPath, "pkcs11:")) {
+		if !strings.Contains(f.keyPath, "://") && !strings.HasPrefix(f.keyPath, "pkcs11:") {
 			if _, err := os.Stat(f.keyPath); err != nil {
 				return fmt.Errorf("key file not found: %s", f.keyPath)
 			}
