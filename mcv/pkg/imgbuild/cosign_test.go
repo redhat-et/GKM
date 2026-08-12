@@ -221,13 +221,13 @@ func TestCosignSignAndVerifyNetworkFailures(t *testing.T) {
 }
 
 func TestNormalizeImageTag(t *testing.T) {
-	digest := "quay.io/gkm/cache-examples@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	digestRef := "quay.io/gkm/cache-examples@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	tests := []struct {
 		in, want string
 	}{
 		{"example.com/repo/image", "example.com/repo/image:latest"},
 		{"example.com/repo/image:v1", "example.com/repo/image:v1"},
-		{digest, digest},
+		{digestRef, digestRef},
 		{"localhost:5000/foo", "localhost:5000/foo:latest"},
 		{"localhost:5000/foo:v1", "localhost:5000/foo:v1"},
 		{"foo", "foo:latest"},
@@ -297,10 +297,10 @@ func TestWrapRegistryHeadError(t *testing.T) {
 
 func TestSelectDockerRepoDigest(t *testing.T) {
 	const (
-		imageRef = "quay.io/gkm/cache:rocm"
-		repo     = "quay.io/gkm/cache"
-		digest   = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-		want     = repo + "@" + digest
+		imageRef  = "quay.io/gkm/cache:rocm"
+		repo      = "quay.io/gkm/cache"
+		digestHex = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+		want      = repo + "@" + digestHex
 	)
 
 	got, err := selectDockerRepoDigest(imageRef, repo, []string{want})
@@ -308,7 +308,7 @@ func TestSelectDockerRepoDigest(t *testing.T) {
 	assert.Equal(t, want, got)
 
 	_, err = selectDockerRepoDigest(imageRef, repo, []string{
-		"registry.example.com/other@" + digest,
+		"registry.example.com/other@" + digestHex,
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no RepoDigests for repository")
