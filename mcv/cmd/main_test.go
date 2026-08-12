@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	testImageName       = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
-	testCacheDirName    = "../example/vector-add-cache"
-	testGitHubIssuer    = "https://token.actions.githubusercontent.com"
-	testCertIdentity    = "user@example.com"
+	testImageName    = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+	testCacheDirName = "../example/vector-add-cache"
+	testGitHubIssuer = "https://token.actions.githubusercontent.com"
+	testCertIdentity = "user@example.com"
 )
 
 func TestValidateFlagCombinations(t *testing.T) {

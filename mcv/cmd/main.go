@@ -28,7 +28,7 @@ const (
 	exitVerifyError     = 7
 	exitGPUError        = 8
 	exitValidationError = 9
-	exitCompatError = 10
+	exitCompatError     = 10
 	version             = "1.0.0" // Application version
 )
 

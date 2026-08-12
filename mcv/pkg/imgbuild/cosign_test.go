@@ -61,7 +61,7 @@ func setIsolatedHomeEnv(t *testing.T) string {
 func writeEmptyDockerConfig(t *testing.T, dockerConfigDir string) {
 	t.Helper()
 	data, err := json.Marshal(map[string]any{
-		testAuthsKey:      map[string]any{},
+		testAuthsKey: map[string]any{},
 		"credsStore": "mcv-test-disabled",
 	})
 	assert.NoError(t, err)
