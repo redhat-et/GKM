@@ -27,6 +27,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	// Import hash algorithms to register them with crypto package
+	_ "crypto/sha256" // Registers SHA256
+	_ "crypto/sha512" // Registers SHA384 and SHA512
+
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/credentials"
 	"github.com/docker/docker/api/types/image"
@@ -36,6 +40,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	digest "github.com/opencontainers/go-digest"
 	logging "github.com/sirupsen/logrus"
 	containersauth "go.podman.io/image/v5/pkg/docker/config"
 	itypes "go.podman.io/image/v5/types"
@@ -457,26 +462,80 @@ func digestFromPushStatus(status string) string {
 	return normalizeManifestDigest(digestToken)
 }
 
+var (
+	// supportedDigestAlgorithms lists OCI digest algorithms to try when parsing
+	// manifest digests. Add new algorithms here as they become available in the
+	// OCI digest package without changing validation logic elsewhere.
+	supportedDigestAlgorithms = []digest.Algorithm{
+		digest.SHA256,
+		digest.SHA384,
+		digest.SHA512,
+	}
+)
+
+// normalizeManifestDigest normalizes and validates manifest digests using the
+// OCI digest package. Supports any algorithm defined in supportedDigestAlgorithms.
+// Accepts both "algorithm:hex" and bare hex formats (algorithm inferred from length).
+// Handles case-insensitive algorithm prefixes. Returns normalized "algorithm:hex"
+// or empty string if invalid.
 func normalizeManifestDigest(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""
 	}
-	hex := s
-	if strings.HasPrefix(strings.ToLower(s), "sha256:") {
-		hex = s[len("sha256:"):]
+
+	// If it contains ":", try to parse as "algorithm:hex" format
+	if idx := strings.Index(s, ":"); idx > 0 {
+		// Normalize both algorithm and hex to lowercase (OCI digest spec requires lowercase)
+		normalized := strings.ToLower(s)
+		d, err := digest.Parse(normalized)
+		if err == nil && isSupportedAlgorithm(d.Algorithm()) {
+			return d.String()
+		}
+		// Fall through to try bare hex in case the ":" is part of invalid format
 	}
-	if len(hex) != 64 {
-		return ""
-	}
-	for _, c := range hex {
+
+	// Bare hex string - try each supported algorithm to find a match by length
+	hexStr := s
+
+	// Quick validation: must be valid hex characters
+	for _, c := range hexStr {
 		switch {
 		case c >= '0' && c <= '9', c >= 'a' && c <= 'f', c >= 'A' && c <= 'F':
 		default:
 			return ""
 		}
 	}
-	return "sha256:" + strings.ToLower(hex)
+
+	// Try to construct a valid digest using each supported algorithm
+	hexLower := strings.ToLower(hexStr)
+	for _, alg := range supportedDigestAlgorithms {
+		if !alg.Available() {
+			continue
+		}
+		// Check if hex length matches this algorithm's expected size
+		// Size() returns bytes, hex is 2 chars per byte
+		expectedHexLen := alg.Size() * 2
+		if len(hexStr) == expectedHexLen {
+			candidate := alg.String() + ":" + hexLower
+			d, err := digest.Parse(candidate)
+			if err == nil {
+				return d.String()
+			}
+		}
+	}
+
+	return ""
+}
+
+// isSupportedAlgorithm checks if an algorithm is in our supported list.
+func isSupportedAlgorithm(alg digest.Algorithm) bool {
+	for _, supported := range supportedDigestAlgorithms {
+		if alg == supported {
+			return true
+		}
+	}
+	return false
 }
 
 // PushImage pushes a local image to a remote registry using docker.

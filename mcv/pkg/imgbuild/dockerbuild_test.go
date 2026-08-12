@@ -4,10 +4,18 @@ import (
 	"encoding/json"
 	"testing"
 
+	// Import hash algorithms to register them with crypto package
+	_ "crypto/sha256" // Registers SHA256
+	_ "crypto/sha512" // Registers SHA384 and SHA512
+
 	"github.com/stretchr/testify/assert"
 )
 
-const testDigestSHA256 = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+const (
+	testDigestSHA256 = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	testDigestSHA384 = "sha384:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	testDigestSHA512 = "sha512:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+)
 
 func TestExtractPushedDigest(t *testing.T) {
 	const (
@@ -123,14 +131,32 @@ func TestExtractPushedDigest(t *testing.T) {
 }
 
 func TestNormalizeManifestDigest(t *testing.T) {
-	valid := testDigestSHA256
-	assert.Equal(t, valid, normalizeManifestDigest(valid))
-	assert.Equal(t, valid, normalizeManifestDigest("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
-	assert.Equal(t, valid, normalizeManifestDigest("SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"))
+	// SHA256 tests
+	validSHA256 := testDigestSHA256
+	assert.Equal(t, validSHA256, normalizeManifestDigest(validSHA256))
+	assert.Equal(t, validSHA256, normalizeManifestDigest("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
+	assert.Equal(t, validSHA256, normalizeManifestDigest("SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"))
+
+	// SHA384 tests
+	validSHA384 := testDigestSHA384
+	assert.Equal(t, validSHA384, normalizeManifestDigest(validSHA384))
+	assert.Equal(t, validSHA384, normalizeManifestDigest("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
+	assert.Equal(t, validSHA384, normalizeManifestDigest("SHA384:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"))
+
+	// SHA512 tests
+	validSHA512 := testDigestSHA512
+	assert.Equal(t, validSHA512, normalizeManifestDigest(validSHA512))
+	assert.Equal(t, validSHA512, normalizeManifestDigest("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
+	assert.Equal(t, validSHA512, normalizeManifestDigest("SHA512:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"))
+
+	// Error cases
 	assert.Equal(t, "", normalizeManifestDigest(""))
 	assert.Equal(t, "", normalizeManifestDigest("sha256:short"))
 	assert.Equal(t, "", normalizeManifestDigest("sha256:zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"))
 	assert.Equal(t, "", normalizeManifestDigest("md5:0123456789abcdef0123456789abcdef"))
+	assert.Equal(t, "", normalizeManifestDigest("sha384:short"))
+	assert.Equal(t, "", normalizeManifestDigest("sha512:short"))
+	assert.Equal(t, "", normalizeManifestDigest("wronglength123456789abcdef"))
 }
 
 func TestDigestFromPushStatus(t *testing.T) {
