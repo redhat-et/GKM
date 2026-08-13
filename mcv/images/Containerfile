@@ -63,6 +63,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
+    python3-setuptools \
+    python3-wheel \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
@@ -107,8 +109,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     lsb-release \
     software-properties-common \
-    python3-setuptools \
-    python3-wheel \
     pciutils \
     hwdata \
  && rm -rf /var/lib/apt/lists/*
@@ -155,6 +155,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
+    python3-setuptools \
+    python3-wheel \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
@@ -200,6 +202,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
+    python3-setuptools \
+    python3-wheel \
  && rm -rf /var/lib/apt/lists/*
 
 # Install ROCm tools for AMD GPU detection (amd64 only; ROCm has no arm64 packages).
@@ -207,7 +211,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
     apt-get update && apt-get install -y --no-install-recommends \
         wget gnupg2 curl lsb-release software-properties-common \
-        python3-setuptools python3-wheel pciutils && \
+        pciutils && \
     rm -rf /var/lib/apt/lists/* && \
     wget -O /tmp/amdgpu-install.deb \
         https://repo.radeon.com/amdgpu-install/${ROCM_VERSION}/ubuntu/jammy/amdgpu-install_${AMDGPU_VERSION}-1_all.deb && \
