@@ -63,6 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
+    python3 \
     python3-setuptools \
     python3-wheel \
  && rm -rf /var/lib/apt/lists/*
@@ -155,6 +156,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
+    python3 \
     python3-setuptools \
     python3-wheel \
  && rm -rf /var/lib/apt/lists/*
@@ -202,6 +204,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netavark aardvark-dns \
     fuse-overlayfs fuse3 \
     hwdata \
+    python3 \
     python3-setuptools \
     python3-wheel \
  && rm -rf /var/lib/apt/lists/*

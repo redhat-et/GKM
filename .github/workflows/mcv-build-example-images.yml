@@ -61,8 +61,13 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_PASSWORD }}
-      - name: Pull MCV builder image
-        run: podman pull quay.io/gkm/mcv:latest
+      - name: Build MCV builder image from checkout
+        run: |
+          podman build \
+            --platform linux/amd64 \
+            --target mcv-minimal \
+            -t quay.io/gkm/mcv:latest \
+            -f mcv/images/Containerfile .
 
       - name: Build images inside MCV container and load to host
         env:
