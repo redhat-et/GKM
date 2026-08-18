@@ -61,7 +61,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     buildah \
     netavark aardvark-dns \
-    fuse-overlayfs fuse3 \
     hwdata \
     python3 \
     python3-setuptools \
@@ -69,13 +68,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
- printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
    > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN groupadd -g 1000 appgroup && \
+    useradd -u 1000 -g appgroup -m -s /bin/bash appuser
+RUN chown appuser:appgroup /mcv
+RUN chown appuser:appgroup /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:appgroup /app
+USER appuser
 
 LABEL description="MCV minimal - cache creation/extraction without GPU libraries (use --no-gpu flag)"
 LABEL variant="minimal"
@@ -154,7 +162,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     buildah \
     netavark aardvark-dns \
-    fuse-overlayfs fuse3 \
     hwdata \
     python3 \
     python3-setuptools \
@@ -162,13 +169,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
- printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
    > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN (groupadd -g 1000 appgroup 2>/dev/null || true) && \
+    (useradd -u 1000 -g 1000 -m -s /bin/bash appuser 2>/dev/null || useradd -g 1000 -m -s /bin/bash appuser)
+RUN chown appuser:1000 /mcv
+RUN chown appuser:1000 /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:1000 /app
+USER appuser
 
 LABEL description="MCV NVIDIA - includes CUDA runtime and NVML for GPU detection"
 LABEL variant="nvidia"
@@ -202,7 +218,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6 \
     buildah \
     netavark aardvark-dns \
-    fuse-overlayfs fuse3 \
     hwdata \
     python3 \
     python3-setuptools \
@@ -232,13 +247,22 @@ fi
 
 # Configure container storage
 RUN mkdir -p /etc/containers && \
- printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
    > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN (groupadd -g 1000 appgroup 2>/dev/null || true) && \
+    (useradd -u 1000 -g 1000 -m -s /bin/bash appuser 2>/dev/null || useradd -g 1000 -m -s /bin/bash appuser)
+RUN chown appuser:1000 /mcv
+RUN chown appuser:1000 /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:1000 /app
+USER appuser
 
 LABEL description="MCV Unified - includes both NVIDIA (CUDA/NVML) and AMD (ROCm) GPU support for auto-detection"
 LABEL variant="unified"
