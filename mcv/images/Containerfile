@@ -36,10 +36,12 @@ RUN set -eux; \
 ENV PATH=$PATH:/usr/local/go/bin
 RUN go version
 
-COPY mcv/ /usr/src/mcv
+COPY mcv/go.mod mcv/go.sum /usr/src/mcv/
 WORKDIR /usr/src/mcv
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    go mod tidy -v && go mod vendor
 
-RUN make tidy-vendor
+COPY mcv/ /usr/src/mcv/
 RUN make build
 
 # ============================================================================
