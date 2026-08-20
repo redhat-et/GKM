@@ -61,7 +61,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     buildah \
     netavark aardvark-dns \
-    fuse-overlayfs fuse3 \
     hwdata \
     python3 \
     python3-setuptools \
@@ -69,13 +68,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
- printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
    > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN groupadd -g 1000 appgroup && \
+    useradd -u 1000 -g appgroup -m -s /bin/bash appuser
+RUN chown appuser:appgroup /mcv
+RUN chown appuser:appgroup /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:appgroup /app
+USER appuser
 
 LABEL description="MCV minimal - cache creation/extraction without GPU libraries (use --no-gpu flag)"
 LABEL variant="minimal"
@@ -136,6 +144,75 @@ LABEL variant="amd"
 # COPY and ENTRYPOINT are inherited from mcv-minimal base stage
 
 # ============================================================================
+# GAUDI TARGET: For Intel Gaudi GPU validation with hl-smi
+# Includes Habana Labs tools for Gaudi device detection
+# Build: docker build --target mcv-gaudi -t quay.io/gkm/mcv:gaudi -f mcv/images/Containerfile .
+# Usage: mcv --check-compat --image foo (on Intel Gaudi systems)
+#        mcv --extract --image foo  (with Gaudi GPU preflight check)
+# ============================================================================
+FROM public.ecr.aws/docker/library/ubuntu:24.04 AS mcv-gaudi
+
+ARG TARGETARCH
+ARG HABANA_VERSION=1.24.1
+
+# Gaudi only publishes amd64 packages; fail fast on other architectures.
+RUN [ "$TARGETARCH" = "amd64" ] || \
+    { echo "ERROR: mcv-gaudi requires amd64 - Habana does not support ${TARGETARCH}"; exit 1; }
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgpgme11t64 \
+    libbtrfs0 \
+    libffi8 \
+    libc6 \
+    ca-certificates \
+    buildah \
+    netavark aardvark-dns \
+    hwdata \
+    python3 \
+    python3-setuptools \
+    python3-wheel \
+    wget \
+    gnupg2 \
+    pciutils \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/containers && \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
+   > /etc/containers/storage.conf
+
+# Install hl-smi via Habana apt repo (pattern from HabanaAI/Setup_and_Install)
+RUN wget -qO- https://vault.habana.ai/artifactory/api/gpg/key/public | \
+        gpg --dearmor -o /usr/share/keyrings/habana-artifactory.gpg && \
+    chmod 644 /usr/share/keyrings/habana-artifactory.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/habana-artifactory.gpg] https://vault.habana.ai/artifactory/debian noble main" \
+        > /etc/apt/sources.list.d/habana.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends habanalabs-firmware-tools && \
+    rm -f /etc/apt/sources.list.d/habana.list && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
+COPY mcv/images/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN (groupadd -g 1000 appgroup 2>/dev/null || true) && \
+    (useradd -u 1000 -g 1000 -m -s /bin/bash appuser 2>/dev/null || useradd -g 1000 -m -s /bin/bash appuser)
+RUN chown appuser:1000 /mcv
+RUN chown appuser:1000 /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:1000 /app
+USER appuser
+
+LABEL description="MCV Gaudi - includes Habana Labs tools for Intel Gaudi GPU detection and validation"
+LABEL variant="gaudi"
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/mcv"]
+
+# ============================================================================
 # NVIDIA TARGET: For NVIDIA GPU validation with CUDA/NVML support
 # Includes CUDA runtime and NVML libraries for GPU detection
 # Build: docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/Containerfile .
@@ -154,7 +231,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     buildah \
     netavark aardvark-dns \
-    fuse-overlayfs fuse3 \
     hwdata \
     python3 \
     python3-setuptools \
@@ -162,13 +238,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/containers && \
- printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
    > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN (groupadd -g 1000 appgroup 2>/dev/null || true) && \
+    (useradd -u 1000 -g 1000 -m -s /bin/bash appuser 2>/dev/null || useradd -g 1000 -m -s /bin/bash appuser)
+RUN chown appuser:1000 /mcv
+RUN chown appuser:1000 /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:1000 /app
+USER appuser
 
 LABEL description="MCV NVIDIA - includes CUDA runtime and NVML for GPU detection"
 LABEL variant="nvidia"
@@ -191,6 +276,7 @@ ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
 # SHA-256 of amdgpu-install_7.0.1.70001-1_all.deb from repo.radeon.com — update when bumping AMDGPU_VERSION
 ARG AMDGPU_INSTALLER_SHA256=f4cec24612039c03271e6ab494bc1e18cb5647d59188755aa8e31b6d74bb06df
+ARG HABANA_VERSION=1.24.1
 
 # Install base runtime dependencies
 # CUDA base already provides: libnvidia-ml.so.1 (NVML library)
@@ -202,7 +288,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6 \
     buildah \
     netavark aardvark-dns \
-    fuse-overlayfs fuse3 \
     hwdata \
     python3 \
     python3-setuptools \
@@ -226,19 +311,36 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         amd-smi-lib rocm-smi-lib libdrm2 && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
+    wget -qO- https://vault.habana.ai/artifactory/api/gpg/key/public | \
+        gpg --dearmor -o /usr/share/keyrings/habana-artifactory.gpg && \
+    chmod 644 /usr/share/keyrings/habana-artifactory.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/habana-artifactory.gpg] https://vault.habana.ai/artifactory/debian noble main" \
+        > /etc/apt/sources.list.d/habana.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends habanalabs-firmware-tools && \
+    rm -f /etc/apt/sources.list.d/habana.list && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/amdgpu-install.deb; \
 fi
 
 # Configure container storage
 RUN mkdir -p /etc/containers && \
- printf '[storage]\ndriver="overlay"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n[storage.options]\nmount_program="/usr/bin/fuse-overlayfs"\n' \
+ printf '[storage]\ndriver="vfs"\nrunroot="/run/containers/storage"\ngraphroot="/var/lib/containers/storage"\n' \
    > /etc/containers/storage.conf
 
 COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
 COPY mcv/images/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands
+RUN (groupadd -g 1000 appgroup 2>/dev/null || true) && \
+    (useradd -u 1000 -g 1000 -m -s /bin/bash appuser 2>/dev/null || useradd -g 1000 -m -s /bin/bash appuser)
+RUN chown appuser:1000 /mcv
+RUN chown appuser:1000 /entrypoint.sh
+WORKDIR /app
+RUN chown -R appuser:1000 /app
+USER appuser
 
 LABEL description="MCV Unified - includes both NVIDIA (CUDA/NVML) and AMD (ROCm) GPU support for auto-detection"
 LABEL variant="unified"

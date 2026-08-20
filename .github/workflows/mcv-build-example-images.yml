@@ -96,11 +96,12 @@ jobs:
             archive="${out_dir}/${tag}.oci"
 
             echo "==> Building ${image} using MCV container from /work/${reldir}"
-            podman run --rm --privileged \
+            podman run --rm \
               -e TAG="${tag}" \
               -e IMAGE="${image}" \
               -e RELDIR="${reldir}" \
-              -v "${GITHUB_WORKSPACE}:/work:rw" \
+              -e STORAGE_DRIVER=vfs \
+              -v "${GITHUB_WORKSPACE}:/work:Z,U" \
               quay.io/gkm/mcv:latest bash -lc '
                 set -euo pipefail
                 /mcv -l info -c -i "$IMAGE" -d "/work/$RELDIR" &&

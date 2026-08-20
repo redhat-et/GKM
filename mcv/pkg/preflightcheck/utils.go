@@ -41,7 +41,9 @@ func CompareCacheSummaryLabelToGPU(img v1.Image, labels map[string]string, devIn
 	summaryStr, ok := labels["cache.triton.image/summary"]
 	if !ok {
 		if summaryStr, ok = labels["cache.vllm.image/summary"]; !ok {
-			return nil, nil, errors.New("image missing cache summary label")
+			if summaryStr, ok = labels["cache.habana.image/summary"]; !ok {
+				return nil, nil, errors.New("image missing cache summary label")
+			}
 		}
 	}
 
@@ -62,6 +64,15 @@ func CompareCacheSummaryLabelToGPU(img v1.Image, labels map[string]string, devIn
 		isMatch := false
 		for _, target := range summary.Targets {
 			backendMatches := target.Backend == gpu.Backend
+
+			// HPU (Habana) caches are backend-matched only — recipe files
+			// don't encode arch or warp size.
+			if backendMatches && target.Backend == "hpu" {
+				logging.Debugf("Habana backend match: target=%s, gpu=%s", target.Backend, gpu.Backend)
+				isMatch = true
+				break
+			}
+
 			// Normalize architectures for comparison (handles "75" vs "sm_75" for CUDA)
 			normalizedTargetArch := normalizeArchForComparison(target.Backend, target.Arch)
 			normalizedGPUArch := normalizeArchForComparison(gpu.Backend, gpu.Arch)
@@ -105,6 +116,9 @@ func DetectCacheTypeFromLabels(labels map[string]string) (string, error) {
 	if _, ok := labels["cache.vllm.image/summary"]; ok {
 		return constants.VLLM, nil
 	}
+	if _, ok := labels["cache.habana.image/summary"]; ok {
+		return constants.Habana, nil
+	}
 	return "", fmt.Errorf("unknown cache type from labels")
 }
 
@@ -118,6 +132,10 @@ func CompareCacheManifestToGPU(manifestPath, cacheType string, devInfo []devices
 		return CompareTritonCacheManifestToGPU(manifestPath, devInfo)
 	case constants.VLLM:
 		return CompareVLLMCacheManifestToGPU(manifestPath, devInfo)
+	case constants.Habana:
+		// Habana recipe caches are backend-matched at the summary level;
+		// no per-recipe manifest comparison is needed.
+		return nil
 	default:
 		return fmt.Errorf("unsupported cache type: %s", cacheType)
 	}

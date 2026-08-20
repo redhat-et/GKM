@@ -29,8 +29,21 @@ A Model/GPU kernel cache container packaging utility inspired by
 ### Install dependencies
 
 ```bash
-sudo dnf install gpgme-devel
-sudo dnf install btrfs-progs-devel
+sudo dnf install -y gpgme-devel btrfs-progs-devel
+```
+OR
+```bash
+sudo apt install -y libgpgme-dev libbtrfs-dev uidmap
+```
+
+On Ubuntu, also allow unprivileged user namespaces (Ubuntu 24.04 blocks
+this by default):
+
+```bash
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+# To persist across reboots:
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/99-userns.conf
 ```
 
 Build the binary:
