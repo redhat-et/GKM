@@ -67,8 +67,8 @@ On CPU node:    both fail    → requires explicit --no-gpu flag
 # Works on any node - no GPU needed.
 # --create stores the OCI image in buildah's container-internal store;
 # chain buildah push so the image reaches the registry before --rm removes the container.
-podman run --rm --privileged \
-  -v ~/.cache/vllm:/cache:ro \
+podman run --rm \
+  -v ~/.cache/vllm:/cache::Z,U \
   --entrypoint sh \
   quay.io/gkm/mcv:unified \
   -c "/mcv --create --image quay.io/myorg/llama3-cache:v1 --dir /cache --no-gpu \
@@ -81,7 +81,7 @@ podman run --rm --privileged \
 
 ```bash
 # On NVIDIA node - automatically uses NVML
-podman run --rm --privileged \
+podman run --rm \
   --device nvidia.com/gpu=all \
   -v ~/.cache/vllm:/cache \
   quay.io/gkm/mcv:unified \
@@ -96,7 +96,7 @@ podman run --rm --privileged \
 
 ```bash
 # On AMD node - automatically uses rocm-smi
-podman run --rm --privileged \
+podman run --rm \
   --device /dev/kfd --device /dev/dri \
   -v ~/.cache/vllm:/cache \
   quay.io/gkm/mcv:unified \
@@ -112,7 +112,7 @@ podman run --rm --privileged \
 
 ```bash
 # Automatically detects GPU and validates cache compatibility
-podman run --rm --privileged \
+podman run --rm \
   --device nvidia.com/gpu=all \
   quay.io/gkm/mcv:unified \
   --check-compat --image quay.io/myorg/cache:v1
@@ -270,8 +270,11 @@ jobs:
         run: |
           # --builder docker loads the image into the Docker daemon so the
           # subsequent docker push step can find it on the host.
-          docker run --rm --privileged \
-            -v $(pwd)/.cache:/cache:ro \
+          docker run --rm \
+            --user $(id -u):$(id -g) \
+            --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined \
+            -v $(pwd)/.cache:/cache:Z \
             -v /var/run/docker.sock:/var/run/docker.sock \
             quay.io/gkm/mcv:unified \
             --create --image quay.io/myorg/cache:${{ github.sha }} \

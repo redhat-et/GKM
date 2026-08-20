@@ -29,9 +29,24 @@ A Model/GPU kernel cache container packaging utility inspired by
 ### Install dependencies
 
 ```bash
-sudo dnf install gpgme-devel
-sudo dnf install btrfs-progs-devel
+sudo dnf install -y gpgme-devel btrfs-progs-devel
 ```
+OR
+```bash
+sudo apt install -y libgpgme-dev libbtrfs-dev uidmap
+```
+
+On Ubuntu, also allow unprivileged user namespaces (Ubuntu 24.04 blocks
+this by default):
+
+```bash
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+# To persist across reboots:
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/99-userns.conf
+ ```
+
+### Build and Install
 
 Build the binary:
 
@@ -552,25 +567,42 @@ To use docker on the host with an MCV image, you need to mount the cache
 directory to the container and run the following command:
 
 ```bash
-docker run --rm -it --privileged \
-  -v <path-to-cache>/example:/example \
+docker run --rm -it \
+  --user $(id -u):$(id -g) \
+  --security-opt seccomp=unconfined \
+  --security-opt apparmor=unconfined \
+  -v <path-to-cache>/example:/example:Z \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
         -d /example/vector-add-cache-rocm --no-gpu &&
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
         docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
   '
+WARN[2025-09-11 16:46:54] running newgidmap: exit status 1: newgidmap: write to gid_map failed: Operation not permitted
+WARN[2025-09-11 16:46:54] /usr/bin/newgidmap should be setgid or have filecaps setgid
+WARN[2025-09-11 16:46:54] Falling back to single mapping
+WARN[2025-09-11 16:46:54] Error running newuidmap: exit status 1: newuidmap: write to uid_map failed: Operation not permitted
+WARN[2025-09-11 16:46:54] Falling back to single mapping
 INFO[2025-09-11 16:46:54] Setting log level: info
 INFO[2025-09-11 16:46:54] Using buildah to build the image
 INFO[2025-09-11 16:46:54] Detected cache components: [triton]
 INFO[2025-09-11 16:46:55] Image built! 8ce4bc2e98abfa8c0a5a6f6046c1c7bc8ac09805ecb029427a995dc2897828f8
 INFO[2025-09-11 16:46:55] OCI image created successfully.
+WARN[0000] running newgidmap: exit status 1: newgidmap: write to gid_map failed: Operation not permitted
+WARN[0000] /usr/bin/newgidmap should be setgid or have filecaps setgid
+WARN[0000] Falling back to single mapping
+WARN[0000] Error running newuidmap: exit status 1: newuidmap: write to uid_map failed: Operation not permitted
+WARN[0000] Falling back to single mapping
 Getting image source signatures
 Copying blob 24b82d6fef87 done
 Copying config 8ce4bc2e98 done
 Writing manifest to image destination
 Storing signatures
 ```
+
+**NOTE:** The Warnings are known and everything still works fine.
+An include library is making a system call that it doesn't have permission for, so it fails
+and falls back to another method that succeeds.
 
 Then on host:
 
@@ -596,8 +628,8 @@ To use podman on the host with an MCV image, you need to mount the cache
 directory to the container and run the following command:
 
 ```bash
-podman run --rm -it --privileged \
-  -v <path-to-cache>/example:/example \
+podman run --rm -it \
+  -v <path-to-cache>/example:/example:Z,U \
   quay.io/gkm/mcv bash -lc '
     /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
         -d /example/vector-add-cache-rocm --no-gpu &&
