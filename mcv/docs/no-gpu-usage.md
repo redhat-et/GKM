@@ -40,9 +40,8 @@ make build-image-mcv-no-gpu
 # or directly:
 podman build --target mcv-minimal -t quay.io/gkm/mcv:no-gpu -f mcv/images/Containerfile .
 
-# Use (MCV pushes directly to the registry; mount auth and fuse device for buildah)
+# Use (MCV pushes directly to the registry; mount auth for buildah)
 podman run --rm \
-  --device /dev/fuse \
   -v /path/to/cache:/cache \
   -v ${HOME}/.config/containers/auth.json:/run/containers/0/auth.json:ro \
   quay.io/gkm/mcv:no-gpu \
@@ -84,7 +83,6 @@ mcv --create --image quay.io/myorg/vllm-cache:v1 \
 
 # In container (minimal image; MCV pushes to the registry directly)
 podman run --rm \
-  --device /dev/fuse \
   -v ~/.cache/vllm:/cache:ro \
   -v ${HOME}/.config/containers/auth.json:/run/containers/0/auth.json:ro \
   quay.io/gkm/mcv:no-gpu \
@@ -152,7 +150,7 @@ build-cache-image:
 
     - name: Build cache OCI image
       run: |
-        podman run --rm --privileged \
+        podman run --rm \
           -v $(pwd)/.cache/vllm:/cache:ro \
           quay.io/gkm/mcv:no-gpu \
           --create --image quay.io/myorg/vllm-cache:${{ github.sha }} \
