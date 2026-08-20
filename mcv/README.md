@@ -7,18 +7,20 @@ A Model/GPU kernel cache container packaging utility inspired by
 
 ## Features
 
-- Build container images containing GPU Kernel/Model caches.
+- Build container images containing GPU Kernel/Model caches
 - Extract a cache from an OCI image
-- Compatible with docker or buildah
-- **Single-layer image output** (squashed) for cosign compatibility
+- Compatible with docker or buildah (`--builder` to force one)
+- Push and pull images to/from a container registry
+- Sign and verify images with [Sigstore Cosign](https://docs.sigstore.dev/) (keyless or key-based)
+- **Single-layer image output** (squashed) for cosign, `docker save`, and kind load
 - Client API for retrieving and extracting images
-- Artifact and image signing via cosign (indirectly)
+- GPU discovery, stub mode, and image compatibility preflight checks
 
-### Kernel Cache artifact and image signing
+### Kernel cache image signing
 
-- Cache artifact signing with Cosign
-- Container image signing support with Cosign
-- **Single-layer images**: MCV produces one squashed compat layer with Docker Schema 2 media types (Docker builder) or OCI layer types (Buildah), compatible with cosign signing, `docker save`, and kind image load
+- Built-in Cosign v3 signing and verification (`--sign` / `--verify`)
+- Keyless (Fulcio/OIDC) and key-based (file, KMS, PKCS#11, k8s, git) workflows
+- **Single-layer images**: MCV produces one squashed compat layer with Docker Schema 2 media types (Docker builder) or OCI layer types (Buildah)
 
 ## Build Instructions
 
@@ -28,9 +30,22 @@ A Model/GPU kernel cache container packaging utility inspired by
 
 ### Install dependencies
 
+System dependencies:
 ```bash
 sudo dnf install gpgme-devel
 sudo dnf install btrfs-progs-devel
+```
+
+Optional: Install the Cosign CLI if you need to generate your own signing key pairs.
+On RPM-based systems, install from the [GitHub releases](https://github.com/sigstore/cosign/releases/latest):
+```bash
+LATEST_VERSION=$(curl -sL https://api.github.com/repos/sigstore/cosign/releases/latest | grep tag_name | cut -d : -f2 | tr -d 'v", ')
+sudo dnf install "https://github.com/sigstore/cosign/releases/latest/download/cosign-${LATEST_VERSION}-1.$(uname -m).rpm"
+```
+
+Alternatively, install with Go:
+```bash
+go install github.com/sigstore/cosign/v3/cmd/cosign@latest
 ```
 
 Build the binary:
@@ -53,27 +68,44 @@ Below is the `mcv` usage:
 
 ```bash
 $ mcv -h
-A Model cache container image management utility
+mcv is a utility for managing GPU kernel runtime container images.
+It supports creating OCI images from cache directories, extracting caches from images,
+pushing and pulling registry images, Cosign sign/verify, and hardware compatibility checks.
 
 Usage:
   mcv [flags]
 
 Flags:
-  -b, --baremetal          Run baremetal preflight checks
-  -c, --create             Create OCI image
-  -d, --dir string         A Cache Directory
-  -e, --extract            Extract a cache from an OCI image
-  -h, --help               help for mcv
-  -i, --image string       OCI image name
-  -l, --log-level string   Set the logging verbosity level:
-                           debug, info, warning or error
-      --no-gpu             Allow kernel extraction without GPU
-                           present (for testing purposes)
+  -b, --baremetal                               Enable detailed baremetal preflight checks
+      --builder string                          Specify the builder to use (buildah or docker)
+      --certificate-identity string             The identity expected in a valid Fulcio certificate...
+      --certificate-identity-regexp string      A regular expression alternative to --certificate-identity...
+      --certificate-oidc-issuer string          The OIDC issuer expected in a valid Fulcio certificate...
+      --certificate-oidc-issuer-regexp string   A regular expression alternative to --certificate-oidc-issuer...
+      --check-compat                            Check GPU compatibility with specified image
+  -c, --create                                  Create OCI image from cache directory
+  -d, --dir string                              Triton/vLLM cache directory path
+  -e, --extract                                 Extract Triton/vLLM cache from OCI image
+      --gpu-info                                Display GPU-specific information
+  -h, --help                                    help for mcv
+  -i, --image string                            OCI image name (required for create, extract, check-compat, push, pull, sign, verify)
+      --insecure-ignore-tlog                    ignore transparency log verification being unavailable / unsuccessful (use with --verify; keyless or key-based)
+      --key string                              path to the private key file, KMS URI or Kubernetes Secret for signing/verification (use with --sign or --verify)
+  -l, --log-level string                        Set logging verbosity (debug, info, warning, error) (default "info")
+      --no-gpu                                  Disable GPU detection and preflight checks (for testing)
+      --pull                                    Pull image from registry
+      --push                                    Push image to registry
+  -s, --sign                                    Sign the image in the registry (standalone or with --push)
+      --stub                                    Use mock/stub data for hardware info (for testing)
+  -t, --timeout int                             Timeout in minutes for hardware detection operations (0 = disable timeout) (default 10)
+      --verify                                  Verify the image signature (standalone or with --pull)
+  -v, --version                                 version for mcv
+  -y, --yes                                     skip confirmation prompts for some irreversible actions (use with --sign)
 ```
 
-> NOTE: The create option is a work in progress.
-> For now to create an OCI image containing a GPU Kernel cache directory
-> please follow the instructions in [spec-compat.md](./docs/spec-compat.md).
+> **Note:** `--image` is required for `--create`, `--extract`, `--check-compat`, `--push`, `--pull`, `--sign`, and `--verify`.
+> By default MCV prefers Buildah when installed, otherwise Docker; use `--builder buildah|docker` to force one.
+> Compat image layout details: [spec-compat.md](./docs/spec-compat.md).
 
 ### No-GPU Mode
 
@@ -128,14 +160,16 @@ extract routing is based on **layer media type**, not manifest type. Details:
 
 ### vLLM Binary Cache Support
 
-MCV supports both legacy (triton cache) and new (binary cache) vLLM formats:
+MCV supports legacy Triton caches, binary caches, and AOT / mega-AOT layouts:
 
 1. **vLLM Triton Cache Format** (legacy) - Stores `triton_cache/` and
    `inductor_cache/` inside rank directories
-2. **vLLM Binary Cache Format** (new) - Stores prefix directories
-   (e.g., `backbone/`) inside rank directories
+2. **vLLM Binary Cache Format** (current default) - Stores prefix directories
+   (e.g., `backbone/`) with embedded Triton kernels inside rank directories
+3. **vLLM AOT / Mega-AOT Format** - Detects `torch_aot_compile/` layouts from
+   `VLLM_USE_AOT_COMPILE` / `VLLM_USE_MEGA_AOT_ARTIFACT`
 
-For detailed information about vLLM binary cache support, see:
+For detailed information about vLLM binary and AOT cache support, see:
 [vllm-binary-cache.md](./docs/vllm-binary-cache.md)
 
 ### Triton Cache Example
@@ -373,59 +407,169 @@ INFO[2025-09-03 09:06:02] Preflight completed                           matched=
 INFO[2025-09-03 09:06:04] Extracting cache to directory: /home/fedora/.cache/vllm
 ```
 
-## Signing Container Images
+## Pushing and Signing Container Images
 
-Use [Sigstore Cosign](https://docs.sigstore.dev/) to sign mcv-built images.
+MCV can push and pull images, and sign/verify them with embedded
+[Sigstore Cosign](https://docs.sigstore.dev/) v3.
 
-1. Install Cosign
+Signing methods:
 
-```bash
-go install github.com/sigstore/cosign/v2/cmd/cosign@latest
-```
+1. **Keyless** (default) — Sigstore Fulcio / OIDC; no pre-generated keys
+2. **Key-based** — private/public key pair (file, KMS, PKCS#11, Kubernetes secret, or git provider)
 
-2. Sign an image
+`--sign` and `--verify` work standalone, or with `--push` / `--pull`.
+Sign and verify always resolve the image to a digest first (TOCTOU-safe).
+With `--pull --verify`, the verified digest is what gets pulled.
 
-```bash
-cosign sign -y quay.io/gkm/vector-add-cache@sha256:<digest>
-⏎
-Generating ephemeral keys...
-Retrieving signed certificate...
-
-    The sigstore service, hosted by sigstore a Series of LF Projects,
-    LLC, is provided pursuant to the Hosted Project Tools Terms of
-    Use, available at
-    https://lfprojects.org/policies/hosted-project-tools-terms-of-use/.
-    Note that if your submission includes personal data associated with
-    this signed artifact, it will be part of an immutable record.
-    This may include the email address associated with the account with
-    which you authenticate your contractual Agreement.
-    This information will be used for signing this artifact and will be
-    stored in public transparency logs and cannot be removed later, and
-    is subject to the Immutable Record notice at
-    https://lfprojects.org/policies/hosted-project-tools-immutable-records/.
-
-By typing 'y', you attest that (1) you are not submitting the personal
-data of any other person; and (2) you understand and agree to the
-statement and the Agreement terms at the URLs listed above.
-Your browser will now be opened to:
-...
-```
-
-Cosign will prompt you to authenticate and display legal terms regarding
-transparency logs.
-
-3. Confirm and Finish
-    - Ephemeral keys will be generated
-    - Signature will be pushed to the registry
-    - You'll see a success message including the transparency log index
-
-Upon successful completion, you will see an output similar to:
+### Push without signing
 
 ```bash
-Successfully verified SCT...
-tlog entry created with index: 215011903
-Pushing signature to: quay.io/gkm/cache-examples
+mcv --push --image quay.io/gkm/vector-add-cache:rocm
+# Optional: force docker or buildah for the push/pull storage backend
+mcv --push --builder docker --image quay.io/gkm/vector-add-cache:rocm
 ```
+
+### Push and Sign Workflow - Keyless (Sigstore)
+
+After creating an image locally, push it to a registry and sign it with keyless signing:
+
+```bash
+mcv --push --sign --image quay.io/gkm/vector-add-cache:rocm
+```
+
+Or sign an image that is already in the registry:
+
+```bash
+mcv --sign --image quay.io/gkm/vector-add-cache:rocm
+```
+
+The `--push` flag pushes the image to the registry, and `--sign` (alone or with `--push`) signs it using keyless Sigstore signing.
+
+### Push and Sign Workflow - Key-Based
+
+MCV supports multiple types of key storage for signing. Choose the approach that fits your security model.
+
+#### Local File-Based Keys
+
+To use local file-based keys, first generate a key pair:
+
+```bash
+# Generate a private/public key pair (you'll be prompted for a password)
+cosign generate-key-pair
+```
+
+This creates:
+- `cosign.key` - private key (encrypted with your password)
+- `cosign.pub` - public key
+
+Then push and sign with the private key:
+
+```bash
+mcv --push --sign --image quay.io/gkm/vector-add-cache:rocm --key ./cosign.key
+```
+
+Or sign an already-pushed image:
+
+```bash
+mcv --sign --image quay.io/gkm/vector-add-cache:rocm --key ./cosign.key
+```
+
+You will be prompted for the private key password unless `COSIGN_PASSWORD` is set.
+To automatically accept cosign agreements without prompting, add the `--yes` flag:
+
+```bash
+mcv --sign --image quay.io/gkm/vector-add-cache:rocm --key ./cosign.key --yes
+```
+
+#### Key Storage Options
+
+MCV supports the following key reference formats via the `--key` flag:
+
+**1. File Paths** (local PEM files)
+- **Example:** `./cosign.key` or `/path/to/private.key`
+- **Supported formats:** RSA (PKCS#1.5), ECDSA, Ed25519
+- **Can be:** password-protected
+
+**2. KMS Providers** (Cloud Key Management Systems)
+- **AWS KMS:** `aws://arn:aws:kms:REGION:ACCOUNT:key/KEY-ID`
+- **Google Cloud KMS:** `gcpkms://projects/PROJECT/locations/LOCATION/keyRings/RING/cryptoKeys/KEY`
+- **Azure Key Vault:** `azurekms://VAULT-NAME.vault.azure.net/keys/KEY-NAME/VERSION`
+- **Hashicorp Vault:** `vault://vault-server/path/to/key`
+- **Note:** Requires appropriate cloud credentials configured
+
+**3. PKCS#11 Hardware Security Modules (HSMs)**
+- **Example:** `pkcs11:token=YubiKey;slot-id=0;id=1;object=my-key?module-path=/usr/lib/libykcs11.so`
+- **Use cases:** Hardware tokens (YubiKey, Thales, etc.), enterprise HSMs
+- **PIN:** Can be provided via `COSIGN_PKCS11_PIN` environment variable
+
+**4. Kubernetes Secrets**
+- **Example:** `k8s://namespace/secret-name`
+- **Use cases:** Running in Kubernetes clusters with secrets management
+
+**5. Git Providers** (GitHub/GitLab)
+- **GitHub:** `github://user/repo` (fetches from COSIGN_PRIVATE_KEY secret)
+- **GitLab:** `gitlab://user/repo` (fetches from COSIGN_PRIVATE_KEY secret)
+- **Use cases:** CI/CD pipelines with Git provider secret management
+
+### Verify Workflow - Keyless (Sigstore)
+
+To verify an image signed with keyless (OIDC) signing (without pulling):
+
+```bash
+mcv --verify --image quay.io/gkm/vector-add-cache:rocm
+```
+
+Or verify then pull (pull uses the verified digest):
+
+```bash
+mcv --pull --verify --image quay.io/gkm/vector-add-cache:rocm
+```
+
+Pull without verification:
+
+```bash
+mcv --pull --image quay.io/gkm/vector-add-cache:rocm
+```
+
+Verify using a valid Fulcio-issued certificate and matching issuer:
+
+```bash
+mcv --verify --image quay.io/gkm/vector-add-cache:rocm \
+  --certificate-identity "https://github.com/org/repo/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+# Or with regexps:
+mcv --verify --image quay.io/gkm/vector-add-cache:rocm \
+  --certificate-identity-regexp ".*@example.com" \
+  --certificate-oidc-issuer-regexp "https://.*"
+```
+
+> **Note:** Identity constraints require both an identity matcher and an issuer matcher.
+
+### Verify Workflow - Key-Based
+
+To verify an image signed with a private key using the public key (same key reference formats as signing; see [Key Storage Options](#key-storage-options) above):
+
+```bash
+mcv --verify --image quay.io/gkm/vector-add-cache:rocm --key ./cosign.pub
+```
+
+Or verify then pull:
+
+```bash
+mcv --pull --verify --image quay.io/gkm/vector-add-cache:rocm --key ./cosign.pub
+```
+
+For KMS-backed keys, the same reference works for verification:
+
+```bash
+# AWS KMS
+mcv --verify --image quay.io/gkm/vector-add-cache:rocm --key aws://arn:aws:kms:us-east-1:123456789:key/abc123
+```
+
+> **Note:** By default, verification checks the transparency log (Rekor). Use
+> `--insecure-ignore-tlog` with `--verify` (keyless or key-based) to skip that
+> check when a signature has no Rekor entry.
 
 ## MCV Client API
 
@@ -435,26 +579,22 @@ An example snippet of how to use the client API to extract a Cache from a
 container image is shown below.
 
 ```go
-import (
-    "github.com/redhat-et/GKM/mcv/pkg/client"
-)
-
 package main
 
 import (
-    "github.com/redhat-et/GKM/mcv/pkg/client"
+	"github.com/redhat-et/GKM/mcv/pkg/client"
 )
 
 func main() {
-    err := client.ExtractCache(client.Options{
-        ImageName:       "quay.io/gkm/cache-examples:vector-add-cache-cuda",
-        CacheDir:        "/tmp/testcache",
-        LogLevel:        "debug",
-        EnableBaremetal: nil, // or false if explicitly desired
-    })
-    if err != nil {
-        panic(err)
-    }
+	_, _, err := client.ExtractCache(client.Options{
+		ImageName:       "quay.io/gkm/cache-examples:vector-add-cache-cuda",
+		CacheDir:        "/tmp/testcache",
+		LogLevel:        "debug",
+		EnableBaremetal: nil, // or false if explicitly desired
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 ```
 
@@ -538,20 +678,56 @@ if those devices are present.
 
 ## Using MCV image to build cache images
 
-MCV provides container images at `quay.io/gkm/mcv`. The default (`quay.io/gkm/mcv:latest`)
-is the no-gpu variant (~176MB), which can be used to wrap a vLLM/Triton cache in an OCI
-container image that can then be pushed to a container registry (without having to install
-mcv locally). For GPU validation, use `quay.io/gkm/mcv:unified` (auto-detects NVIDIA or AMD).
+MCV provides a container image called `quay.io/gkm/mcv`. Use it to create a
+cache OCI image (and optionally push/sign it) without installing mcv locally.
+It is also used by the
+[github workflow](../.github/workflows/mcv-build-example-images.yml).
 
-These images can also be used as part of a
-[github workflow](./.github/workflows/mcv-build-example-images.yml).
+Mount the cache directory into the container, create the image with
+`mcv --create`, then push (and optionally sign) with `mcv --push` /
+`mcv --push --sign`. Registry auth must be available inside the container
+(for example via mounted docker/podman credentials or `buildah login`).
 
-### MCV container image with docker
-
-To use docker on the host with an MCV image, you need to mount the cache
-directory to the container and run the following command:
+### Create, push, and sign (registry)
 
 ```bash
+# Docker host
+docker run --rm -it --privileged \
+  -v <path-to-cache>/example:/example \
+  -v $HOME/.docker/config.json:/root/.docker/config.json:ro \
+  quay.io/gkm/mcv bash -lc '
+    /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
+        -d /example/vector-add-cache-rocm &&
+    /mcv --push --sign -i quay.io/gkm/vector-add-cache:rocm
+  '
+
+# Podman host
+podman run --rm -it --privileged \
+  -v <path-to-cache>/example:/example \
+  -v $XDG_RUNTIME_DIR/containers/auth.json:/run/containers/0/auth.json:ro \
+  quay.io/gkm/mcv bash -lc '
+    /mcv -c -i quay.io/gkm/vector-add-cache:rocm \
+        -d /example/vector-add-cache-rocm &&
+    /mcv --push --sign -i quay.io/gkm/vector-add-cache:rocm
+  '
+```
+
+Push without signing:
+
+```bash
+/mcv --push -i quay.io/gkm/vector-add-cache:rocm
+```
+
+See [Pushing and Signing Container Images](#pushing-and-signing-container-images)
+for keyless vs key-based options and verify/pull workflows.
+
+### Export an archive for local docker/podman load
+
+If you need the image on the host without pushing to a registry, export an
+archive after create:
+
+```bash
+# Docker archive (load with: docker load -i .../vector-add-cache-rocm.tar)
 docker run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
@@ -560,6 +736,7 @@ docker run --rm -it --privileged \
     buildah push containers-storage:quay.io/gkm/vector-add-cache:rocm \
         docker-archive:/example/vector-add-cache-rocm.tar:quay.io/gkm/vector-add-cache:rocm
   '
+
 INFO[2025-09-11 16:46:54] Setting log level: info
 INFO[2025-09-11 16:46:54] Using buildah to build the image
 INFO[2025-09-11 16:46:54] Detected cache components: [triton]
@@ -595,7 +772,7 @@ quay.io/gkm/vector-add-cache             rocm      8ce4bc2e98ab   15 seconds ago
 To use podman on the host with an MCV image, you need to mount the cache
 directory to the container and run the following command:
 
-```bash
+# OCI archive (load with: podman load -i .../vector-add-cache-rocm.oci)
 podman run --rm -it --privileged \
   -v <path-to-cache>/example:/example \
   quay.io/gkm/mcv bash -lc '
