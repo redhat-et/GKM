@@ -121,8 +121,8 @@ type AMDASIC struct {
 
 type AMDBus struct {
 	BDF                  string      `json:"bdf"`
-	MaxPCIeWidth         interface{} `json:"max_pcie_width"`         // Can be int (e.g. 16) or string (e.g. "N/A")
-	MaxPCIeSpeed         interface{} `json:"max_pcie_speed"`         // Can be int or string (e.g. "N/A")
+	MaxPCIeWidth         interface{} `json:"max_pcie_width"` // Can be int (e.g. 16) or string (e.g. "N/A")
+	MaxPCIeSpeed         interface{} `json:"max_pcie_speed"` // Can be int or string (e.g. "N/A")
 	PCIeInterfaceVersion string      `json:"pcie_interface_version"`
 	SlotType             string      `json:"slot_type"`
 }
