@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	"github.com/redhat-et/GKM/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
@@ -187,7 +188,7 @@ func (r *gpuROCm) Init() error {
 				Arch:              info.GFXVersion,
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal / (1024 * 1024),
-				Backend:           hipBackend,
+				Backend:           constants.BackendHIP,
 				ID:                gpuID,
 			},
 			Summary: DeviceSummary{

@@ -12,11 +12,15 @@ import (
 	"time"
 
 	"github.com/redhat-et/GKM/mcv/pkg/config"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	"github.com/redhat-et/GKM/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 
-const amdHwType = config.GPU
+const (
+	amdHwType    = config.GPU
+	gfxArchMI210 = "gfx90a" // Aldebaran/MI200 [Instinct MI210] GFX architecture
+)
 
 var (
 	amdAccImpl = gpuAMD{}
@@ -330,7 +334,7 @@ func (r *gpuAMD) Init() error {
 				Arch:              TranslateGPUToArch(info.Board.ProductName),
 				WarpSize:          64,
 				MemoryTotalMB:     memTotal,
-				Backend:           hipBackend,
+				Backend:           constants.BackendHIP,
 				ID:                gpuID,
 			},
 			Summary: DeviceSummary{
