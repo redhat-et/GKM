@@ -184,6 +184,19 @@ image-amd: ## [dev-only] Build AMD container image (with ROCm libraries)
 		-f images/Containerfile \
 		..
 
+.PHONY: image-gaudi
+image-gaudi: ## [dev-only] Build Intel Gaudi container image (with hl-smi)
+	@if [ -z "$(CONTAINER_RUNTIME)" ]; then \
+		echo "Error: No container runtime found. Please install docker or podman"; \
+		exit 1; \
+	fi
+	@echo "Building gaudi specific MCV image (Gaudi) for linux/$(GOARCH) using $(CONTAINER_RUNTIME)..."
+	$(CONTAINER_RUNTIME) build --platform linux/$(GOARCH) \
+		--target mcv-gaudi \
+		-t $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):gaudi \
+		-f images/Containerfile \
+		..
+
 .PHONY: image-nvidia
 image-nvidia: ## [dev-only] Build NVIDIA container image (with CUDA+NVML)
 	@if [ -z "$(CONTAINER_RUNTIME)" ]; then \

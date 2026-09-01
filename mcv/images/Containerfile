@@ -165,6 +165,101 @@ LABEL variant="amd"
 # COPY and ENTRYPOINT are inherited from mcv-minimal base stage
 
 # ============================================================================
+# GAUDI TARGET: For Intel Gaudi GPU validation with hl-smi
+# Includes Habana Labs tools for Gaudi device detection
+# Build: docker build --target mcv-gaudi -t quay.io/gkm/mcv:gaudi -f mcv/images/Containerfile .
+# Usage: mcv --check-compat --image foo (on Intel Gaudi systems)
+#        mcv --extract --image foo  (with Gaudi GPU preflight check)
+# ============================================================================
+FROM public.ecr.aws/docker/library/ubuntu:24.04 AS mcv-gaudi
+
+ARG TARGETARCH
+
+# Gaudi only publishes amd64 packages; fail fast on other architectures.
+RUN [ "$TARGETARCH" = "amd64" ] || \
+    { echo "ERROR: mcv-gaudi requires amd64 - Habana does not support ${TARGETARCH}"; exit 1; }
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgpgme11t64 \
+    libbtrfs0 \
+    libffi8 \
+    libc6 \
+    ca-certificates \
+    buildah \
+    netavark aardvark-dns \
+    hwdata \
+    python3 \
+    python3-setuptools \
+    python3-wheel \
+    wget \
+    gnupg2 \
+    pciutils \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/containers && \
+ printf '[storage]\ndriver="vfs"\nrunroot="/home/appuser/.local/share/containers/runroot"\ngraphroot="/home/appuser/.local/share/containers/storage"\n' \
+   > /etc/containers/storage.conf
+
+# Install hl-smi via Habana apt repo (pattern from HabanaAI/Setup_and_Install)
+# Download key to a temp file and verify its fingerprint before trusting it to
+# authenticate packages from the same host. HABANA_SIGNING_FP must be set to the
+# canonical fingerprint published in Intel/Habana's official documentation
+# (https://docs.habana.ai) — update it whenever the signing key rotates.
+ARG HABANA_SIGNING_FP="6D4D7C0F52A263F383D782791E676CE836A2DE65"
+RUN wget -q -O /tmp/habana-key.asc https://vault.habana.ai/artifactory/api/gpg/key/public && \
+    gpg --dearmor < /tmp/habana-key.asc > /tmp/habana-key.gpg && \
+    actual=$(gpg --no-default-keyring --keyring /tmp/habana-key.gpg --fingerprint 2>/dev/null \
+             | awk '/^      /{gsub(/ /,"",$0); print}' | head -1) && \
+    expected=$(printf '%s' "${HABANA_SIGNING_FP}" | tr -d ' :') && \
+    [ "$actual" = "$expected" ] || { echo "Habana GPG key fingerprint mismatch: got $actual expected $expected"; exit 1; } && \
+    mv /tmp/habana-key.gpg /usr/share/keyrings/habana-artifactory.gpg && \
+    rm /tmp/habana-key.asc && \
+    chmod 644 /usr/share/keyrings/habana-artifactory.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/habana-artifactory.gpg] https://vault.habana.ai/artifactory/debian noble main" \
+        > /etc/apt/sources.list.d/habana.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends habanalabs-firmware-tools && \
+    rm -f /etc/apt/sources.list.d/habana.list && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/src/mcv/_output/bin/linux_${TARGETARCH}/mcv /mcv
+COPY mcv/images/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+# Allow non-root user to run commands.
+# Drop any pre-existing ubuntu user/group that claims UID/GID 1000 (present in
+# ubuntu:24.04 and nvcr.io/nvidia/cuda:*-ubuntu24.04 base images). Without this,
+# useradd -u 1000 fails and the silent fallback creates appuser at UID 1001 —
+# K8s runAsUser: 1000 then enters the leftover ubuntu account, not appuser.
+RUN userdel -r ubuntu 2>/dev/null; groupdel ubuntu 2>/dev/null; \
+    groupadd -g 1000 appgroup && \
+    useradd -u 1000 -g 1000 -m -s /bin/bash appuser
+RUN test "$(id -u appuser)" = "1000"
+RUN chown appuser:1000 /mcv
+RUN chown appuser:1000 /entrypoint.sh
+# Pre-create buildah's per-user storage so storage.GetStore (running as UID 1000)
+# uses these appuser-owned runroot/graphroot paths instead of trying to create
+# root-owned /run/containers or /var/lib/containers at runtime. Also create
+# ~/.config/containers: when Docker runs the image as the named appuser it sets
+# HOME=/home/appuser, and buildah stats $HOME/.config during setup — it errors
+# if that directory is absent.
+RUN mkdir -p /home/appuser/.local/share/containers/storage \
+             /home/appuser/.local/share/containers/runroot \
+             /home/appuser/.config/containers && \
+    chown -R appuser:1000 /home/appuser/.local /home/appuser/.config
+WORKDIR /app
+RUN chown -R appuser:1000 /app
+USER appuser
+
+LABEL description="MCV Gaudi - includes Habana Labs tools for Intel Gaudi GPU detection and validation"
+LABEL variant="gaudi"
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/mcv"]
+
+# ============================================================================
 # NVIDIA TARGET: For NVIDIA GPU validation with CUDA/NVML support
 # Includes CUDA runtime and NVML libraries for GPU detection
 # Build: docker build --target mcv-nvidia -t quay.io/gkm/mcv:nvidia -f mcv/images/Containerfile .
@@ -244,6 +339,9 @@ ARG AMDGPU_VERSION=7.0.1.70001
 ARG OPT_ROCM_VERSION=7.0.1
 # SHA-256 of amdgpu-install_7.0.1.70001-1_all.deb from repo.radeon.com — update when bumping AMDGPU_VERSION
 ARG AMDGPU_INSTALLER_SHA256=f4cec24612039c03271e6ab494bc1e18cb5647d59188755aa8e31b6d74bb06df
+# HABANA_SIGNING_FP must be set to the canonical fingerprint published in Intel/Habana's official documentation
+# (https://docs.habana.ai) — update it whenever the signing key rotates.
+ARG HABANA_SIGNING_FP="6D4D7C0F52A263F383D782791E676CE836A2DE65"
 
 # Install base runtime dependencies
 # CUDA base already provides: libnvidia-ml.so.1 (NVML library)
@@ -278,6 +376,20 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         amd-smi-lib rocm-smi-lib libdrm2 && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/amd-smi /usr/bin/amd-smi && \
     ln -s /opt/rocm-${OPT_ROCM_VERSION}/bin/rocm-smi /usr/bin/rocm-smi && \
+    wget -q -O /tmp/habana-key.asc https://vault.habana.ai/artifactory/api/gpg/key/public && \
+    gpg --dearmor < /tmp/habana-key.asc > /tmp/habana-key.gpg && \
+    actual=$(gpg --no-default-keyring --keyring /tmp/habana-key.gpg --fingerprint 2>/dev/null \
+             | awk '/^      /{gsub(/ /,"",$0); print}' | head -1) && \
+    expected=$(printf '%s' "${HABANA_SIGNING_FP}" | tr -d ' :') && \
+    [ "$actual" = "$expected" ] || { echo "Habana GPG key fingerprint mismatch: got $actual expected $expected"; exit 1; } && \
+    mv /tmp/habana-key.gpg /usr/share/keyrings/habana-artifactory.gpg && \
+    rm /tmp/habana-key.asc && \
+    chmod 644 /usr/share/keyrings/habana-artifactory.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/habana-artifactory.gpg] https://vault.habana.ai/artifactory/debian noble main" \
+        > /etc/apt/sources.list.d/habana.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends habanalabs-firmware-tools && \
+    rm -f /etc/apt/sources.list.d/habana.list && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/amdgpu-install.deb; \
 fi
