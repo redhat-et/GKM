@@ -96,7 +96,14 @@ func BuildCache(opts BuildOptions) error { //nolint:gocritic // BuildOptions is 
 		return fmt.Errorf("cache directory %s does not exist", opts.CacheDir)
 	}
 
-	trees, err := cache.DetectSourceTrees(opts.Sources)
+	// The captured root is stamped into the mount label, so it has to be the
+	// resolved absolute path rather than whatever relative form was passed in.
+	root, err := filepath.Abs(opts.CacheDir)
+	if err != nil {
+		return fmt.Errorf("invalid cache directory %q: %w", opts.CacheDir, err)
+	}
+
+	spec, err := cache.NewCaptureSpec(opts.Sources, opts.MountAt, root)
 	if err != nil {
 		return err
 	}
@@ -106,10 +113,7 @@ func BuildCache(opts BuildOptions) error { //nolint:gocritic // BuildOptions is 
 		return err
 	}
 
-	return builder.CreateImage(opts.ImageName, opts.CacheDir, cache.CaptureSpec{
-		Sources: trees,
-		MountAt: opts.MountAt,
-	})
+	return builder.CreateImage(opts.ImageName, root, spec)
 }
 
 // InspectCachePlan decodes an image's mounting labels into the typed plan that

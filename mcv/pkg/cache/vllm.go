@@ -34,12 +34,9 @@ const (
 	kmCacheMountSubpath = constants.KMPrefix + "/cache-mount-subpath"
 	kmCacheRootEnv      = constants.KMPrefix + "/cache-root-env"
 
-	// vLLM-specific mounting defaults
-	vllmCacheRootPath       = constants.KServeHome + "/" + constants.VLLMCache
-	vllmCacheRootEnvDefault = constants.VLLMCacheRoot + "=" + vllmCacheRootPath
-
-	// maxLabelBytes is the OCI manifest per-label size limit.
-	maxLabelBytes = 4096
+	// vllmCacheRootPath is the fallback mount point for caches with no recorded
+	// capture directory.
+	vllmCacheRootPath = constants.KServeHome + "/" + constants.VLLMCache
 
 	// Cache format constants
 	BinaryCacheFormat     = "binary"
@@ -913,16 +910,15 @@ func (v *VLLMCache) Labels() map[string]string {
 		}
 	}
 
-	if mounts := v.extraMounts(); len(mounts) > 0 {
-		raw, err := json.Marshal(mounts)
+	// An image that carries extra trees but not the label describing them would
+	// restore those trees nowhere, so the label is stamped even when oversized and
+	// the image tooling rejects it. CaptureSpec.Validate rejects this earlier.
+	raw, err := MountsLabel(v.spec.Sources)
+	if raw != "" {
 		if err != nil {
-			logging.Warnf("Failed to encode %s label: %v", cacheplan.LabelCacheMounts, err)
-		} else if len(raw) > maxLabelBytes {
-			logging.Warnf("Skipping %s label: encoded size %d exceeds %d bytes",
-				cacheplan.LabelCacheMounts, len(raw), maxLabelBytes)
-		} else {
-			labels[cacheplan.LabelCacheMounts] = string(raw)
+			logging.Errorf("Capture cannot ship the payload without its mount metadata: %v", err)
 		}
+		labels[cacheplan.LabelCacheMounts] = raw
 	}
 
 	return labels
@@ -939,16 +935,6 @@ func (v *VLLMCache) mountRoot() string {
 		return filepath.Clean(v.rootPath)
 	}
 	return vllmCacheRootPath
-}
-
-// extraMounts describes the extra cache trees staged in the payload next to the
-// primary cache, in capture order.
-func (v *VLLMCache) extraMounts() []cacheplan.Mount {
-	mounts := make([]cacheplan.Mount, 0, len(v.spec.Sources))
-	for _, s := range v.spec.Sources {
-		mounts = append(mounts, s.Mount())
-	}
-	return mounts
 }
 
 func (v *VLLMCache) Metadata() []CacheEntry {

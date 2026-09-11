@@ -122,3 +122,13 @@ func TestDeriveWithoutExtraMountsHasSingleMount(t *testing.T) {
 		t.Errorf("mount absPath: got %q", plan.Mounts[0].AbsPath)
 	}
 }
+
+func TestDeriveVLLMRejectsRelativeMountDir(t *testing.T) {
+	labels := map[string]string{
+		LabelCacheType:    constants.CacheTypeVLLMTorchCompile,
+		LabelCacheRootEnv: constants.VLLMCacheRoot + "=relative/cache",
+	}
+	if _, err := Derive(labels); err == nil {
+		t.Error("expected error for relative mount directory")
+	}
+}

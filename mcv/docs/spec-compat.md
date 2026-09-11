@@ -130,6 +130,10 @@ layer under `io.vllm.cache/<basename>/` and records where it has to reappear:
 back to compiling, it fails with `PermissionError` the first time Triton stores a
 miss.
 
+Capture aborts rather than producing a half-described image when a source lies
+inside the cache root (it is already captured), when the encoded label would
+exceed the 4 KiB per-label limit, or when `--mount-at` is not absolute.
+
 Consumers that ignore this label still get the primary mount and keep working;
 they simply restore less of the cache. Because Triton group files embed absolute
 kernel paths, extra trees must be mounted at exactly `absPath` — mounting them

@@ -56,6 +56,14 @@ func GenerateDockerfile(imageName, cacheDir, manifestDir, outputPath string) err
 }
 
 func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) (*buildContext, error) {
+	var capture cache.CaptureSpec
+	if len(spec) > 0 {
+		capture = spec[0]
+	}
+	if err := capture.Validate(cacheDir); err != nil {
+		return nil, err
+	}
+
 	caches := cache.DetectCaches(cacheDir, spec...)
 	if len(caches) == 0 {
 		return nil, errors.New("failed to detect cache type")

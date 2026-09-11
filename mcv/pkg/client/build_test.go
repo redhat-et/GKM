@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const testImage = "quay.io/example/cache:v1"
+const (
+	testImage    = "quay.io/example/cache:v1"
+	bogusBuilder = "bogus"
+)
 
 func TestBuildCacheValidatesBeforeBuilding(t *testing.T) {
 	cacheDir := t.TempDir()
@@ -44,7 +47,7 @@ func TestBuildCacheValidatesBeforeBuilding(t *testing.T) {
 	err = BuildCache(BuildOptions{
 		ImageName: testImage,
 		CacheDir:  cacheDir,
-		Builder:   "bogus",
+		Builder:   bogusBuilder,
 	})
 	assert.ErrorContains(t, err, "unsupported builder")
 }
@@ -115,4 +118,31 @@ func writeTestFile(t *testing.T, path string) {
 	t.Helper()
 	assert.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	assert.NoError(t, os.WriteFile(path, []byte("data"), 0o644))
+}
+
+func TestBuildCacheRejectsRelativeMountAt(t *testing.T) {
+	// The mount path is stamped into the label the kernel manager mounts at, so a
+	// relative value would produce a plan that cannot be actuated.
+	err := BuildCache(BuildOptions{
+		ImageName: testImage,
+		CacheDir:  t.TempDir(),
+		MountAt:   "relative/cache",
+		Builder:   bogusBuilder,
+	})
+	assert.ErrorContains(t, err, "must be absolute")
+}
+
+func TestBuildCacheRejectsSourceInsideCacheRoot(t *testing.T) {
+	root := t.TempDir()
+	triton := filepath.Join(root, "triton")
+	assert.NoError(t, os.MkdirAll(triton, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(triton, "__grp__k.json"), []byte("{}"), 0o644))
+
+	err := BuildCache(BuildOptions{
+		ImageName: testImage,
+		CacheDir:  root,
+		Sources:   []string{triton},
+		Builder:   bogusBuilder,
+	})
+	assert.ErrorContains(t, err, "already captured")
 }

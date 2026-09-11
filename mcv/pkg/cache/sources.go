@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,11 @@ const (
 	SourceKindFlashinfer = "flashinfer"
 	SourceKindGeneric    = "generic"
 )
+
+// MaxLabelBytes is the per-label size limit OCI registries and image tools
+// enforce. The extra-tree mount metadata has to fit in one label, so capture
+// fails when it cannot.
+const MaxLabelBytes = 4096
 
 // SourceTree is a cache directory outside the primary cache root that is staged
 // into the same OCI payload layer under io.vllm.cache/<PayloadName> and recorded
@@ -46,6 +52,18 @@ type CaptureSpec struct {
 	MountAt string
 }
 
+// NewCaptureSpec classifies the given source paths and verifies the result can
+// be represented in the image, so callers cannot skip validation by forgetting
+// to call Validate. root is the cache root being captured.
+func NewCaptureSpec(sourcePaths []string, mountAt, root string) (CaptureSpec, error) {
+	trees, err := DetectSourceTrees(sourcePaths)
+	if err != nil {
+		return CaptureSpec{}, err
+	}
+	spec := CaptureSpec{Sources: trees, MountAt: mountAt}
+	return spec, spec.Validate(root)
+}
+
 // DetectSourceTrees classifies user-supplied extra cache directories and checks
 // that they can be staged without colliding with the primary payload.
 func DetectSourceTrees(paths []string) ([]SourceTree, error) {
@@ -64,11 +82,15 @@ func DetectSourceTrees(paths []string) ([]SourceTree, error) {
 		if !info.IsDir() {
 			return nil, fmt.Errorf("source %s is not a directory", abs)
 		}
-		if _, err := os.ReadDir(abs); err != nil {
+		entries, err := os.ReadDir(abs)
+		if err != nil {
 			return nil, fmt.Errorf("source %s cannot be listed: %w", abs, err)
 		}
+		if len(entries) == 0 {
+			logging.Warnf("Source %s is empty; capturing it adds nothing to the image", abs)
+		}
 
-		tree := classifySourceTree(abs)
+		tree := classifySourceTree(abs, entries)
 		if used[tree.PayloadName] {
 			return nil, fmt.Errorf("source %s maps to payload name %q, which is already taken",
 				abs, tree.PayloadName)
@@ -88,7 +110,7 @@ func DetectSourceTrees(paths []string) ([]SourceTree, error) {
 
 // classifySourceTree picks a payload name, cache env variable and writability
 // requirement from a directory's name and contents.
-func classifySourceTree(absPath string) SourceTree {
+func classifySourceTree(absPath string, entries []os.DirEntry) SourceTree {
 	base := filepath.Base(absPath)
 	lower := strings.ToLower(base)
 
@@ -98,7 +120,7 @@ func classifySourceTree(absPath string) SourceTree {
 	name := sanitizePayloadName(base)
 
 	switch {
-	case lower == SourceKindTriton || looksLikeTritonCache(absPath):
+	case lower == SourceKindTriton || looksLikeTritonCache(entries):
 		return SourceTree{
 			Kind:             SourceKindTriton,
 			PayloadName:      name,
@@ -142,13 +164,10 @@ func classifySourceTree(absPath string) SourceTree {
 	}
 }
 
-// looksLikeTritonCache reports whether dir holds a Triton JIT cache: the SQLite
-// handle plus group records whose JSON embeds absolute kernel paths.
-func looksLikeTritonCache(dir string) bool {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return false
-	}
+// looksLikeTritonCache reports whether a directory listing is a Triton JIT
+// cache: the SQLite handle plus group records whose JSON embeds absolute kernel
+// paths.
+func looksLikeTritonCache(entries []os.DirEntry) bool {
 	var db, cacheJSON bool
 	for _, e := range entries {
 		switch {
@@ -186,4 +205,73 @@ func (s SourceTree) Mount() cacheplan.Mount {
 		Env:              s.Env,
 		RequiresWritable: s.RequiresWritable,
 	}
+}
+
+// MountsLabel encodes the extra trees for the io.kserve.km/cache-mounts label.
+// It fails when the encoding does not fit one label: an image carrying extra
+// trees without this label would restore them nowhere, so the caller must abort
+// the capture rather than ship a payload whose mount metadata was dropped.
+func MountsLabel(sources []SourceTree) (string, error) {
+	if len(sources) == 0 {
+		return "", nil
+	}
+
+	mounts := make([]cacheplan.Mount, 0, len(sources))
+	for _, s := range sources {
+		mounts = append(mounts, s.Mount())
+	}
+
+	raw, err := json.Marshal(mounts)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode extra cache trees: %w", err)
+	}
+	if len(raw) > MaxLabelBytes {
+		return string(raw), fmt.Errorf("extra cache trees need %d bytes of label, over the %d byte limit; "+
+			"shorten the source paths or capture fewer trees", len(raw), MaxLabelBytes)
+	}
+	return string(raw), nil
+}
+
+// Validate checks that a capture specification can be fully represented in the
+// image. root is the cache root being captured.
+func (s CaptureSpec) Validate(root string) error {
+	if s.MountAt != "" && !filepath.IsAbs(s.MountAt) {
+		return fmt.Errorf("mount path %q must be absolute", s.MountAt)
+	}
+
+	absRoot := root
+	if root != "" {
+		abs, err := filepath.Abs(root)
+		if err != nil {
+			return fmt.Errorf("invalid cache root %q: %w", root, err)
+		}
+		absRoot = filepath.Clean(abs)
+	}
+
+	for _, src := range s.Sources {
+		if isUnder(src.AbsPath, absRoot) {
+			return fmt.Errorf("source %s is inside the cache root %s, which is already captured; drop it or capture from separate paths",
+				src.AbsPath, absRoot)
+		}
+	}
+
+	_, err := MountsLabel(s.Sources)
+	return err
+}
+
+// isUnder reports whether path is dir or nested below it.
+func isUnder(path, dir string) bool {
+	if dir == "" {
+		return false
+	}
+	dir = filepath.Clean(dir)
+	path = filepath.Clean(path)
+	if path == dir {
+		return true
+	}
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

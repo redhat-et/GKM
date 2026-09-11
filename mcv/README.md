@@ -117,9 +117,9 @@ Flags:
                            debug, info, warning or error
       --mount-at string    Override the cache root mount path for serving
       --no-gpu             Allow kernel extraction without GPU
-                            present (for testing purposes)
+                           present (for testing purposes)
       --source stringArray Extra cache directory to capture (repeatable)
- ```
+```
 
 > NOTE: The create option is a work in progress.
 > For now to create an OCI image containing a GPU Kernel cache directory
@@ -537,8 +537,10 @@ func main() {
 ```
 
 Each source is recorded with the path it was given, and the image's
-`io.kserve.km/cache-root-env` carries `CacheDir` (or `MountAt` when the serving
-container uses a different path).
+`io.kserve.km/cache-root-env` carries `CacheDir` (resolved to an absolute path,
+or `MountAt` when the serving container uses a different layout). Capture fails
+if a source sits inside `CacheDir`, if the recorded paths do not fit the 4 KiB
+label, or if `MountAt` is not absolute.
 
 ### Reading the Mount Plan
 
@@ -550,7 +552,9 @@ themselves:
 plan, err := client.InspectCachePlan("quay.io/myorg/llama3-cache:v1")
 if err != nil {
 	if client.IsUnsupportedCacheType(err) {
+		// Bare Triton images carry no mounting metadata; nothing to restore.
 		log.Print("image has no serving plan")
+		return
 	}
 	log.Fatalf("inspect failed: %v", err)
 }

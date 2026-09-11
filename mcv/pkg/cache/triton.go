@@ -121,7 +121,7 @@ func getTritonMetadata(root string) []TritonCacheMetadata {
 }
 
 func (t *TritonCache) Name() string {
-	return "triton"
+	return constants.Triton
 }
 
 func (t *TritonCache) ManifestTag() string {

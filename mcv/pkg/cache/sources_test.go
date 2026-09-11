@@ -2,8 +2,10 @@ package cache
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
@@ -162,4 +164,49 @@ func TestVLLMCache_MountAtOverridesCapturedRoot(t *testing.T) {
 	assert.Equal(t, constants.VLLMCacheRoot+"=/tmp/vllm", labels[kmCacheRootEnv])
 	_, ok := labels[cacheplan.LabelCacheMounts]
 	assert.False(t, ok, "no extra trees means no cache-mounts label")
+}
+
+func TestCaptureSpecValidateRejectsUnusableCapture(t *testing.T) {
+	root := t.TempDir()
+
+	err := CaptureSpec{MountAt: "relative/path"}.Validate(root)
+	assert.ErrorContains(t, err, "must be absolute")
+
+	inside := CaptureSpec{Sources: []SourceTree{{
+		PayloadName: SourceKindTriton,
+		AbsPath:     filepath.Join(root, "triton"),
+	}}}
+	assert.ErrorContains(t, inside.Validate(root), "already captured")
+	assert.ErrorContains(t, inside.Validate(root), "inside the cache root")
+
+	outside := CaptureSpec{Sources: []SourceTree{{
+		PayloadName: SourceKindTriton,
+		AbsPath:     filepath.Join(filepath.Dir(root), "sibling-triton"),
+	}}}
+	assert.NoError(t, outside.Validate(root))
+
+	// A path that merely shares a prefix with the root is not inside it.
+	prefixed := CaptureSpec{Sources: []SourceTree{{
+		PayloadName: SourceKindTriton,
+		AbsPath:     root + "-triton",
+	}}}
+	assert.NoError(t, prefixed.Validate(root))
+}
+
+func TestCaptureSpecValidateRejectsOversizedMountLabel(t *testing.T) {
+	// Shipping the payload without the label describing it would restore the
+	// trees nowhere, so an unrepresentable label has to abort the capture.
+	long := "/tmp/" + strings.Repeat("deep/", 40) + "triton"
+	sources := make([]SourceTree, 0, 30)
+	for i := range 30 {
+		sources = append(sources, SourceTree{
+			PayloadName: fmt.Sprintf("triton-%d", i),
+			AbsPath:     fmt.Sprintf("%s-%d", long, i),
+			Env:         constants.EnvTritonCacheDir,
+		})
+	}
+
+	_, err := MountsLabel(sources)
+	assert.ErrorContains(t, err, "byte limit")
+	assert.ErrorContains(t, CaptureSpec{Sources: sources}.Validate(t.TempDir()), "byte limit")
 }

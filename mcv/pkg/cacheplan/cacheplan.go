@@ -249,8 +249,8 @@ func deriveVLLM(labels map[string]string) (CachePlan, error) {
 		return CachePlan{}, fmt.Errorf("cacheplan: unexpected env name %q in vLLM cache-root-env (want %s)",
 			env.Name, constants.VLLMCacheRoot)
 	}
-	if mountDir == "" {
-		return CachePlan{}, fmt.Errorf("cacheplan: empty mount directory in vLLM cache-root-env")
+	if !filepath.IsAbs(mountDir) {
+		return CachePlan{}, fmt.Errorf("cacheplan: mount directory %q in vLLM cache-root-env is not absolute", mountDir)
 	}
 	plan := CachePlan{
 		CacheType:        constants.CacheTypeVLLMTorchCompile,
@@ -277,8 +277,8 @@ func deriveHabana(labels map[string]string) (CachePlan, error) {
 		return CachePlan{}, fmt.Errorf("cacheplan: unexpected env name %q in Habana cache-root-env (want %s)",
 			env.Name, constants.HabanaRecipeCacheEnv)
 	}
-	if mountDir == "" {
-		return CachePlan{}, fmt.Errorf("cacheplan: empty mount directory in Habana cache-root-env")
+	if !filepath.IsAbs(mountDir) {
+		return CachePlan{}, fmt.Errorf("cacheplan: mount directory %q in Habana cache-root-env is not absolute", mountDir)
 	}
 	subPath := labels[LabelCacheMountSubpath]
 	if subPath == "" {
