@@ -30,9 +30,12 @@ const (
 	MCVHabanaCacheDir    = "io.habana.cache"
 	MCVHabanaManifestDir = "io.habana.manifest"
 
-	EnvTritonCacheDir    = "TRITON_CACHE_DIR"
-	DefaultCacheFilePath = "/tmp/device_cache.json"
-	StubbedCacheFile     = "/tmp/device_cache_stub.json"
+	EnvTritonCacheDir        = "TRITON_CACHE_DIR"
+	EnvTorchInductorCacheDir = "TORCHINDUCTOR_CACHE_DIR"
+	EnvDeepGemmCacheDir      = "DG_JIT_CACHE_DIR"
+	EnvFlashinferWorkspace   = "FLASHINFER_WORKSPACE_BASE"
+	DefaultCacheFilePath     = "/tmp/device_cache.json"
+	StubbedCacheFile         = "/tmp/device_cache_stub.json"
 
 	// KServe Kernel Manager integration
 	KMPrefix        = "io.kserve.km"

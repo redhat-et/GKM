@@ -55,8 +55,8 @@ func GenerateDockerfile(imageName, cacheDir, manifestDir, outputPath string) err
 	return nil
 }
 
-func prepareBuildContext(buildType, cacheDir string) (*buildContext, error) {
-	caches := cache.DetectCaches(cacheDir)
+func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) (*buildContext, error) {
+	caches := cache.DetectCaches(cacheDir, spec...)
 	if len(caches) == 0 {
 		return nil, errors.New("failed to detect cache type")
 	}
@@ -88,6 +88,16 @@ func prepareBuildContext(buildType, cacheDir string) (*buildContext, error) {
 		return nil, fmt.Errorf("error copying contents: %v", err)
 	}
 
+	// Extra cache trees ride inside the same payload prefix so the image stays
+	// single-layered; a second Add/COPY would add a layer, which signatures over
+	// (cosign) handle poorly.
+	for _, src := range specSources(spec) {
+		dest := filepath.Join(cacheBuildDir, src.PayloadName)
+		if err := cache.CopyDir(src.AbsPath, dest); err != nil {
+			return nil, fmt.Errorf("error copying extra cache tree %s: %w", src.AbsPath, err)
+		}
+	}
+
 	cache.SetCachesBuildDir(caches, cacheBuildDir)
 
 	labels := cache.BuildLabels(caches)
@@ -108,6 +118,13 @@ func prepareBuildContext(buildType, cacheDir string) (*buildContext, error) {
 		ManifestPath:     manifestPath,
 		BuildRoot:        buildRoot,
 	}, nil
+}
+
+func specSources(spec []cache.CaptureSpec) []cache.SourceTree {
+	if len(spec) == 0 {
+		return nil
+	}
+	return spec[0].Sources
 }
 
 func CleanupDirs(dirs ...string) {

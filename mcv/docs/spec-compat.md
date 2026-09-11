@@ -47,10 +47,15 @@ A compat image has **one squashed layer** (recommended) containing:
 | Path | Content |
 |------|---------|
 | `io.triton.cache/` or `io.vllm.cache/` | Cache directory tree |
+| `io.vllm.cache/<tree>/` | Optional extra cache tree captured with `--source` (see below) |
 | `io.triton.manifest/manifest.json` or `io.vllm.manifest/manifest.json` | Entry metadata written at create time |
 
 The gzip tarball layer holds the paths above. MCV unpacks cache files into
 the configured extract directory and manifest into `/tmp/.mcv/manifest/`.
+
+Keep images **single-layered**: MCV stages every captured tree inside the one
+payload prefix precisely so no additional `COPY`/`ADD` layer is introduced,
+because signatures over multi-layer images (cosign) are unreliable.
 
 ## Image config labels
 
@@ -97,9 +102,46 @@ This is just a hint and applications can extract anywhere they choose.
 |-------|-------------|
 | `io.kserve.km/cache-hash` | Hash or comma-separated list of hashes identifying cached kernels (e.g., `d4ec7c2a7d` or `abc123,def456`) |
 | `io.kserve.km/cache-mount-subpath` | Relative path from cache root to mount point (e.g., `torch_compile_cache` or `torch_compile_cache/torch_aot_compile`) |
-| `io.kserve.km/cache-root-env` | Environment variable and value for framework's cache root directory (e.g., `VLLM_CACHE_ROOT=/home/kserve/.cache/vllm`) |
+| `io.kserve.km/cache-root-env` | Environment variable and value for the framework's cache root directory, set to the directory the cache was captured from (e.g., `VLLM_CACHE_ROOT=/home/kserve/.cache/vllm`, or `VLLM_CACHE_ROOT=/tmp/vllm` when captured from an image that sets `VLLM_CACHE_ROOT=/tmp/vllm`). Override with `--mount-at`. |
+| `io.kserve.km/cache-mounts` | Optional JSON array of extra payload subtrees captured with `--source` (see [Extra cache trees](#extra-cache-trees)) |
 | `io.kserve.km/cache-type` | Type of cache packaged (e.g., `torch-compile`) |
 | `io.kserve.km/framework` | ML framework that generated the cache (e.g., `vllm`) |
+
+### Extra cache trees
+
+vLLM keeps some kernel caches outside `VLLM_CACHE_ROOT`. Most notably, current
+builds select the standalone Inductor adaptor, which never redirects the Triton
+JIT cache, so it stays wherever `TRITON_CACHE_DIR` points (frequently
+`/tmp/triton`). `mcv --create --source <dir>` packs such a tree into the same
+layer under `io.vllm.cache/<basename>/` and records where it has to reappear:
+
+```json
+[{"subPath":"triton","absPath":"/tmp/triton","env":"TRITON_CACHE_DIR","requiresWritable":true}]
+```
+
+| Field | Meaning |
+|-------|---------|
+| `subPath` | Directory inside the payload prefix (`io.vllm.cache`) |
+| `absPath` | Absolute path the tree must be available at in the serving container |
+| `env` | Variable pointing the framework at `absPath`; absent when it cannot be derived safely (e.g. `FLASHINFER_WORKSPACE_BASE` names the workspace base, not `.cache/flashinfer`) |
+| `requiresWritable` | The runtime appends to this tree, so it must not be mounted read-only |
+
+`requiresWritable` is not an optimization: a read-only Triton tree does not fall
+back to compiling, it fails with `PermissionError` the first time Triton stores a
+miss.
+
+Consumers that ignore this label still get the primary mount and keep working;
+they simply restore less of the cache. Because Triton group files embed absolute
+kernel paths, extra trees must be mounted at exactly `absPath` — mounting them
+somewhere else silently misses every kernel. Capture and serve from the same
+container image and environment to keep those paths valid.
+
+`mcv --extract` writes every tree under the requested `--dir` (extra trees as
+`<dir>/<subPath>/`) and logs each tree's intended serving path and writability,
+since it cannot move files to arbitrary absolute paths on a host unasked.
+Programmatic callers get the same information typed via
+`client.InspectCachePlan`, and can ask `client.ExtractCache` to place the trees
+for them with `Options.PlaceExtraTrees`.
 
 ## MCV extract algorithm
 

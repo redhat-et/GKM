@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
 	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	"github.com/redhat-et/GKM/mcv/pkg/preflightcheck"
@@ -258,6 +259,8 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 		logging.Warnf("Cache size validation: %v", err)
 	}
 
+	logMountTargets(labels)
+
 	// Full manifest compatibility check (after extraction)
 	manifestPath := filepath.Join(constants.ExtractManifestDir, constants.ManifestFileName)
 	if config.IsGPUEnabled() && config.IsBaremetalEnabled() && !config.IsSkipPrecheckEnabled() {
@@ -397,6 +400,31 @@ func extractCompatImg(img v1.Image, cacheType string) (extractedDirs []string, e
 		extractedBytes += bytesWritten
 	}
 	return extractedDirs, extractedBytes, nil
+}
+
+// logMountTargets reports where the extracted payload is expected to appear in a
+// serving container. Extra trees are captured from their own absolute paths (for
+// example /tmp/triton) but land flat under the requested extract directory, so
+// the operator needs to know the intended destination and writability.
+func logMountTargets(labels map[string]string) {
+	plan, err := cacheplan.Derive(labels)
+	if err != nil {
+		logging.Debugf("No serving mount plan for this image: %v", err)
+		return
+	}
+
+	for _, m := range plan.Mounts {
+		subPath := m.SubPath
+		if subPath == "" {
+			subPath = "."
+		}
+		if m.RequiresWritable {
+			logging.Warnf("Cache tree %q must be mounted writable at %s (env %s)",
+				subPath, m.AbsPath, m.Env)
+			continue
+		}
+		logging.Infof("Cache tree %q belongs at %s (env %s)", subPath, m.AbsPath, m.Env)
+	}
 }
 
 // validateExtractedCacheSize validates that the extracted cache size matches the image label.

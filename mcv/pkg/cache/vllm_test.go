@@ -163,8 +163,8 @@ func TestVLLMCache_GenericMountingLabels(t *testing.T) {
 	assert.Equal(t, expectedSubpath, labels[kmCacheMountSubpath],
 		"cache-mount-subpath should be torch_compile_cache/torch_aot_compile (parent dir, no hash)")
 
-	assert.Equal(t, vllmCacheRootEnvDefault, labels[kmCacheRootEnv],
-		"cache-root-env should be VLLM_CACHE_ROOT=/home/kserve/.cache/vllm")
+	assert.Equal(t, constants.VLLMCacheRoot+"="+cacheDir, labels[kmCacheRootEnv],
+		"cache-root-env should point at the directory the cache was captured from")
 
 	// Verify existing labels still present
 	assert.Equal(t, BinaryCacheFormat, labels[cacheVLLMImageFormat])
@@ -216,8 +216,8 @@ func TestVLLMCache_GenericMountingLabels_MultipleHashes(t *testing.T) {
 		"cache-mount-subpath should mount at parent directory (torch_compile_cache/torch_aot_compile) to expose all hashes")
 
 	// Verify kmCacheRootEnv is still set correctly
-	assert.Equal(t, vllmCacheRootEnvDefault, labels[kmCacheRootEnv],
-		"cache-root-env should be VLLM_CACHE_ROOT=/home/kserve/.cache/vllm")
+	assert.Equal(t, constants.VLLMCacheRoot+"="+cacheDir, labels[kmCacheRootEnv],
+		"cache-root-env should point at the directory the cache was captured from")
 
 	// Verify existing labels still present
 	assert.Equal(t, BinaryCacheFormat, labels[cacheVLLMImageFormat])

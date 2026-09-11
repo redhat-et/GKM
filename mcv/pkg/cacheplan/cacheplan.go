@@ -20,8 +20,10 @@
 package cacheplan
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
@@ -35,6 +37,13 @@ const (
 	LabelCacheMountSubpath = constants.KMPrefix + "/cache-mount-subpath"
 	LabelCacheHash         = constants.KMPrefix + "/cache-hash"
 	LabelFramework         = constants.KMPrefix + "/framework"
+
+	// LabelCacheMounts carries the additional payload subtrees captured into the
+	// same OCI layer as the primary cache (JSON []Mount). Modern vLLM keeps the
+	// Triton JIT cache outside VLLM_CACHE_ROOT, so a single root mount is not
+	// enough to restore a warm container. Images without extra trees omit it, and
+	// consumers that do not understand it still act on the primary mount.
+	LabelCacheMounts = constants.KMPrefix + "/cache-mounts"
 )
 
 // Per-class summary labels, used to infer the cache type for older images that
@@ -70,6 +79,19 @@ type EnvVar struct {
 	Value string
 }
 
+// Mount is one directory the serving container must have populated out of the
+// cache payload. SubPath is a directory inside PayloadPrefix, AbsPath is where
+// that directory has to appear in the container, and Env names the variable that
+// points the framework at AbsPath (empty when the framework discovers the
+// directory itself). RequiresWritable marks trees the runtime appends to, so a
+// read-only mount fails outright instead of silently recompiling.
+type Mount struct {
+	SubPath          string `json:"subPath"`
+	AbsPath          string `json:"absPath"`
+	Env              string `json:"env,omitempty"`
+	RequiresWritable bool   `json:"requiresWritable,omitempty"`
+}
+
 // CachePlan is the typed interpretation of a kernel cache image, derived from
 // its OCI labels. KServe consumes these fields to build the serving pod spec.
 type CachePlan struct {
@@ -96,6 +118,12 @@ type CachePlan struct {
 	// cache directory, so a read-only mount alone is insufficient and the
 	// consumer must provide a writable copy (e.g. Habana's flat recipe dir).
 	RequiresWritable bool
+
+	// Mounts lists every directory to populate, primary mount first, then any
+	// extra payload subtrees recorded in LabelCacheMounts. MountDir/SubPath
+	// mirror the primary entry for consumers that only understand the original
+	// single-mount label shape.
+	Mounts []Mount
 }
 
 // UnsupportedCacheTypeError is returned when the labels describe a cache type
@@ -224,14 +252,20 @@ func deriveVLLM(labels map[string]string) (CachePlan, error) {
 	if mountDir == "" {
 		return CachePlan{}, fmt.Errorf("cacheplan: empty mount directory in vLLM cache-root-env")
 	}
-	return CachePlan{
+	plan := CachePlan{
 		CacheType:        constants.CacheTypeVLLMTorchCompile,
 		Env:              []EnvVar{env},
 		MountDir:         mountDir,
 		SubPath:          labels[LabelCacheMountSubpath],
 		PayloadPrefix:    constants.MCVVLLMCacheDir,
 		RequiresWritable: false,
-	}, nil
+	}
+	mounts, err := planMounts(&plan, labels)
+	if err != nil {
+		return CachePlan{}, err
+	}
+	plan.Mounts = mounts
+	return plan, nil
 }
 
 func deriveHabana(labels map[string]string) (CachePlan, error) {
@@ -250,14 +284,74 @@ func deriveHabana(labels map[string]string) (CachePlan, error) {
 	if subPath == "" {
 		subPath = "."
 	}
-	return CachePlan{
+	plan := CachePlan{
 		CacheType:        constants.CacheTypeHabanaRecipe,
 		Env:              []EnvVar{env},
 		MountDir:         mountDir,
 		SubPath:          subPath,
 		PayloadPrefix:    constants.MCVHabanaCacheDir,
 		RequiresWritable: true,
-	}, nil
+	}
+	mounts, err := planMounts(&plan, labels)
+	if err != nil {
+		return CachePlan{}, err
+	}
+	plan.Mounts = mounts
+	return plan, nil
+}
+
+// planMounts assembles the full mount list: the primary mount implied by
+// cache-root-env plus any extra payload subtrees from LabelCacheMounts.
+func planMounts(plan *CachePlan, labels map[string]string) ([]Mount, error) {
+	mounts := []Mount{{
+		SubPath:          plan.SubPath,
+		AbsPath:          plan.MountDir,
+		Env:              firstEnvName(plan.Env),
+		RequiresWritable: plan.RequiresWritable,
+	}}
+
+	raw := strings.TrimSpace(labels[LabelCacheMounts])
+	if raw == "" {
+		return mounts, nil
+	}
+
+	var extras []Mount
+	if err := json.Unmarshal([]byte(raw), &extras); err != nil {
+		return nil, fmt.Errorf("cacheplan: malformed %s label: %w", LabelCacheMounts, err)
+	}
+	seen := map[string]bool{plan.SubPath: true}
+	for _, m := range extras {
+		if err := validateExtraMount(m, seen); err != nil {
+			return nil, err
+		}
+		seen[m.SubPath] = true
+		mounts = append(mounts, m)
+	}
+	return mounts, nil
+}
+
+func validateExtraMount(m Mount, seen map[string]bool) error {
+	if m.SubPath == "" || m.SubPath == "." {
+		return fmt.Errorf("cacheplan: %s entry with empty subPath", LabelCacheMounts)
+	}
+	if filepath.IsAbs(m.SubPath) || strings.Contains(m.SubPath, "..") {
+		return fmt.Errorf("cacheplan: %s entry with unsafe subPath %q", LabelCacheMounts, m.SubPath)
+	}
+	if !filepath.IsAbs(m.AbsPath) {
+		return fmt.Errorf("cacheplan: %s entry %q needs an absolute absPath, got %q",
+			LabelCacheMounts, m.SubPath, m.AbsPath)
+	}
+	if seen[m.SubPath] {
+		return fmt.Errorf("cacheplan: duplicate subPath %q in %s", m.SubPath, LabelCacheMounts)
+	}
+	return nil
+}
+
+func firstEnvName(envs []EnvVar) string {
+	if len(envs) == 0 {
+		return ""
+	}
+	return envs[0].Name
 }
 
 // parseRootEnv splits a "NAME=VALUE" cache-root-env label into an EnvVar and the

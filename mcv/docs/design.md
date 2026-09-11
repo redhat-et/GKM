@@ -46,6 +46,9 @@ See [spec-compat.md](./spec-compat.md) for the full compat specification.
   compatible.
 - **Temporary Directories**: All staging operations occur in `/tmp/.mcv/*`
   to prevent host pollution.
+- **Multi-Tree Capture**: `--source` packs cache trees that live outside the
+  primary cache root (Triton, Inductor, DeepGEMM) into the same layer and
+  records the path each one restores to.
 
 ## Image Label Schema
 
@@ -72,6 +75,25 @@ See [spec-compat.md](./spec-compat.md) for the full compat specification.
 
 > **Note**: These labels are only included if the corresponding cache type is detected.
 
+### Mounting Labels (KServe Kernel Manager)
+
+| Label                             | Description                                                     |
+|-----------------------------------|-----------------------------------------------------------------|
+| `io.kserve.km/framework`          | Framework that produced the cache                               |
+| `io.kserve.km/cache-type`         | Cache type (`torch-compile`, `habana-recipe`)                   |
+| `io.kserve.km/cache-hash`         | Cached kernel hash(es)                                          |
+| `io.kserve.km/cache-mount-subpath`| Payload subpath backing the primary mount                        |
+| `io.kserve.km/cache-root-env`     | Cache root env var captured from, e.g. `VLLM_CACHE_ROOT=/tmp/vllm` |
+| `io.kserve.km/cache-mounts`       | JSON extra trees from `--source`: subpath, absolute path, env, writable |
+
+The mount path in `cache-root-env` is the directory the cache was captured from,
+so out-of-band captures (for example an image that runs vLLM with
+`VLLM_CACHE_ROOT=/tmp/vllm`) restore to the path the framework actually reads.
+`pkg/cacheplan` decodes these labels into a typed `CachePlan` whose `Mounts`
+field lists every directory to populate, primary first.
+
+See [spec-compat.md](./spec-compat.md) for the full contract.
+
 <!-- markdownlint-enable MD013 -->
 
 ## Workflow Summary
@@ -82,7 +104,8 @@ See [spec-compat.md](./spec-compat.md) for the full compat specification.
 mcv -c -i quay.io/example/triton-kernel -d /path/to/.triton/cache
 ```
 
-- Copies kernel cache into build context
+- Copies kernel cache into build context, plus any `--source` trees under the
+  same payload prefix
 - Writes manifest.json with entry metadata
 - Builds a single-layer compat image using the Docker or Buildah builder
 - Labels image with summary + entry count

@@ -1,20 +1,32 @@
-// Package client provides high-level APIs for extracting Kernel caches
-// from OCI images, detecting system GPU and accelerator hardware, and
-// running compatibility checks between system GPUs and image metadata.
+// Package client provides high-level APIs for capturing kernel caches into OCI
+// images and extracting them back out, detecting system GPU and accelerator
+// hardware, and running compatibility checks between system GPUs and image
+// metadata.
+//
+// Capture goes through BuildCache, which packs a cache root plus any extra trees
+// (for example the Triton JIT cache, which current vLLM builds keep outside
+// VLLM_CACHE_ROOT) into one image layer. Serving goes through ExtractCache,
+// optionally relocating those extra trees, or InspectCachePlan for callers that
+// mount the trees themselves.
 package client
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	"github.com/redhat-et/GKM/mcv/pkg/fetcher"
+	"github.com/redhat-et/GKM/mcv/pkg/imgbuild"
 	"github.com/redhat-et/GKM/mcv/pkg/logformat"
 	"github.com/redhat-et/GKM/mcv/pkg/preflightcheck"
+	"github.com/redhat-et/GKM/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -26,6 +38,23 @@ type Options struct {
 	LogLevel        string // Logging level: debug, info, warning, error
 	EnableBaremetal *bool  // If true, enables full hardware checks including kernel dummy key validation (for baremetal envs only)
 	SkipPrecheck    *bool  // If true, skips summary-level preflight GPU compatibility checks
+
+	// PlaceExtraTrees relocates cache trees that were captured with
+	// cache.CaptureSpec.Sources (for example a Triton JIT cache that lives
+	// outside VLLM_CACHE_ROOT) from CacheDir/<subpath> to the absolute path
+	// recorded in the image. It is opt-in because it writes outside CacheDir,
+	// and it refuses to merge into a non-empty destination.
+	PlaceExtraTrees bool
+}
+
+// BuildOptions encapsulates settings for capturing a populated cache directory
+// into an OCI image.
+type BuildOptions struct {
+	ImageName string   // Destination image reference (e.g., quay.io/user/image:tag)
+	CacheDir  string   // Cache root to capture. For vLLM this is VLLM_CACHE_ROOT, i.e. the directory containing torch_compile_cache, not torch_compile_cache itself.
+	Sources   []string // Extra cache trees to capture in the same image layer, e.g. the Triton JIT cache at TRITON_CACHE_DIR. Each is restored at the path given here.
+	MountAt   string   // Path the cache root should be mounted at when served. Defaults to CacheDir, which is correct whenever the serving container uses the same layout.
+	Builder   string   // "buildah", "docker", or "" to auto-detect
 }
 
 type HwOptions struct {
@@ -46,10 +75,71 @@ func InspectCacheImage(img string) (labels map[string]string, err error) {
 	return fetcher.NewImgFetcher().InspectImg(img)
 }
 
-// ExtractCache pulls and extracts a kernel cache from the specified OCI image.
+// BuildCache packages CacheDir together with any extra cache trees listed in
+// Sources into a single-layer cache image. All trees share one payload prefix so
+// no additional layer is added, and each extra tree records the absolute path it
+// has to reappear at, since caches such as the Triton JIT cache embed absolute
+// paths and cannot be relocated.
+func BuildCache(opts BuildOptions) error { //nolint:gocritic // BuildOptions is a config struct; value semantics keep it symmetric with ExtractCache.
+	if opts.ImageName == "" {
+		return fmt.Errorf("image name must be specified")
+	}
+	if _, err := name.ParseReference(opts.ImageName, name.StrictValidation); err != nil {
+		return fmt.Errorf("error validating image name: %v", err)
+	}
+	if opts.CacheDir == "" {
+		return fmt.Errorf("cache directory must be specified")
+	}
+	if ok, err := utils.FilePathExists(opts.CacheDir); err != nil {
+		return fmt.Errorf("cannot read cache directory %s: %w", opts.CacheDir, err)
+	} else if !ok {
+		return fmt.Errorf("cache directory %s does not exist", opts.CacheDir)
+	}
+
+	trees, err := cache.DetectSourceTrees(opts.Sources)
+	if err != nil {
+		return err
+	}
+
+	builder, err := imgbuild.NewWithBuilder(opts.Builder)
+	if err != nil {
+		return err
+	}
+
+	return builder.CreateImage(opts.ImageName, opts.CacheDir, cache.CaptureSpec{
+		Sources: trees,
+		MountAt: opts.MountAt,
+	})
+}
+
+// InspectCachePlan decodes an image's mounting labels into the typed plan that
+// describes every directory to restore, primary cache root first. Extra trees
+// captured from outside the cache root (Triton, Inductor, DeepGEMM) appear as
+// additional entries carrying their absolute destination path, the environment
+// variable that points the framework at it, and whether the mount must be
+// writable. Images with no serving plan, for example bare Triton caches, return
+// an error satisfying IsUnsupportedCacheType.
+func InspectCachePlan(imageName string) (cacheplan.CachePlan, error) {
+	labels, err := InspectCacheImage(imageName)
+	if err != nil {
+		return cacheplan.CachePlan{}, err
+	}
+	plan, err := cacheplan.Derive(labels)
+	if err != nil {
+		return cacheplan.CachePlan{}, err
+	}
+	return plan, nil
+}
+
+// IsUnsupportedCacheType reports whether err means the image describes a cache
+// type with no serving plan, as opposed to a malformed one.
+func IsUnsupportedCacheType(err error) bool {
+	return cacheplan.IsUnsupportedCacheType(err)
+}
+
 // It uses the provided options to configure behavior such as GPU checks, logging, and
 // output directory. If GPU checks are enabled, it also verifies hardware compatibility.
-func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
+func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) { //nolint:gocritic // Options is a config struct called once per process, and the signature is public API.
 	if opts.ImageName == "" {
 		return nil, nil, fmt.Errorf("image name must be specified")
 	}
@@ -128,7 +218,73 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) {
 		logging.Debug("Skipping preflight (GPU disabled)")
 	}
 
-	return matchedIDs, unmatchedIDs, fetcher.New().FetchAndExtractCache(opts.ImageName)
+	if err := fetcher.New().FetchAndExtractCache(opts.ImageName); err != nil {
+		return matchedIDs, unmatchedIDs, err
+	}
+
+	if opts.PlaceExtraTrees {
+		labels, err := InspectCacheImage(opts.ImageName)
+		if err != nil {
+			logging.Warnf("Cannot place extra cache trees without image labels: %v", err)
+			return matchedIDs, unmatchedIDs, nil
+		}
+		if err := placeExtraTrees(labels, constants.ExtractCacheDir); err != nil {
+			return matchedIDs, unmatchedIDs, err
+		}
+	}
+
+	return matchedIDs, unmatchedIDs, nil
+}
+
+// placeExtraTrees relocates extra payload subtrees, extracted flat under
+// fromRoot, to the absolute paths recorded in the image labels.
+func placeExtraTrees(labels map[string]string, fromRoot string) error {
+	plan, err := cacheplan.Derive(labels)
+	if err != nil {
+		if cacheplan.IsUnsupportedCacheType(err) {
+			logging.Debugf("Image has no mount plan; extra trees stay under %s", fromRoot)
+			return nil
+		}
+		return err
+	}
+
+	for i := 1; i < len(plan.Mounts); i++ {
+		m := plan.Mounts[i]
+		src := filepath.Join(fromRoot, m.SubPath)
+		info, err := os.Stat(src)
+		if err != nil || !info.IsDir() {
+			logging.Warnf("Extra cache tree %q not found under %s; leaving extraction as is", m.SubPath, fromRoot)
+			continue
+		}
+		if err := placeTree(src, m.AbsPath); err != nil {
+			return err
+		}
+		logging.Infof("Placed extra cache tree at %s (env %s, writable=%t)", m.AbsPath, m.Env, m.RequiresWritable)
+	}
+	return nil
+}
+
+// placeTree moves a cache subtree to dst without merging: an existing non-empty
+// destination is reported rather than overwritten, because two trees claiming
+// the same path indicate a capture/serving mismatch the operator must resolve.
+func placeTree(src, dst string) error {
+	if entries, err := os.ReadDir(dst); err == nil && len(entries) > 0 {
+		return fmt.Errorf("destination %s already holds %d entries; clear it before placing cache tree %s",
+			dst, len(entries), src)
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("cannot inspect %s: %w", dst, err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	if err := cache.CopyDir(src, dst); err != nil {
+		return fmt.Errorf("failed to copy cache tree to %s: %w", dst, err)
+	}
+	return os.RemoveAll(src)
 }
 
 // GetSystemGPUInfo returns a summary of GPU devices with information

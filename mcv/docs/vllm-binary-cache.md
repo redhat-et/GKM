@@ -141,11 +141,23 @@ During compilation and execution, PyTorch creates temporary files:
 - **Cleanup**: Cleared on reboot (tmpfs) or manual deletion
 - **Recreation**: Automatic on every vLLM start
 
-**Key Insight**: This directory is **NOT needed for cache portability**.
-The Triton kernels are already embedded in the binary artifacts (verified by
-finding 42 ELF headers in a 5.3MB artifact file).
+**Key Insight**: the compiled-graph caches above are **not needed for cache
+portability**. The Triton kernels for the compiled graph are already embedded in
+the binary artifacts (verified by finding 42 ELF headers in a 5.3MB artifact
+file).
 
-**MCV does NOT capture `/tmp`** - kernels auto-extract at runtime (~2 seconds).
+Do not read that as "`/tmp` never matters". The Triton JIT cache at
+`TRITON_CACHE_DIR` (often `/tmp/triton`, and **not** under `VLLM_CACHE_ROOT` in
+current builds, because the standalone Inductor adaptor no longer redirects it)
+also serves Triton kernels launched outside the compiled graph, plus Triton's
+autotune results. Those are not in the artifact, and the JIT cache is not
+path-relocatable: its `__grp__*.json` records store absolute kernel paths, so a
+tree restored somewhere else silently misses everything.
+
+Capture it with `--source` when cold start is dominated by Triton rather than by
+torch.compile; see [spec-compat.md](./spec-compat.md#extra-cache-trees). Mount
+it back at the captured path and keep it writable - a read-only Triton tree
+fails with `PermissionError` on the first miss instead of recompiling.
 
 ## Binary Cache Format
 
@@ -265,7 +277,13 @@ following labels:
   "cache.vllm.image/entry-count": "1",
   "cache.vllm.image/cache-size-bytes": "35702329",
   "cache.vllm.image/format": "binary",
-  "cache.vllm.image/summary": "{\"targets\":[...]}"
+  "cache.vllm.image/summary": "{\"targets\":[...]}",
+  "io.kserve.km/framework": "vllm",
+  "io.kserve.km/cache-type": "torch-compile",
+  "io.kserve.km/cache-hash": "fe20897a43...",
+  "io.kserve.km/cache-mount-subpath": "torch_compile_cache/torch_aot_compile",
+  "io.kserve.km/cache-root-env": "VLLM_CACHE_ROOT=/root/.cache/vllm",
+  "io.kserve.km/cache-mounts": "[{\"subPath\":\"triton\",\"absPath\":\"/root/.triton\",\"env\":\"TRITON_CACHE_DIR\",\"requiresWritable\":true}]"
 }
 ```
 
@@ -275,6 +293,9 @@ following labels:
 - `cache-size-bytes`: Total size of the cache in bytes
 - `format`: Storage format (`"binary"` or `"unpacked"`)
 - `summary`: Hardware target information (JSON)
+- `io.kserve.km/*`: mounting hints for the KServe Kernel Manager; the root env
+  carries the directory the cache was captured from, and `cache-mounts` is
+  present only when extra trees were captured with `--source`
 
 ### Manifest Structure
 
@@ -604,6 +625,12 @@ du -sh ~/vllm-qwen-cache/vllm
 # Inspect cache structure
 ls -la ~/vllm-qwen-cache/vllm/torch_compile_cache/
 # Should show hash directories (e.g., fe20897a43/)
+
+# Optional: also capture the Triton JIT cache when it lives outside the vLLM
+# root. Check where the container actually writes it before assuming a path:
+#   podman exec vllm-server printenv TRITON_CACHE_DIR VLLM_CACHE_ROOT
+# Keep the same relative layout so the tree can return to its original path.
+sudo podman cp vllm-server:/root/.triton ~/vllm-qwen-cache/triton
 ```
 
 ### Step 4: Build Cache Image with MCV
@@ -627,6 +654,29 @@ mcv -c \
 # INFO Image built! 3cbede0b2cb5...
 # INFO OCI image created successfully.
 ```
+
+To include the Triton tree, add `--source`. An extra tree is recorded with the
+**path passed on the capture host**, and there is no separate override for extra
+trees, so build in a container that mounts the copied tree at the path the
+serving container will read (`TRITON_CACHE_DIR`):
+
+```bash
+# Serving container uses VLLM_CACHE_ROOT=/root/.cache/vllm and
+# TRITON_CACHE_DIR=/root/.triton, so mount the copies at those paths.
+podman run --rm \
+  -v ~/vllm-qwen-cache/vllm:/root/.cache/vllm:ro \
+  -v ~/vllm-qwen-cache/triton:/root/.triton:ro \
+  quay.io/gkm/mcv:unified \
+  --create --image quay.io/myorg/vllm-qwen-cache:v1 \
+  --dir /root/.cache/vllm --source /root/.triton --no-gpu
+
+# Building on the host instead, --mount-at corrects the primary root only:
+#     --dir ~/vllm-qwen-cache/vllm --mount-at /root/.cache/vllm
+```
+
+`--dir` must be the cache **root** (the directory containing
+`torch_compile_cache`), which is also the value stamped into
+`io.kserve.km/cache-root-env`.
 
 ### Step 5: Inspect Cache Image
 

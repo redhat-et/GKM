@@ -76,7 +76,23 @@ podman run --rm \
   quay.io/gkm/mcv:unified \
   -c "/mcv --create --image quay.io/myorg/llama3-cache:v1 --dir /cache --no-gpu \
       && buildah push quay.io/myorg/llama3-cache:v1"
+
+# Repeat for a runtime that keeps its Triton JIT cache outside VLLM_CACHE_ROOT:
+# mount both trees, pass the Triton tree with --source, and keep --dir as the
+# VLLM_CACHE_ROOT so the restored mount lands where the framework looks.
+podman run --rm \
+  -v /tmp/vllm:/cache:Z -v /tmp/triton:/triton:Z \
+  --entrypoint sh \
+  quay.io/gkm/mcv:unified \
+  -c "/mcv --create --image quay.io/myorg/llama3-cache:v1 --dir /cache --source /triton --no-gpu \
+      && buildah push quay.io/myorg/llama3-cache:v1"
 ```
+
+> **Note:** `--source` records the path inside the container that captured the
+> cache (`/triton` above), so serve that tree at the path vLLM actually uses
+> (`TRITON_CACHE_DIR`). Capture the tree from its real path (for example
+> `-v /tmp/triton:/tmp/triton:Z`) when you want the recorded path to be the
+> serving path directly.
 
 **Why use unified here?** You can use the same image everywhere, simplifying CI/CD.
 

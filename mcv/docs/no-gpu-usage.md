@@ -97,9 +97,18 @@ there. Read-only mounts (`--create`) do not need `:U`.
 ### Creating Cache Images (No GPU Required)
 
 ```bash
-# Local binary
+# Local binary. --dir is the cache ROOT (the directory containing
+# torch_compile_cache, i.e. VLLM_CACHE_ROOT), not torch_compile_cache itself,
+# and it is the path stamped into io.kserve.km/cache-root-env.
 mcv --create --image quay.io/myorg/vllm-cache:v1 \
-    --dir ~/.cache/vllm/torch_compile_cache \
+    --dir ~/.cache/vllm \
+    --no-gpu
+
+# Capture the Triton JIT cache too. Current vLLM builds leave it at
+# TRITON_CACHE_DIR (often /tmp/triton) instead of under VLLM_CACHE_ROOT, and it
+# is not path-relocatable, so it must return to the same absolute path.
+mcv --create --image quay.io/myorg/vllm-cache:v1 \
+    --dir /tmp/vllm --source /tmp/triton \
     --no-gpu
 
 # In container (minimal image) — --create stores the image in the container's

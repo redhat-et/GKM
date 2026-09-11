@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/redhat-et/GKM/mcv/pkg/cache"
 	logging "github.com/sirupsen/logrus"
 )
 
@@ -33,8 +34,8 @@ type dockerBuilder struct{}
 // CreateImage loads a compat cache image into the Docker daemon using Docker
 // Schema 2 media types throughout. BuildKit's docker build path can produce an
 // OCI manifest with Docker layer types, which breaks docker save and kind load.
-func (d *dockerBuilder) CreateImage(imageName, cacheDir string) error {
-	prep, err := prepareBuildContext("docker", cacheDir)
+func (d *dockerBuilder) CreateImage(imageName, cacheDir string, spec ...cache.CaptureSpec) error {
+	prep, err := prepareBuildContext("docker", cacheDir, spec...)
 	if err != nil {
 		return err
 	}

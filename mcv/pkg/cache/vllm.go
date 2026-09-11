@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
@@ -36,6 +37,9 @@ const (
 	// vLLM-specific mounting defaults
 	vllmCacheRootPath       = constants.KServeHome + "/" + constants.VLLMCache
 	vllmCacheRootEnvDefault = constants.VLLMCacheRoot + "=" + vllmCacheRootPath
+
+	// maxLabelBytes is the OCI manifest per-label size limit.
+	maxLabelBytes = 4096
 
 	// Cache format constants
 	BinaryCacheFormat     = "binary"
@@ -65,6 +69,7 @@ type VLLMCache struct {
 	count       int
 	tritonCache *TritonCache
 	allMetadata []VLLMCacheMetadata
+	spec        CaptureSpec
 }
 
 type VLLMCacheMetadata struct {
@@ -173,7 +178,14 @@ func detectAndProcessAOTCache(torchCompileCachePath string) (metadata []VLLMCach
 	return metadata, count
 }
 
-func DetectVLLMCache(cacheDir string) *VLLMCache {
+// DetectVLLMCache looks for a vLLM torch compile cache under cacheDir. An
+// optional CaptureSpec carries extra cache trees captured with it and the path
+// the root should be mounted at when that differs from cacheDir.
+func DetectVLLMCache(cacheDir string, spec ...CaptureSpec) *VLLMCache {
+	var capture CaptureSpec
+	if len(spec) > 0 {
+		capture = spec[0]
+	}
 	found := false
 	var torchCompileCachePath string
 	metadata := []VLLMCacheMetadata{}
@@ -249,6 +261,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 			tritonCache: tc,
 			count:       count,
 			allMetadata: metadata,
+			spec:        capture,
 		}
 	}
 	return nil
@@ -893,13 +906,49 @@ func (v *VLLMCache) Labels() map[string]string {
 				labels[kmCacheMountSubpath] = constants.TorchCompileDir
 			}
 
-			// 4. Cache root environment variable
-			// Format: "VLLM_CACHE_ROOT=/home/kserve/.cache/vllm"
-			labels[kmCacheRootEnv] = vllmCacheRootEnvDefault
+			// 4. Cache root environment variable, stamped with the directory the
+			// cache was captured from so the mount lands where the framework
+			// actually looks (e.g. /tmp/vllm on images that set VLLM_CACHE_ROOT).
+			labels[kmCacheRootEnv] = constants.VLLMCacheRoot + "=" + v.mountRoot()
+		}
+	}
+
+	if mounts := v.extraMounts(); len(mounts) > 0 {
+		raw, err := json.Marshal(mounts)
+		if err != nil {
+			logging.Warnf("Failed to encode %s label: %v", cacheplan.LabelCacheMounts, err)
+		} else if len(raw) > maxLabelBytes {
+			logging.Warnf("Skipping %s label: encoded size %d exceeds %d bytes",
+				cacheplan.LabelCacheMounts, len(raw), maxLabelBytes)
+		} else {
+			labels[cacheplan.LabelCacheMounts] = string(raw)
 		}
 	}
 
 	return labels
+}
+
+// mountRoot returns where the payload root has to be mounted in the serving
+// container: the explicit override, otherwise the directory it was captured
+// from, falling back to the KServe default for synthetic caches.
+func (v *VLLMCache) mountRoot() string {
+	if v.spec.MountAt != "" {
+		return filepath.Clean(v.spec.MountAt)
+	}
+	if v.rootPath != "" {
+		return filepath.Clean(v.rootPath)
+	}
+	return vllmCacheRootPath
+}
+
+// extraMounts describes the extra cache trees staged in the payload next to the
+// primary cache, in capture order.
+func (v *VLLMCache) extraMounts() []cacheplan.Mount {
+	mounts := make([]cacheplan.Mount, 0, len(v.spec.Sources))
+	for _, s := range v.spec.Sources {
+		mounts = append(mounts, s.Mount())
+	}
+	return mounts
 }
 
 func (v *VLLMCache) Metadata() []CacheEntry {

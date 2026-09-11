@@ -32,10 +32,10 @@ type Manifest map[string][]CacheEntry
 type Labels map[string]string
 
 // DetectCaches runs detection logic and returns all valid cache backends found under a root directory
-func DetectCaches(root string) []Cache {
+func DetectCaches(root string, spec ...CaptureSpec) []Cache {
 	var caches []Cache
 
-	if vllm := DetectVLLMCache(root); vllm != nil {
+	if vllm := DetectVLLMCache(root, spec...); vllm != nil {
 		caches = append(caches, vllm)
 	} else if triton := DetectTritonCache(root); triton != nil {
 		caches = append(caches, triton)

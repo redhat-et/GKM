@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containers/buildah"
+	"github.com/redhat-et/GKM/mcv/pkg/cache"
 	logging "github.com/sirupsen/logrus"
 	"go.podman.io/common/pkg/config"
 	is "go.podman.io/image/v5/storage"
@@ -13,8 +14,8 @@ import (
 
 type buildahBuilder struct{}
 
-func (b *buildahBuilder) CreateImage(imageName, cacheDir string) error {
-	prep, err := prepareBuildContext("buildah", cacheDir)
+func (b *buildahBuilder) CreateImage(imageName, cacheDir string, spec ...cache.CaptureSpec) error {
+	prep, err := prepareBuildContext("buildah", cacheDir, spec...)
 	if err != nil {
 		return err
 	}
@@ -75,6 +76,8 @@ func (b *buildahBuilder) CreateImage(imageName, cacheDir string) error {
 	}()
 
 	addOptions := buildah.AddAndCopyOptions{}
+	// Exactly two Add calls (manifest + whole payload, extra trees included) and
+	// Commit(Squash:true) below, so the committed image has a single layer.
 	err = builder.Add(prep.ManifestTag, false, addOptions, prep.ManifestBuildDir+"/.")
 	if err != nil {
 		return fmt.Errorf("error adding manifest %s to builder: %v", prep.ManifestBuildDir, err)

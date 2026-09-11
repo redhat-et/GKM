@@ -16,7 +16,7 @@ func TestDeriveVLLM(t *testing.T) {
 	labels := map[string]string{
 		LabelCacheType:         constants.CacheTypeVLLMTorchCompile,
 		LabelCacheRootEnv:      constants.VLLMCacheRoot + "=" + testVLLMCacheDir,
-		LabelCacheMountSubpath: "torch_compile_cache",
+		LabelCacheMountSubpath: constants.TorchCompileDir,
 		LabelCacheHash:         "abc123",
 	}
 
@@ -33,7 +33,7 @@ func TestDeriveVLLM(t *testing.T) {
 	if plan.MountDir != testVLLMCacheDir {
 		t.Errorf("MountDir: got %q", plan.MountDir)
 	}
-	if plan.SubPath != "torch_compile_cache" {
+	if plan.SubPath != constants.TorchCompileDir {
 		t.Errorf("SubPath: got %q", plan.SubPath)
 	}
 	if plan.PayloadPrefix != constants.MCVVLLMCacheDir {

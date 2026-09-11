@@ -8,9 +8,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/redhat-et/GKM/mcv/pkg/client"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
-	"github.com/redhat-et/GKM/mcv/pkg/imgbuild"
 	"github.com/redhat-et/GKM/mcv/pkg/logformat"
-	"github.com/redhat-et/GKM/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.podman.io/storage/pkg/unshare"
@@ -53,7 +51,8 @@ func logFatal(message string, err error, exitCode int) {
 }
 
 func buildRootCommand() *cobra.Command {
-	var imageName, cacheDirName, logLevel, builder string
+	var imageName, cacheDirName, logLevel, builder, mountAt string
+	var sources []string
 	var createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, versionFlag bool
 	var timeout int
 
@@ -73,11 +72,15 @@ and performing hardware compatibility checks.`,
 				fmt.Printf("mcv version %s\n", version)
 				os.Exit(exitNormal)
 			}
-			handleRunCommand(imageName, cacheDirName, logLevel, builder, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, timeout)
+			handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt, sources, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, timeout)
 		},
 	}
 
 	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &builder, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag, &timeout)
+	cmd.Flags().StringArrayVar(&sources, "source", nil, "Extra cache directory to capture with the vLLM cache (repeatable), "+
+		"e.g. --source /tmp/triton; stored in the same image layer and mounted back at the same path")
+	cmd.Flags().StringVar(&mountAt, "mount-at", "", "Override the path the cache root is mounted at in the serving container "+
+		"(defaults to the --dir path it was captured from)")
 	cmd.Flags().BoolVar(&versionFlag, "version", false, "Display the version of the application")
 	return cmd
 }
@@ -109,18 +112,23 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *st
 	cmd.MarkFlagsMutuallyExclusive("no-gpu", "check-compat")
 }
 
-func handleRunCommand(imageName, cacheDirName, logLevel, builder string, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool, timeout int) {
+func handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt string, sources []string, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool, timeout int) {
 	// Validate flag combinations
 	if err := validateFlagCombinations(createFlag, extractFlag, gpuInfoFlag, checkCompatFlag, imageName, cacheDirName, stubFlag); err != nil {
 		logging.Error(err)
 		os.Exit(exitLogError)
 	}
 
+	if err := validateCaptureFlags(createFlag, mountAt, sources); err != nil {
+		logging.Error(err)
+		os.Exit(exitCreateError)
+	}
+
 	// Configure flags before any operations so --no-gpu works with --create
 	configureBoolFlags(baremetalFlag, noGPUFlag, stubFlag)
 
 	if createFlag {
-		runCreate(imageName, cacheDirName, builder)
+		runCreate(imageName, cacheDirName, builder, mountAt, sources)
 		return
 	}
 
@@ -250,30 +258,23 @@ func configureBoolFlags(baremetalFlag, noGPUFlag, stub bool) {
 	}
 }
 
-func runCreate(imageName, cacheDir, builder string) {
-	// Check if the cache directory exists
-	if _, err := utils.FilePathExists(cacheDir); err != nil {
-		logging.Errorf("Error checking cache file path: %v", err)
-		os.Exit(exitCreateError)
+func validateCaptureFlags(createFlag bool, mountAt string, sources []string) error {
+	if !createFlag && (mountAt != "" || len(sources) > 0) {
+		return fmt.Errorf("--source and --mount-at require --create")
+	}
+	return nil
+}
+
+func runCreate(imageName, cacheDir, builder, mountAt string, sources []string) {
+	opts := client.BuildOptions{
+		ImageName: imageName,
+		CacheDir:  cacheDir,
+		Sources:   sources,
+		MountAt:   mountAt,
+		Builder:   builder,
 	}
 
-	// Initialize the image builder
-	var builderInstance imgbuild.ImageBuilder
-	var err error
-	if builder == "" {
-		// Default to old behavior: auto-detect builder
-		builderInstance, err = imgbuild.New()
-	} else {
-		builderInstance, err = imgbuild.NewWithBuilder(builder)
-	}
-
-	if err != nil {
-		logging.Errorf("Failed to create builder: %v", err)
-		os.Exit(exitCreateError)
-	}
-
-	// Create the OCI image
-	if err := builderInstance.CreateImage(imageName, cacheDir); err != nil {
+	if err := client.BuildCache(opts); err != nil {
 		logging.Errorf("Failed to create the OCI image: %v", err)
 		os.Exit(exitCreateError)
 	}

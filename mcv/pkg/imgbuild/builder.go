@@ -3,6 +3,7 @@ package imgbuild
 import (
 	"fmt"
 
+	"github.com/redhat-et/GKM/mcv/pkg/cache"
 	"github.com/redhat-et/GKM/mcv/pkg/utils"
 	logging "github.com/sirupsen/logrus"
 )
@@ -13,7 +14,7 @@ const (
 )
 
 type ImageBuilder interface {
-	CreateImage(imgName string, cacheDir string) error
+	CreateImage(imgName string, cacheDir string, spec ...cache.CaptureSpec) error
 }
 
 var HasApp = utils.HasApp

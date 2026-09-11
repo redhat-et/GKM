@@ -115,9 +115,11 @@ Flags:
   -i, --image string       OCI image name
   -l, --log-level string   Set the logging verbosity level:
                            debug, info, warning or error
+      --mount-at string    Override the cache root mount path for serving
       --no-gpu             Allow kernel extraction without GPU
-                           present (for testing purposes)
-```
+                            present (for testing purposes)
+      --source stringArray Extra cache directory to capture (repeatable)
+ ```
 
 > NOTE: The create option is a work in progress.
 > For now to create an OCI image containing a GPU Kernel cache directory
@@ -136,6 +138,34 @@ mcv --create --image quay.io/myorg/cache:v1 --dir /path/to/cache --no-gpu
 # Extract cache without GPU validation
 mcv --extract --image quay.io/myorg/cache:v1 --dir /path/to/cache --no-gpu
 ```
+
+### Capturing caches outside VLLM_CACHE_ROOT
+
+Modern vLLM builds select the standalone Inductor adaptor, which leaves the Triton
+JIT cache wherever `TRITON_CACHE_DIR` points (often `/tmp/triton`) instead of under
+`VLLM_CACHE_ROOT`. Capturing only the vLLM root therefore leaves most of a cold
+start uncached, and the Triton cache is not path-relocatable because its group
+files record absolute kernel paths.
+
+Capture those trees with `--source`; each one is stored in the same image layer and
+recorded with the path it must reappear at:
+
+```bash
+mcv --create --image quay.io/myorg/cache:v1 \
+  --dir /tmp/vllm --source /tmp/triton --no-gpu
+```
+
+The resulting image carries `VLLM_CACHE_ROOT=/tmp/vllm` in
+`io.kserve.km/cache-root-env` (the directory it was captured from, not a fixed
+default) plus a JSON `io.kserve.km/cache-mounts` label listing the extra trees:
+
+```json
+[{"subPath":"triton","absPath":"/tmp/triton","env":"TRITON_CACHE_DIR","requiresWritable":true}]
+```
+
+`requiresWritable` matters: a read-only Triton tree does not silently fall back to
+compiling, it fails with `PermissionError` when Triton stores a miss. `mcv extract`
+writes every tree under `--dir` and logs where each one is expected to live.
 
 **Container Images:**
 
@@ -478,32 +508,89 @@ Pushing signature to: quay.io/gkm/cache-examples
 
 ## MCV Client API
 
+### Capturing a Cache, Including the Triton Directory
+
+`BuildCache` packs a cache root plus any number of extra trees into one image
+layer. Current vLLM builds keep the Triton JIT cache at `TRITON_CACHE_DIR` rather
+than under `VLLM_CACHE_ROOT`, so capturing only the root leaves that tree behind:
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/redhat-et/GKM/mcv/pkg/client"
+)
+
+func main() {
+	err := client.BuildCache(client.BuildOptions{
+		ImageName: "quay.io/myorg/llama3-cache:v1",
+		CacheDir:  "/tmp/vllm",   // VLLM_CACHE_ROOT: the dir containing torch_compile_cache
+		Sources:   []string{"/tmp/triton"},
+		Builder:   "",            // "" auto-detects buildah or docker
+	})
+	if err != nil {
+		log.Fatalf("capture failed: %v", err)
+	}
+}
+```
+
+Each source is recorded with the path it was given, and the image's
+`io.kserve.km/cache-root-env` carries `CacheDir` (or `MountAt` when the serving
+container uses a different path).
+
+### Reading the Mount Plan
+
+`InspectCachePlan` returns every directory an image expects to be restored to,
+primary cache root first, so callers that build pod specs can mount each tree
+themselves:
+
+```go
+plan, err := client.InspectCachePlan("quay.io/myorg/llama3-cache:v1")
+if err != nil {
+	if client.IsUnsupportedCacheType(err) {
+		log.Print("image has no serving plan")
+	}
+	log.Fatalf("inspect failed: %v", err)
+}
+
+for _, m := range plan.Mounts {
+	// m.SubPath is inside the payload prefix, m.AbsPath is where it belongs in
+	// the container, m.Env points the framework at it, and m.RequiresWritable
+	// means a read-only mount would fail rather than fall back to compiling.
+	log.Printf("mount %s at %s (env %s, writable=%t)", m.SubPath, m.AbsPath, m.Env, m.RequiresWritable)
+}
+```
+
 ### Extracting a Cache from a Container Image
 
 An example snippet of how to use the client API to extract a Cache from a
 container image is shown below.
 
 ```go
-import (
-    "github.com/redhat-et/GKM/mcv/pkg/client"
-)
-
 package main
 
 import (
-    "github.com/redhat-et/GKM/mcv/pkg/client"
+	"log"
+
+	"github.com/redhat-et/GKM/mcv/pkg/client"
 )
 
 func main() {
-    err := client.ExtractCache(client.Options{
-        ImageName:       "quay.io/gkm/cache-examples:vector-add-cache-cuda",
-        CacheDir:        "/tmp/testcache",
-        LogLevel:        "debug",
-        EnableBaremetal: nil, // or false if explicitly desired
-    })
-    if err != nil {
-        panic(err)
-    }
+	_, _, err := client.ExtractCache(client.Options{
+		ImageName:       "quay.io/gkm/cache-examples:vector-add-cache-cuda",
+		CacheDir:        "/tmp/testcache",
+		LogLevel:        "debug",
+		EnableBaremetal: nil, // or false if explicitly desired
+
+		// Extra trees land in CacheDir/<subpath> by default. Set this to move
+		// them to the absolute paths recorded in the image instead.
+		PlaceExtraTrees: false,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
