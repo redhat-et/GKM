@@ -18,7 +18,7 @@
 
 set -uo pipefail
 
-SANDBOX=${SANDBOX:-/tmp/mcv-cache-verify}
+SANDBOX=${SANDBOX:-$(mktemp -d "${TMPDIR:-/tmp}/mcv-cache-verify.XXXXXX")}
 SKIP_GPU=${SKIP_GPU:-0}
 REPORT="$SANDBOX/report.txt"
 PY=${PYTHON:-$(command -v python3 || command -v python || true)}
@@ -332,6 +332,8 @@ if printf '%s' "$a1" | grep -q "Traceback"; then
     verdict "triton-autotune-cache" "INCONCLUSIVE" "probe failed to compile; raw output above"
 elif printf '%s' "$s_after" | grep -q "autotune_files=0"; then
     verdict "triton-autotune-cache" "INCONCLUSIVE" "no autotune.json written; probe never autotuned"
+elif ! printf '%s' "$a3" | grep -q "first_call_s="; then
+    verdict "triton-autotune-cache" "INCONCLUSIVE" "relocated probe produced no usable result: ${a3:-<no output>}"
 elif [ "$s_before" = "$s_after" ]; then
     verdict "triton-autotune-cache" "PORTABLE" "get_file() path is recomputed from TRITON_CACHE_DIR; json neither replaced nor rewritten"
 else
@@ -428,6 +430,8 @@ elif [ "$f_before" != "$f_after" ]; then
     verdict "inductor-cache" "NOT-PORTABLE" "no hit counters but the tree grew by $((f_after - f_before)) files"
 elif printf '%s' "$i3" | grep -q "fx_hit=0 " && [ "$f_fresh" = "$f_after" ]; then
     verdict "inductor-cache" "INCONCLUSIVE" "no counters and no growth; both runs may have been in-process no-ops"
+elif ! printf '%s' "$i3" | grep -qE "fx_hit=[1-9]"; then
+    verdict "inductor-cache" "INCONCLUSIVE" "no affirmative inductor cache hit on the relocated run; cannot claim PORTABLE"
 else
     verdict "inductor-cache" "PORTABLE" "hit counters moved with the tree and nothing was rewritten"
 fi

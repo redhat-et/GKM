@@ -21,7 +21,7 @@ type Cache interface {
 	CacheSizeBytes() int64
 	Summary() string
 	Metadata() []CacheEntry
-	Labels() map[string]string
+	Labels() (map[string]string, error)
 	ManifestTag() string
 	CacheTag() string
 	SetTmpPath(path string)
@@ -46,15 +46,23 @@ func DetectCaches(root string, spec ...CaptureSpec) []Cache {
 	return caches
 }
 
-// BuildLabels combines label maps from all caches into a single set of image labels
-func BuildLabels(caches []Cache) Labels {
+// BuildLabels combines label maps from all caches into a single set of image labels.
+// A cache that cannot render its labels (for example extra cache trees whose mount
+// metadata does not fit one label) aborts the build rather than contributing a
+// partial label set, since an image carrying those trees without their mount
+// metadata would restore them nowhere.
+func BuildLabels(caches []Cache) (Labels, error) {
 	result := make(Labels)
 	for _, c := range caches {
-		for k, v := range c.Labels() {
+		labels, err := c.Labels()
+		if err != nil {
+			return nil, fmt.Errorf("%s cache: %w", c.Name(), err)
+		}
+		for k, v := range labels {
 			result[k] = v
 		}
 	}
-	return result
+	return result, nil
 }
 
 // BuildManifest collects all cache metadata grouped by backend name

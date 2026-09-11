@@ -789,7 +789,7 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 	return &Summary{Targets: targets}, nil
 }
 
-func (v *VLLMCache) Labels() map[string]string {
+func (v *VLLMCache) Labels() (map[string]string, error) {
 	// Determine the cache format(s) from metadata
 	// Collect all unique formats present
 	formatSet := make(map[string]bool)
@@ -910,18 +910,21 @@ func (v *VLLMCache) Labels() map[string]string {
 		}
 	}
 
-	// An image that carries extra trees but not the label describing them would
-	// restore those trees nowhere, so the label is stamped even when oversized and
-	// the image tooling rejects it. CaptureSpec.Validate rejects this earlier.
+	// An image that carries extra trees without the label describing them would
+	// restore those trees nowhere, so an unrepresentable mount label has to abort
+	// the build rather than ship a payload whose mount metadata was dropped or
+	// truncated. This mirrors the earlier CaptureSpec.Validate gate as a final
+	// line of defense so image generation can never emit extra trees with no way
+	// to remount them.
 	raw, err := MountsLabel(v.spec.Sources)
+	if err != nil {
+		return nil, err
+	}
 	if raw != "" {
-		if err != nil {
-			logging.Errorf("Capture cannot ship the payload without its mount metadata: %v", err)
-		}
 		labels[cacheplan.LabelCacheMounts] = raw
 	}
 
-	return labels
+	return labels, nil
 }
 
 // mountRoot returns where the payload root has to be mounted in the serving

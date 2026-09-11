@@ -41,6 +41,15 @@ MOUNTS=(-v "$HOST_CACHE:$NEWROOT:Z")
 # shellcheck disable=SC2206
 [ -n "${EXTRA_PODMAN_ARGS:-}" ] && read -r -a extra <<<"$EXTRA_PODMAN_ARGS" && MOUNTS+=("${extra[@]}")
 
+# Keep the HF token off the command line (visible in `ps`): podman's `-e VAR`
+# pass-through reads it from the environment instead of embedding its value as
+# an argument, so export it and add the bare name only when it is actually set.
+podman_env=(--env "VLLM_CACHE_ROOT=$NEWROOT")
+if [ -n "${HUGGING_FACE_HUB_TOKEN:-}" ]; then
+    export HUGGING_FACE_HUB_TOKEN
+    podman_env+=(--env HUGGING_FACE_HUB_TOKEN)
+fi
+
 printf 'starting %s with VLLM_CACHE_ROOT=%s (cache captured elsewhere)\n' \
     "$IMAGE" "$NEWROOT"
 
@@ -51,8 +60,7 @@ timeout "$WAIT" podman run --rm \
     --shm-size=4g \
     --userns=keep-id:uid=1001 \
     "${MOUNTS[@]}" \
-    --env "VLLM_CACHE_ROOT=$NEWROOT" \
-    ${HUGGING_FACE_HUB_TOKEN:+--env "HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN"} \
+    "${podman_env[@]}" \
     "$IMAGE" \
     --model "$MODEL" --max-model-len 2048 >"$LOG" 2>&1 &
 pid=$!

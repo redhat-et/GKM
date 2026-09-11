@@ -71,7 +71,11 @@ func DetectSourceTrees(paths []string) ([]SourceTree, error) {
 	used := map[string]bool{constants.TorchCompileDir: true}
 
 	for _, p := range paths {
-		abs, err := filepath.Abs(strings.TrimSpace(p))
+		trimmed := strings.TrimSpace(p)
+		if trimmed == "" {
+			return nil, fmt.Errorf("invalid source path %q: path is empty", p)
+		}
+		abs, err := filepath.Abs(trimmed)
 		if err != nil {
 			return nil, fmt.Errorf("invalid source path %q: %w", p, err)
 		}

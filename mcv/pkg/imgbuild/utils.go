@@ -55,7 +55,7 @@ func GenerateDockerfile(imageName, cacheDir, manifestDir, outputPath string) err
 	return nil
 }
 
-func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) (*buildContext, error) {
+func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) (_ *buildContext, err error) {
 	var capture cache.CaptureSpec
 	if len(spec) > 0 {
 		capture = spec[0]
@@ -81,6 +81,17 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 
 	cacheBuildDir := filepath.Join(buildRoot, cacheTag)
 	manifestBuildDir := filepath.Join(buildRoot, manifestTag)
+
+	// The build root is a fixed path, so a failed staging run must not leave
+	// partial trees behind: the next attempt would copy into them and could
+	// silently reuse stale content. Remove both staging roots on every error
+	// return after this point; the success path returns them to the caller,
+	// which cleans them up once the image is committed.
+	defer func() {
+		if err != nil {
+			CleanupDirs(cacheBuildDir, manifestBuildDir)
+		}
+	}()
 
 	if err := os.MkdirAll(cacheBuildDir, 0755); err != nil {
 		return nil, err
@@ -108,7 +119,10 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 
 	cache.SetCachesBuildDir(caches, cacheBuildDir)
 
-	labels := cache.BuildLabels(caches)
+	labels, err := cache.BuildLabels(caches)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build image labels: %w", err)
+	}
 	manifest := cache.BuildManifest(caches)
 	manifestPath := filepath.Join(manifestBuildDir, "manifest.json")
 

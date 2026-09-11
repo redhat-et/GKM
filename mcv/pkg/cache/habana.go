@@ -155,7 +155,7 @@ func (h *HabanaCache) Metadata() []CacheEntry {
 	return entries
 }
 
-func (h *HabanaCache) Labels() map[string]string {
+func (h *HabanaCache) Labels() (map[string]string, error) {
 	// Build the cache-root-env label from the shared cacheplan helper so the
 	// label MCV stamps here is byte-identical to the env cacheplan derives on the
 	// consume side (PT_HPU_RECIPE_CACHE_CONFIG=<dir>,false,<size>).
@@ -180,7 +180,7 @@ func (h *HabanaCache) Labels() map[string]string {
 		cacheplan.LabelCacheRootEnv:      rootEnv,
 		cacheplan.LabelCacheMountSubpath: ".",
 	}
-	return labels
+	return labels, nil
 }
 
 func (h *HabanaCache) ManifestTag() string {

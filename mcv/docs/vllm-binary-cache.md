@@ -627,10 +627,14 @@ ls -la ~/vllm-qwen-cache/vllm/torch_compile_cache/
 # Should show hash directories (e.g., fe20897a43/)
 
 # Optional: also capture the Triton JIT cache when it lives outside the vLLM
-# root. Check where the container actually writes it before assuming a path:
-#   podman exec vllm-server printenv TRITON_CACHE_DIR VLLM_CACHE_ROOT
+# root. Read the container's real path instead of assuming one, and reuse that
+# value for the --source argument below so the path the image records is exactly
+# where the serving container looks (TRITON_CACHE_DIR).
+TRITON_DIR=$(sudo podman exec vllm-server printenv TRITON_CACHE_DIR)
+TRITON_DIR=${TRITON_DIR:-/root/.triton}   # fall back only when the env is unset
+echo "container TRITON_CACHE_DIR=$TRITON_DIR"
 # Keep the same relative layout so the tree can return to its original path.
-sudo podman cp vllm-server:/root/.triton ~/vllm-qwen-cache/triton
+sudo podman cp "vllm-server:${TRITON_DIR}" ~/vllm-qwen-cache/triton
 ```
 
 ### Step 4: Build Cache Image with MCV
@@ -661,14 +665,18 @@ trees, so build in a container that mounts the copied tree at the path the
 serving container will read (`TRITON_CACHE_DIR`):
 
 ```bash
-# Serving container uses VLLM_CACHE_ROOT=/root/.cache/vllm and
-# TRITON_CACHE_DIR=/root/.triton, so mount the copies at those paths.
+# Mount each copy at the path the serving container reads: the vLLM root at
+# /root/.cache/vllm and Triton at the TRITON_DIR discovered in Step 3. --source
+# records exactly that path, so the tree is restored where TRITON_CACHE_DIR
+# points. Reusing TRITON_DIR here keeps the recorded source path identical to
+# the directory that was captured (it defaults to the same value if unset).
+TRITON_DIR=${TRITON_DIR:-/root/.triton}
 podman run --rm \
   -v ~/vllm-qwen-cache/vllm:/root/.cache/vllm:ro \
-  -v ~/vllm-qwen-cache/triton:/root/.triton:ro \
+  -v ~/vllm-qwen-cache/triton:"${TRITON_DIR}":ro \
   quay.io/gkm/mcv:unified \
   --create --image quay.io/myorg/vllm-qwen-cache:v1 \
-  --dir /root/.cache/vllm --source /root/.triton --no-gpu
+  --dir /root/.cache/vllm --source "${TRITON_DIR}" --no-gpu
 
 # Building on the host instead, --mount-at corrects the primary root only:
 #     --dir ~/vllm-qwen-cache/vllm --mount-at /root/.cache/vllm

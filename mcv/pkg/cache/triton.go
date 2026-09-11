@@ -163,12 +163,12 @@ func (t *TritonCache) Summary() string {
 	return string(jsonData)
 }
 
-func (t *TritonCache) Labels() map[string]string {
+func (t *TritonCache) Labels() (map[string]string, error) {
 	return map[string]string{
 		"cache.triton.image/entry-count":      strconv.Itoa(t.EntryCount()),
 		"cache.triton.image/summary":          t.Summary(),
 		"cache.triton.image/cache-size-bytes": strconv.FormatInt(t.CacheSizeBytes(), 10),
-	}
+	}, nil
 }
 
 func (t *TritonCache) Metadata() []CacheEntry {

@@ -119,7 +119,8 @@ func TestVLLMCache_ExtraMountsLabelRoundTrips(t *testing.T) {
 		t.FailNow()
 	}
 
-	labels := got.Labels()
+	labels, err := got.Labels()
+	must(t, err)
 	assert.Equal(t, constants.VLLMCacheRoot+"="+cacheDir, labels[kmCacheRootEnv],
 		"the mount must land where the cache was captured from, not the KServe default")
 
@@ -160,7 +161,8 @@ func TestVLLMCache_MountAtOverridesCapturedRoot(t *testing.T) {
 		t.FailNow()
 	}
 
-	labels := got.Labels()
+	labels, err := got.Labels()
+	must(t, err)
 	assert.Equal(t, constants.VLLMCacheRoot+"=/tmp/vllm", labels[kmCacheRootEnv])
 	_, ok := labels[cacheplan.LabelCacheMounts]
 	assert.False(t, ok, "no extra trees means no cache-mounts label")

@@ -227,10 +227,12 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) { //
 	}
 
 	if opts.PlaceExtraTrees {
+		// Relocation is opt-in and writes outside CacheDir, so it is all-or-error:
+		// a failure to read the plan or to place any declared tree is surfaced
+		// rather than leaving a half-relocated serving layout behind.
 		labels, err := InspectCacheImage(opts.ImageName)
 		if err != nil {
-			logging.Warnf("Cannot place extra cache trees without image labels: %v", err)
-			return matchedIDs, unmatchedIDs, nil
+			return matchedIDs, unmatchedIDs, fmt.Errorf("cannot place extra cache trees without image labels: %w", err)
 		}
 		if err := placeExtraTrees(labels, constants.ExtractCacheDir); err != nil {
 			return matchedIDs, unmatchedIDs, err
@@ -241,7 +243,10 @@ func ExtractCache(opts Options) (matchedIDs, unmatchedIDs []int, err error) { //
 }
 
 // placeExtraTrees relocates extra payload subtrees, extracted flat under
-// fromRoot, to the absolute paths recorded in the image labels.
+// fromRoot, to the absolute paths recorded in the image labels. It is all-or-
+// error: every declared tree is verified present and every destination free
+// before the first move, so a mismatch fails without stranding some trees in
+// CacheDir and placing others at their recorded paths.
 func placeExtraTrees(labels map[string]string, fromRoot string) error {
 	plan, err := cacheplan.Derive(labels)
 	if err != nil {
@@ -252,14 +257,35 @@ func placeExtraTrees(labels map[string]string, fromRoot string) error {
 		return err
 	}
 
-	for i := 1; i < len(plan.Mounts); i++ {
-		m := plan.Mounts[i]
+	extra := plan.Mounts[1:]
+
+	// Validation pass: an image that declares extra trees has to actually carry
+	// them, and no destination may already be occupied. A tree already sitting at
+	// its recorded path is a no-op, so it is skipped rather than inspected.
+	for _, m := range extra {
 		src := filepath.Join(fromRoot, m.SubPath)
-		info, err := os.Stat(src)
-		if err != nil || !info.IsDir() {
-			logging.Warnf("Extra cache tree %q not found under %s; leaving extraction as is", m.SubPath, fromRoot)
+		if src == m.AbsPath {
 			continue
 		}
+		info, err := os.Stat(src)
+		if err != nil {
+			return fmt.Errorf("declared extra cache tree %q is missing under %s: %w", m.SubPath, fromRoot, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("declared extra cache tree %q under %s is not a directory", m.SubPath, fromRoot)
+		}
+		if entries, err := os.ReadDir(m.AbsPath); err == nil && len(entries) > 0 {
+			return fmt.Errorf("destination %s already holds %d entries; clear it before placing cache tree %s",
+				m.AbsPath, len(entries), src)
+		} else if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("cannot inspect %s: %w", m.AbsPath, err)
+		}
+	}
+
+	// Move pass: every tree cleared validation above, so a failure here is
+	// exceptional and aborts before any later tree is attempted.
+	for _, m := range extra {
+		src := filepath.Join(fromRoot, m.SubPath)
 		if err := placeTree(src, m.AbsPath); err != nil {
 			return err
 		}
@@ -272,6 +298,12 @@ func placeExtraTrees(labels map[string]string, fromRoot string) error {
 // destination is reported rather than overwritten, because two trees claiming
 // the same path indicate a capture/serving mismatch the operator must resolve.
 func placeTree(src, dst string) error {
+	if src == dst {
+		// Already at its recorded path: treat as successfully placed rather than
+		// reading the destination, which would see the source's own contents and
+		// report a self-collision.
+		return nil
+	}
 	if entries, err := os.ReadDir(dst); err == nil && len(entries) > 0 {
 		return fmt.Errorf("destination %s already holds %d entries; clear it before placing cache tree %s",
 			dst, len(entries), src)

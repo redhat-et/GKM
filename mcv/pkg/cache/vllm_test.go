@@ -81,7 +81,8 @@ func TestDetectVLLMCache_MegaAOTSingleRank(t *testing.T) {
 
 	// Labels flag the cache as binary format, matching existing manifest
 	// consumers and the preflight check.
-	labels := got.Labels()
+	labels, err := got.Labels()
+	must(t, err)
 	assert.Equal(t, BinaryCacheFormat, labels[cacheVLLMImageFormat])
 	assert.Equal(t, "1", labels[cacheVLLMImageEntryCount])
 }
@@ -149,7 +150,8 @@ func TestVLLMCache_GenericMountingLabels(t *testing.T) {
 	got := DetectVLLMCache(cacheDir)
 	assert.NotNil(t, got)
 
-	labels := got.Labels()
+	labels, err := got.Labels()
+	must(t, err)
 
 	// Verify the 5 generic mounting labels for KServe Kernel Manager integration
 	assert.Equal(t, constants.VLLM, labels[kmFramework], "framework label should be 'vllm'")
@@ -181,7 +183,8 @@ func TestVLLMCache_GenericMountingLabels_MultipleHashes(t *testing.T) {
 	got := DetectVLLMCache(cacheDir)
 	assert.NotNil(t, got)
 
-	labels := got.Labels()
+	labels, err := got.Labels()
+	must(t, err)
 
 	// Verify framework and cache-type labels
 	assert.Equal(t, constants.VLLM, labels[kmFramework])
@@ -252,7 +255,8 @@ func TestVLLMCache_AOTCompileFormat_CorrectMountSubpath(t *testing.T) {
 	assert.Len(t, entry.BinaryCacheEntries, 1)
 	assert.Equal(t, megaAOTSaveFormat, entry.BinaryCacheEntries[0].CacheSaveFormat)
 
-	labels := got.Labels()
+	labels, err := got.Labels()
+	must(t, err)
 
 	// Verify framework and cache-type labels
 	assert.Equal(t, constants.VLLM, labels[kmFramework])
@@ -298,7 +302,8 @@ func TestVLLMCache_FirstMetadataWithEmptyHash(t *testing.T) {
 		},
 	}
 
-	labels := cache.Labels()
+	labels, err := cache.Labels()
+	must(t, err)
 
 	// Verify hashes[0] is megaAOTHash (not empty)
 	assert.Equal(t, megaAOTHash, labels[kmCacheHash])

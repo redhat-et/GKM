@@ -154,7 +154,8 @@ func TestHabanaLabels(t *testing.T) {
 		},
 	}
 
-	labels := h.Labels()
+	labels, err := h.Labels()
+	must(t, err)
 
 	// The cache-root-env label must carry the full PT_HPU_RECIPE_CACHE_CONFIG
 	// value (name, dir, and the ",false,8192" tunables), not just the env name.
