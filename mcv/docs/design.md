@@ -79,18 +79,23 @@ See [spec-compat.md](./spec-compat.md) for the full compat specification.
 
 | Label                             | Description                                                     |
 |-----------------------------------|-----------------------------------------------------------------|
-| `io.kserve.km/framework`          | Framework that produced the cache                               |
+| `io.kserve.km/framework`          | Framework that produced the cache (`vllm`, `habana`, …)         |
 | `io.kserve.km/cache-type`         | Cache type (`torch-compile`, `habana-recipe`)                   |
-| `io.kserve.km/cache-hash`         | Cached kernel hash(es)                                          |
-| `io.kserve.km/cache-mount-subpath`| Payload subpath backing the primary mount                        |
+| `io.kserve.km/cache-hash`         | Cached kernel hash(es); omitted when no hash directory was detected |
+| `io.kserve.km/cache-mount-subpath`| Payload subpath backing the primary mount (always set with vLLM/Habana metadata) |
 | `io.kserve.km/cache-root-env`     | Cache root env var captured from, e.g. `VLLM_CACHE_ROOT=/tmp/vllm` |
 | `io.kserve.km/cache-mounts`       | JSON extra trees from `--source`: subpath, absolute path, env, writable |
 
 The mount path in `cache-root-env` is the directory the cache was captured from,
 so out-of-band captures (for example an image that runs vLLM with
 `VLLM_CACHE_ROOT=/tmp/vllm`) restore to the path the framework actually reads.
-`pkg/cacheplan` decodes these labels into a typed `CachePlan` whose `Mounts`
-field lists every directory to populate, primary first.
+Consumers mount each payload subtree with a **single volume** and one
+`volumeMount` per `CachePlan.Mounts` entry: `subPath` selects the directory
+inside the extracted payload, `mountPath` is the label's `absPath` (primary
+mount: `VLLM_CACHE_ROOT`, extras: e.g. `/tmp/triton`), and `readOnly` must be
+false when `requiresWritable` is true. `pkg/cacheplan` decodes these labels into
+a typed `CachePlan` whose `Mounts` field lists every directory to populate,
+primary first.
 
 See [spec-compat.md](./spec-compat.md) for the full contract.
 

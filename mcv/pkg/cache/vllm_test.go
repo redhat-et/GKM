@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -171,6 +172,62 @@ func TestVLLMCache_GenericMountingLabels(t *testing.T) {
 	// Verify existing labels still present
 	assert.Equal(t, BinaryCacheFormat, labels[cacheVLLMImageFormat])
 	assert.Equal(t, "1", labels[cacheVLLMImageEntryCount])
+}
+
+func TestVLLMCache_KMMountLabelsWithoutHash(t *testing.T) {
+	cacheDir := t.TempDir()
+	v := &VLLMCache{
+		rootPath: cacheDir,
+		count:    1,
+		allMetadata: []VLLMCacheMetadata{{
+			CacheFormat: AOTCompileCacheFormat,
+		}},
+	}
+
+	labels, err := v.Labels()
+	must(t, err)
+
+	assert.Equal(t, constants.VLLM, labels[kmFramework])
+	assert.Equal(t, constants.CacheTypeVLLMTorchCompile, labels[kmCacheType])
+	assert.NotContains(t, labels, kmCacheHash, "omit cache-hash when no hash directories were detected")
+	expectedSubpath := filepath.Join(constants.TorchCompileDir, torchAOTCompileDirName)
+	assert.Equal(t, expectedSubpath, labels[kmCacheMountSubpath])
+	assert.Equal(t, constants.VLLMCacheRoot+"="+cacheDir, labels[kmCacheRootEnv])
+
+	plan, err := cacheplan.Derive(labels)
+	must(t, err)
+	assert.Len(t, plan.Mounts, 1)
+	assert.Equal(t, expectedSubpath, plan.Mounts[0].SubPath)
+}
+
+func TestVLLMCache_LabelsDeriveRoundTrip(t *testing.T) {
+	cacheDir := t.TempDir()
+	newMegaAOTCache(t, cacheDir, []string{testRank00})
+
+	got := DetectVLLMCache(cacheDir)
+	assert.NotNil(t, got)
+
+	labels, err := got.Labels()
+	must(t, err)
+
+	for _, key := range []string{
+		kmFramework,
+		kmCacheType,
+		kmCacheHash,
+		kmCacheMountSubpath,
+		kmCacheRootEnv,
+		cacheVLLMImageSummary,
+	} {
+		if !assert.NotEmpty(t, labels[key], "label %q must be set", key) {
+			t.FailNow()
+		}
+	}
+
+	plan, err := cacheplan.Derive(labels)
+	must(t, err)
+	assert.Equal(t, constants.CacheTypeVLLMTorchCompile, plan.CacheType)
+	assert.NotEmpty(t, plan.Mounts[0].SubPath)
+	assert.NotEmpty(t, plan.Mounts[0].AbsPath)
 }
 
 func TestVLLMCache_GenericMountingLabels_MultipleHashes(t *testing.T) {

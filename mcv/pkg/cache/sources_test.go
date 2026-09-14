@@ -144,6 +144,9 @@ func TestVLLMCache_ExtraMountsLabelRoundTrips(t *testing.T) {
 	if !assert.Len(t, plan.Mounts, 2, "primary root plus the Triton tree") {
 		t.FailNow()
 	}
+	for _, key := range []string{kmFramework, kmCacheType, kmCacheMountSubpath, kmCacheRootEnv} {
+		assert.NotEmpty(t, labels[key], "label %q must be set", key)
+	}
 	assert.Equal(t, cacheDir, plan.Mounts[0].AbsPath)
 	assert.Equal(t, constants.VLLMCacheRoot, plan.Mounts[0].Env)
 	assert.False(t, plan.Mounts[0].RequiresWritable)

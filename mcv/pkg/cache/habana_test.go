@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
+	"github.com/redhat-et/GKM/mcv/pkg/constants"
 )
 
 const (
@@ -168,6 +171,15 @@ func TestHabanaLabels(t *testing.T) {
 	}
 	if got := labels["io.kserve.km/cache-mount-subpath"]; got != "." {
 		t.Errorf("cache-mount-subpath: got %q, want %q", got, ".")
+	}
+	if got := labels["io.kserve.km/framework"]; got != constants.Habana {
+		t.Errorf("framework: got %q, want %q", got, constants.Habana)
+	}
+
+	plan, err := cacheplan.Derive(labels)
+	must(t, err)
+	if plan.CacheType != constants.CacheTypeHabanaRecipe {
+		t.Errorf("cache type: got %q", plan.CacheType)
 	}
 }
 

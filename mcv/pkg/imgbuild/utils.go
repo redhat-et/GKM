@@ -55,13 +55,13 @@ func GenerateDockerfile(imageName, cacheDir, manifestDir, outputPath string) err
 	return nil
 }
 
-func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) (_ *buildContext, err error) {
+func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) (*buildContext, error) {
 	var capture cache.CaptureSpec
 	if len(spec) > 0 {
 		capture = spec[0]
 	}
-	if err := capture.Validate(cacheDir); err != nil {
-		return nil, err
+	if validateErr := capture.Validate(cacheDir); validateErr != nil {
+		return nil, validateErr
 	}
 
 	caches := cache.DetectCaches(cacheDir, spec...)
@@ -70,9 +70,9 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 	}
 	logging.Infof("Detected cache components: %v", cache.CacheTypes(caches))
 
-	manifestTag, cacheTag, err := cache.GetTagsFromCaches(caches)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving manifest/cache tags: %v", err)
+	manifestTag, cacheTag, tagErr := cache.GetTagsFromCaches(caches)
+	if tagErr != nil {
+		return nil, fmt.Errorf("error retrieving manifest/cache tags: %v", tagErr)
 	}
 	logging.Debugf("manifestTag: %s", manifestTag)
 	logging.Debugf("cacheTag: %s", cacheTag)
@@ -87,23 +87,27 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 	// silently reuse stale content. Remove both staging roots on every error
 	// return after this point; the success path returns them to the caller,
 	// which cleans them up once the image is committed.
+	var stagingErr error
 	defer func() {
-		if err != nil {
+		if stagingErr != nil {
 			CleanupDirs(cacheBuildDir, manifestBuildDir)
 		}
 	}()
 
 	if err := os.MkdirAll(cacheBuildDir, 0755); err != nil {
+		stagingErr = err
 		return nil, err
 	}
 	logging.Debugf("cache build dir: %s", cacheBuildDir)
 
 	if err := os.MkdirAll(manifestBuildDir, 0755); err != nil {
+		stagingErr = err
 		return nil, err
 	}
 	logging.Debugf("manifest build dir: %s", manifestBuildDir)
 
 	if err := cache.CopyDir(cacheDir, cacheBuildDir); err != nil {
+		stagingErr = err
 		return nil, fmt.Errorf("error copying contents: %v", err)
 	}
 
@@ -113,6 +117,7 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 	for _, src := range specSources(spec) {
 		dest := filepath.Join(cacheBuildDir, src.PayloadName)
 		if err := cache.CopyDir(src.AbsPath, dest); err != nil {
+			stagingErr = err
 			return nil, fmt.Errorf("error copying extra cache tree %s: %w", src.AbsPath, err)
 		}
 	}
@@ -121,12 +126,14 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 
 	labels, err := cache.BuildLabels(caches)
 	if err != nil {
+		stagingErr = err
 		return nil, fmt.Errorf("failed to build image labels: %w", err)
 	}
 	manifest := cache.BuildManifest(caches)
 	manifestPath := filepath.Join(manifestBuildDir, "manifest.json")
 
 	if err := cache.WriteManifest(manifestPath, manifest); err != nil {
+		stagingErr = err
 		return nil, fmt.Errorf("failed to write manifest: %w", err)
 	}
 

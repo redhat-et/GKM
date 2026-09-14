@@ -175,7 +175,7 @@ func (h *HabanaCache) Labels() (map[string]string, error) {
 		cacheHabanaImageCacheSize:  strconv.FormatInt(h.CacheSizeBytes(), 10),
 		cacheHabanaImageSummary:    h.Summary(),
 
-		cacheplan.LabelFramework:         constants.VLLM,
+		cacheplan.LabelFramework:         constants.Habana,
 		cacheplan.LabelCacheType:         constants.CacheTypeHabanaRecipe,
 		cacheplan.LabelCacheRootEnv:      rootEnv,
 		cacheplan.LabelCacheMountSubpath: ".",

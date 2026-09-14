@@ -282,10 +282,14 @@ following labels:
   "io.kserve.km/cache-type": "torch-compile",
   "io.kserve.km/cache-hash": "fe20897a43...",
   "io.kserve.km/cache-mount-subpath": "torch_compile_cache/torch_aot_compile",
-  "io.kserve.km/cache-root-env": "VLLM_CACHE_ROOT=/root/.cache/vllm",
-  "io.kserve.km/cache-mounts": "[{\"subPath\":\"triton\",\"absPath\":\"/root/.triton\",\"env\":\"TRITON_CACHE_DIR\",\"requiresWritable\":true}]"
+  "io.kserve.km/cache-root-env": "VLLM_CACHE_ROOT=/tmp/vllm",
+  "io.kserve.km/cache-mounts": "[{\"subPath\":\"triton\",\"absPath\":\"/tmp/triton\",\"env\":\"TRITON_CACHE_DIR\",\"requiresWritable\":true}]"
 }
 ```
+
+(`absPath` values reflect **where the tree was captured**, not a fixed path
+inside every serving image. Use `--mount-at` when the workload uses a different
+`VLLM_CACHE_ROOT`.)
 
 **Label Descriptions:**
 
@@ -295,7 +299,9 @@ following labels:
 - `summary`: Hardware target information (JSON)
 - `io.kserve.km/*`: mounting hints for the KServe Kernel Manager; the root env
   carries the directory the cache was captured from, and `cache-mounts` is
-  present only when extra trees were captured with `--source`
+  present only when extra trees were captured with `--source`. `cache-hash` is
+  omitted when no hash directory was detected; `cache-mount-subpath` and
+  `cache-root-env` are still stamped whenever vLLM metadata is present.
 
 ### Manifest Structure
 
