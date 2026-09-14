@@ -44,6 +44,12 @@ const (
 	// enough to restore a warm container. Images without extra trees omit it, and
 	// consumers that do not understand it still act on the primary mount.
 	LabelCacheMounts = constants.KMPrefix + "/cache-mounts"
+
+	// LabelSplitCacheCapture is "true" when the image was built from a primary
+	// vLLM root plus extra --source trees (see LabelCacheMounts). Extract then
+	// restores capture-root layout: primary under basename(VLLM_CACHE_ROOT)/ and
+	// each extra subPath as a sibling under --dir/.
+	LabelSplitCacheCapture = constants.KMPrefix + "/split-cache-capture"
 )
 
 // Per-class summary labels, used to infer the cache type for older images that

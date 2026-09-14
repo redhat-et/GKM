@@ -138,6 +138,7 @@ func TestVLLMCache_ExtraMountsLabelRoundTrips(t *testing.T) {
 	assert.Equal(t, triton, mounts[0].AbsPath)
 	assert.Equal(t, constants.EnvTritonCacheDir, mounts[0].Env)
 	assert.True(t, mounts[0].RequiresWritable)
+	assert.Equal(t, "true", labels[cacheplan.LabelSplitCacheCapture])
 
 	plan, err := cacheplan.Derive(labels)
 	must(t, err)
@@ -169,6 +170,8 @@ func TestVLLMCache_MountAtOverridesCapturedRoot(t *testing.T) {
 	assert.Equal(t, constants.VLLMCacheRoot+"=/tmp/vllm", labels[kmCacheRootEnv])
 	_, ok := labels[cacheplan.LabelCacheMounts]
 	assert.False(t, ok, "no extra trees means no cache-mounts label")
+	_, ok = labels[cacheplan.LabelSplitCacheCapture]
+	assert.False(t, ok, "no extra trees means no split-cache-capture label")
 }
 
 func TestCaptureSpecValidateRejectsUnusableCapture(t *testing.T) {
