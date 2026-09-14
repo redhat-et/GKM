@@ -15,6 +15,7 @@ func TestVLLMPayloadDestRel(t *testing.T) {
 	constants.VLLMExtractPrimaryTop = constants.TorchCompileDir
 
 	assert.Equal(t, "vllm/torch_compile_cache/7d44010a2d/x", vllmPayloadDestRel("torch_compile_cache/7d44010a2d/x"))
+	assert.Equal(t, "vllm/torch_compile_cache/7d44010a2d/x", vllmPayloadDestRel("/torch_compile_cache/7d44010a2d/x"))
 	assert.Equal(t, "triton/KERNEL/hash", vllmPayloadDestRel("triton/KERNEL/hash"))
 	assert.Equal(t, "modelinfos/x.json", vllmPayloadDestRel("modelinfos/x.json"))
 }

@@ -258,30 +258,23 @@ func extractCacheAndManifestDirectory(
 			return nil, 0, fmt.Errorf("error reading tar archive: %w", ret)
 		}
 
-		// Skip irrelevant files
-		if !strings.HasPrefix(h.Name, cacheDirPrefix) &&
-			!strings.HasPrefix(h.Name, manifestDirPrefix+"manifest.json") {
+		cacheRel, isCache := payloadRelFromCachePrefix(h.Name, cacheDirPrefix)
+		isManifest := strings.HasPrefix(strings.TrimPrefix(h.Name, "./"), manifestDirPrefix+"manifest.json")
+		if !isCache && !isManifest {
 			continue
 		}
 
 		// Determine output path
 		var filePath string
-		if strings.HasPrefix(h.Name, cacheDirPrefix) {
-			rel := strings.TrimPrefix(h.Name, cacheDirPrefix)
-			if rel == "" {
-				continue
-			}
+		if isCache {
+			rel := cacheRel
 			if skipPayloadTop != nil {
-				top := rel
-				if i := strings.IndexByte(rel, '/'); i >= 0 {
-					top = rel[:i]
-				}
-				if _, skip := skipPayloadTop[top]; skip {
+				if _, skip := skipPayloadTop[payloadTopComponent(rel)]; skip {
 					continue
 				}
 			}
 			destRel := rel
-			if cacheDirPrefix == constants.MCVVLLMCacheDir {
+			if strings.TrimSuffix(strings.TrimPrefix(cacheDirPrefix, "./"), "/") == constants.MCVVLLMCacheDir {
 				destRel = vllmPayloadDestRel(rel)
 			}
 			filePath = filepath.Join(extractCacheDir, destRel)
@@ -309,7 +302,7 @@ func extractCacheAndManifestDirectory(
 			if err = writeFile(filePath, tr, os.FileMode(h.Mode)); err != nil {
 				return nil, 0, fmt.Errorf("failed to write file %s: %w", filePath, err)
 			}
-			if strings.HasPrefix(h.Name, cacheDirPrefix) {
+			if isCache {
 				extractedBytes += h.Size
 			}
 		default:

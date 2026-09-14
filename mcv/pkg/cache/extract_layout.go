@@ -65,15 +65,36 @@ func ResetVLLMExtractLayout() {
 	constants.VLLMExtractPrimaryTop = ""
 }
 
-// vllmPayloadDestRel maps a path relative to io.vllm.cache/ to a path under --dir.
-func vllmPayloadDestRel(rel string) string {
-	if constants.VLLMExtractPrimaryDir == "" || constants.VLLMExtractPrimaryTop == "" {
-		return rel
+// payloadRelFromCachePrefix returns the payload path under io.*.cache/ from a tar entry name.
+func payloadRelFromCachePrefix(entryName, cacheDirPrefix string) (rel string, ok bool) {
+	entryName = strings.TrimPrefix(entryName, "./")
+	prefix := strings.TrimSuffix(strings.TrimPrefix(cacheDirPrefix, "./"), "/")
+	if entryName == prefix {
+		return "", false
 	}
+	if !strings.HasPrefix(entryName, prefix+"/") {
+		return "", false
+	}
+	rel = strings.TrimPrefix(entryName, prefix)
+	return strings.TrimPrefix(rel, "/"), true
+}
+
+func payloadTopComponent(rel string) string {
+	rel = strings.TrimPrefix(rel, "/")
 	top := rel
 	if i := strings.IndexByte(rel, '/'); i >= 0 {
 		top = rel[:i]
 	}
+	return top
+}
+
+// vllmPayloadDestRel maps a path relative to io.vllm.cache/ to a path under --dir.
+func vllmPayloadDestRel(rel string) string {
+	rel = strings.TrimPrefix(rel, "/")
+	if constants.VLLMExtractPrimaryDir == "" || constants.VLLMExtractPrimaryTop == "" {
+		return rel
+	}
+	top := payloadTopComponent(rel)
 	if top != constants.VLLMExtractPrimaryTop {
 		return rel
 	}
