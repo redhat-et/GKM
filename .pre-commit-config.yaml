@@ -28,4 +28,4 @@ repos:
     hooks:
       - id: markdownlint-cli2-rules-docker
         exclude: ^mcv/
-exclude: ^vendor/.*|^mcv/vendor/.*|^config/*|^docs/crds/*
+exclude: ^vendor/.*|^mcv/vendor/.*|^config/*|^docs/crds/*|^mcv/example/vllm-capture-root/

@@ -82,30 +82,48 @@ jobs:
           mkdir -p "${out_dir}"
 
           # tag|relative_context_dir (relative to repo root)
+          # Optional third field "split-triton": reldir contains vllm/ + triton/ trees
+          # mounted at /tmp/vllm and /tmp/triton for --dir / --source (see example README).
           images=(
             "vector-add-cache-rocm|mcv/example/vector-add-cache-rocm"
             "vector-add-cache-cuda|mcv/example/vector-add-cache"
             "vllm-example|mcv/example/vllm-cache"
+            "vllm-capture-root|mcv/example/vllm-capture-root|split-triton"
             "llama-binary-cache|mcv/example/llama-binary-cache"
             "qwen-binary-cache|mcv/example/qwen-binary-cache"
           )
 
           for e in "${images[@]}"; do
-            IFS="|" read -r tag reldir <<<"${e}"
+            IFS="|" read -r tag reldir layout <<<"${e}"
             image="${repo}:${tag}"
             archive="${out_dir}/${tag}.oci"
 
-            echo "==> Building ${image} using MCV container from /work/${reldir}"
-            podman run --rm \
-              -e TAG="${tag}" \
-              -e IMAGE="${image}" \
-              -e RELDIR="${reldir}" \
-              -v "${GITHUB_WORKSPACE}:/work:Z,U" \
-              quay.io/gkm/mcv:latest bash -lc '
-                set -euo pipefail
-                /mcv -l info -c -i "$IMAGE" -d "/work/$RELDIR" &&
-                buildah push "containers-storage:$IMAGE" "oci-archive:/work/.mcv-out/$TAG.oci:$IMAGE"
-              '
+            if [[ "${layout:-}" == "split-triton" ]]; then
+              echo "==> Building ${image} (vLLM + Triton) from /work/${reldir}"
+              podman run --rm \
+                -e TAG="${tag}" \
+                -e IMAGE="${image}" \
+                -v "${GITHUB_WORKSPACE}/${reldir}/vllm:/tmp/vllm:ro,Z" \
+                -v "${GITHUB_WORKSPACE}/${reldir}/triton:/tmp/triton:ro,Z" \
+                -v "${GITHUB_WORKSPACE}:/work:Z,U" \
+                quay.io/gkm/mcv:latest bash -lc '
+                  set -euo pipefail
+                  /mcv -l info -c -i "$IMAGE" -d /tmp/vllm --source /tmp/triton --no-gpu &&
+                  buildah push "containers-storage:$IMAGE" "oci-archive:/work/.mcv-out/$TAG.oci:$IMAGE"
+                '
+            else
+              echo "==> Building ${image} using MCV container from /work/${reldir}"
+              podman run --rm \
+                -e TAG="${tag}" \
+                -e IMAGE="${image}" \
+                -e RELDIR="${reldir}" \
+                -v "${GITHUB_WORKSPACE}:/work:Z,U" \
+                quay.io/gkm/mcv:latest bash -lc '
+                  set -euo pipefail
+                  /mcv -l info -c -i "$IMAGE" -d "/work/$RELDIR" &&
+                  buildah push "containers-storage:$IMAGE" "oci-archive:/work/.mcv-out/$TAG.oci:$IMAGE"
+                '
+            fi
             echo "==> Loading ${archive} into host podman"
             podman load -i "${archive}"
           done
@@ -121,7 +139,7 @@ jobs:
         run: |
             set -euo pipefail
             repo="${REGISTRY}/${ORG}/${REPO}"
-            images=(vector-add-cache-rocm vector-add-cache-cuda vllm-example llama-binary-cache qwen-binary-cache)
+            images=(vector-add-cache-rocm vector-add-cache-cuda vllm-example vllm-capture-root llama-binary-cache qwen-binary-cache)
             tags_output=""
             digests_output=""
 

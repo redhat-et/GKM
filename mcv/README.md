@@ -167,6 +167,150 @@ default) plus a JSON `io.kserve.km/cache-mounts` label listing the extra trees:
 compiling, it fails with `PermissionError` when Triton stores a miss. `mcv extract`
 writes every tree under `--dir` and logs where each one is expected to live.
 
+### End-to-end: capture vLLM + Triton on a GPU node (Podman)
+
+This walkthrough matches a layout where **`VLLM_CACHE_ROOT=/tmp/vllm`** and
+**`TRITON_CACHE_DIR=/tmp/triton`** (common on several vLLM/RHAII images). Host
+staging uses two sibling directories—the same shape as the checked-in example
+**[`example/vllm-capture-root/`](example/vllm-capture-root/)** (`vllm/` + `triton/`).
+Use that tree to reproduce **`mcv --create`** without a live GPU server once the
+directories are present in your checkout.
+
+Set **`CACHE_IMAGE`** to a strict OCI reference (`quay.io/user/name:tag` or
+`docker.io/library/name:tag`). Names like `localhost/...` are rejected by MCV.
+
+Buildah inside **`quay.io/gkm/mcv:unified`** writes to **container-local**
+storage. Chain **`buildah push`** to a **docker-archive** on a bind mount (or to
+a registry) in the **same** `podman run` before the container exits, then
+**`podman load`** on the host. **`mcv --extract` inside the unified image pulls
+from a registry** (it does not see the host Podman store unless you push or use
+Quay with credentials). For a quick serve test you can skip extract and bind
+**`$CAPTURE_ROOT`** directly.
+
+```bash
+export CAPTURE_ROOT=$HOME/vllm-capture
+mkdir -p "$CAPTURE_ROOT"/{vllm,triton}
+
+export VLLM_IMAGE=docker.io/vllm/vllm-openai:latest   # or your image
+export MODEL=RedHatAI/Llama-3.2-1B-Instruct-FP8       # or your model
+export MCV_IMAGE=quay.io/gkm/mcv:unified              # or: make -C mcv image-unified
+export CACHE_IMAGE=quay.io/YOURUSER/vllm-cache:test   # adjust registry/user
+export CACHE_TAR=$CAPTURE_ROOT/cache-image.tar
+```
+
+#### 1. Run vLLM and warm the caches
+
+Use the same environment variables the serving container will use:
+
+```bash
+sudo podman run -d --name vllm-server \
+  --device nvidia.com/gpu=all \
+  --ipc=host \
+  -p 8000:8000 \
+  -e VLLM_CACHE_ROOT=/tmp/vllm \
+  -e TRITON_CACHE_DIR=/tmp/triton \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  "$VLLM_IMAGE" \
+  --model "$MODEL" --max-model-len 2048
+
+sudo podman logs -f vllm-server
+# Optional readiness check:
+curl -s http://127.0.0.1:8000/v1/models | jq .
+
+sudo podman exec vllm-server ls -la /tmp/vllm/torch_compile_cache
+sudo podman exec vllm-server ls -la /tmp/triton | head
+sudo podman exec vllm-server printenv VLLM_CACHE_ROOT TRITON_CACHE_DIR
+```
+
+#### 2. Copy caches to the host
+
+```bash
+sudo podman cp vllm-server:/tmp/vllm/. "$CAPTURE_ROOT/vllm/"
+sudo podman cp vllm-server:/tmp/triton/. "$CAPTURE_ROOT/triton/"
+sudo chown -R "$(whoami):$(whoami)" "$CAPTURE_ROOT"
+
+du -sh "$CAPTURE_ROOT"/vllm "$CAPTURE_ROOT"/triton
+test -d "$CAPTURE_ROOT/vllm/torch_compile_cache" && echo "vLLM tree OK"
+```
+
+#### 3. Build the MCV cache image and export it to the host
+
+Mount the host copies at the **same paths** used during capture, then
+`--dir` + `--source`. Export with **`buildah push`** to a tar on
+**`$CAPTURE_ROOT`**:
+
+```bash
+sudo podman run --rm \
+  -v "$CAPTURE_ROOT/vllm:/tmp/vllm:ro,Z" \
+  -v "$CAPTURE_ROOT/triton:/tmp/triton:ro,Z" \
+  -v "$CAPTURE_ROOT:/out:Z" \
+  --entrypoint sh \
+  "$MCV_IMAGE" \
+  -c '/mcv --create --image '"$CACHE_IMAGE"' \
+        --dir /tmp/vllm --source /tmp/triton --no-gpu --builder buildah && \
+      buildah push '"$CACHE_IMAGE"' docker-archive:/out/cache-image.tar'
+
+sudo podman load -i "$CACHE_TAR"
+sudo podman images | grep vllm-cache
+```
+
+Alternative: push to a registry instead of a tar (then extract can pull it):
+
+```bash
+# Inside the same sh -c after --create: buildah login quay.io && buildah push '"$CACHE_IMAGE"'
+sudo podman push "$CACHE_IMAGE"
+```
+
+Inspect KServe / vLLM labels on the **host** image:
+
+```bash
+sudo podman inspect "$CACHE_IMAGE" | \
+  jq '.[0].OCIv1.config.Labels // .[0].Config.Labels | with_entries(select(.key | startswith("io.kserve.km") or startswith("cache.vllm")))'
+```
+
+Expect `io.kserve.km/cache-root-env` = `VLLM_CACHE_ROOT=/tmp/vllm` and
+`io.kserve.km/cache-mounts` listing `/tmp/triton` with `requiresWritable: true`.
+
+#### 4. Extract (optional)
+
+Requires the image on a registry the MCV container can pull (**`podman push`**
+after **`podman login`**, or a public repo). Skipping extract is fine when testing
+serve from **`$CAPTURE_ROOT`**.
+
+```bash
+sudo mkdir -p /tmp/vllm-extracted
+sudo podman run --rm -v /tmp/vllm-extracted:/out:Z "$MCV_IMAGE" \
+  --extract --image "$CACHE_IMAGE" --dir /out --no-gpu
+ls /tmp/vllm-extracted/torch_compile_cache /tmp/vllm-extracted/triton
+```
+
+#### 5. Serve test from host caches (cache hit)
+
+Stop the original server if it still holds the GPU. Mount Triton **read-write**
+(`:Z`, not `:ro`) so misses can append:
+
+```bash
+sudo podman stop vllm-server
+
+sudo podman run --rm --device nvidia.com/gpu=all --ipc=host \
+  -e VLLM_CACHE_ROOT=/tmp/vllm \
+  -e TRITON_CACHE_DIR=/tmp/triton \
+  -v "$CAPTURE_ROOT/vllm:/tmp/vllm:Z" \
+  -v "$CAPTURE_ROOT/triton:/tmp/triton:Z" \
+  "$VLLM_IMAGE" \
+  --model "$MODEL" --max-model-len 2048 2>&1 | tee /tmp/restart.log
+
+grep -E 'Directly load|Compiling a graph' /tmp/restart.log
+```
+
+`Directly load AOT compilation` (or similar) indicates a compile-cache **hit**;
+`Compiling a graph for compile range` suggests a **miss** (paths, model config, or
+GPU target mismatch).
+
+See also [unified-mcv-container.md](./docs/unified-mcv-container.md) and
+[vllm-binary-cache.md](./docs/vllm-binary-cache.md) for registry push and
+Quay workflows.
+
 **Container Images:**
 
 Two image variants are available:

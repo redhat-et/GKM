@@ -78,21 +78,26 @@ podman run --rm \
       && buildah push quay.io/myorg/llama3-cache:v1"
 
 # Repeat for a runtime that keeps its Triton JIT cache outside VLLM_CACHE_ROOT:
-# mount both trees, pass the Triton tree with --source, and keep --dir as the
-# VLLM_CACHE_ROOT so the restored mount lands where the framework looks.
+# discover TRITON_CACHE_DIR from the serving container, then reuse that exact path
+# for the volume mount, --source, and the path recorded in the cache image.
+TRITON_DIR=$(podman exec vllm-server printenv TRITON_CACHE_DIR)
+TRITON_DIR=${TRITON_DIR:-/tmp/triton}
+
 podman run --rm \
-  -v /tmp/vllm:/cache:Z -v /tmp/triton:/triton:Z \
+  -v /tmp/vllm:/cache:Z \
+  -v "${TRITON_DIR}:${TRITON_DIR}:Z" \
   --entrypoint sh \
   quay.io/gkm/mcv:unified \
-  -c "/mcv --create --image quay.io/myorg/llama3-cache:v1 --dir /cache --source /triton --no-gpu \
+  -c "/mcv --create --image quay.io/myorg/llama3-cache:v1 --dir /cache --source ${TRITON_DIR} --no-gpu \
       && buildah push quay.io/myorg/llama3-cache:v1"
 ```
 
 > **Note:** `--source` records the path inside the container that captured the
-> cache (`/triton` above), so serve that tree at the path vLLM actually uses
-> (`TRITON_CACHE_DIR`). Capture the tree from its real path (for example
-> `-v /tmp/triton:/tmp/triton:Z`) when you want the recorded path to be the
-> serving path directly.
+> cache (`${TRITON_DIR}` above), so serve that tree at the same path the runtime
+> uses (`TRITON_CACHE_DIR`). After capture, `podman cp` from the serving
+> container should use the same discovered value (see
+> [vLLM binary cache](./vllm-binary-cache.md) Step 3), not a hardcoded path like
+> `/root/.triton`.
 
 **Why use unified here?** You can use the same image everywhere, simplifying CI/CD.
 
