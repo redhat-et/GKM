@@ -15,7 +15,7 @@ import (
 func TestExtractVLLMCacheDirectoryLayout(t *testing.T) {
 	t.Cleanup(ResetVLLMExtractLayout)
 
-	constants.VLLMExtractPrimaryDir = "vllm"
+	constants.VLLMExtractPrimaryDir = constants.VLLM
 	constants.VLLMExtractPrimaryTop = constants.TorchCompileDir
 
 	var buf bytes.Buffer
@@ -45,7 +45,7 @@ func TestExtractVLLMCacheDirectoryLayout(t *testing.T) {
 	_, _, err = ExtractVLLMCacheDirectory(&buf)
 	assert.NoError(t, err)
 
-	_, err = os.Stat(filepath.Join(root, "vllm", "torch_compile_cache", "hash", "x"))
+	_, err = os.Stat(filepath.Join(root, constants.VLLM, "torch_compile_cache", "hash", "x"))
 	assert.NoError(t, err)
 	_, err = os.Stat(filepath.Join(root, "triton", "KERNEL", "hash"))
 	assert.NoError(t, err)

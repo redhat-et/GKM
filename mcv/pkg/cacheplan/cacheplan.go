@@ -50,19 +50,25 @@ const (
 	// restores capture-root layout: primary under basename(VLLM_CACHE_ROOT)/ and
 	// each extra subPath as a sibling under --dir/.
 	LabelSplitCacheCapture = constants.KMPrefix + "/split-cache-capture"
+
+	// SplitCacheCaptureValue is the OCI label value for LabelSplitCacheCapture.
+	SplitCacheCaptureValue = "true"
+
+	// LabelVLLMSummary is the per-class summary label for vLLM cache images.
+	LabelVLLMSummary = "cache.vllm.image/summary"
 )
 
 // IsSplitCacheCapture reports whether labels request capture-root extract layout
 // (primary tree under basename(VLLM_CACHE_ROOT)/ plus extra subtrees at --dir/<name>/).
 func IsSplitCacheCapture(labels map[string]string) bool {
-	return strings.EqualFold(strings.TrimSpace(labels[LabelSplitCacheCapture]), "true")
+	return strings.EqualFold(strings.TrimSpace(labels[LabelSplitCacheCapture]), SplitCacheCaptureValue)
 }
 
 // Per-class summary labels, used to infer the cache type for older images that
 // predate the io.kserve.km/cache-type label.
 const (
 	summaryLabelTriton = "cache.triton.image/summary"
-	summaryLabelVLLM   = "cache.vllm.image/summary"
+	summaryLabelVLLM   = LabelVLLMSummary
 	summaryLabelHabana = "cache.habana.image/summary"
 )
 

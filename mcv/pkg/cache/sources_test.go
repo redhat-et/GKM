@@ -138,7 +138,7 @@ func TestVLLMCache_ExtraMountsLabelRoundTrips(t *testing.T) {
 	assert.Equal(t, triton, mounts[0].AbsPath)
 	assert.Equal(t, constants.EnvTritonCacheDir, mounts[0].Env)
 	assert.True(t, mounts[0].RequiresWritable)
-	assert.Equal(t, "true", labels[cacheplan.LabelSplitCacheCapture])
+	assert.Equal(t, cacheplan.SplitCacheCaptureValue, labels[cacheplan.LabelSplitCacheCapture])
 
 	plan, err := cacheplan.Derive(labels)
 	must(t, err)

@@ -43,7 +43,7 @@ func ConfigureVLLMExtractLayout(labels map[string]string) {
 func applyVLLMExtractLayout(mountDir, mountSubpath string) {
 	primaryDir := filepath.Base(filepath.Clean(mountDir))
 	if primaryDir == "" || primaryDir == "." || primaryDir == string(filepath.Separator) {
-		primaryDir = "vllm"
+		primaryDir = constants.VLLM
 	}
 	constants.VLLMExtractPrimaryDir = primaryDir
 	constants.VLLMExtractPrimaryTop = primaryPayloadTop(mountSubpath)
