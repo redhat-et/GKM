@@ -118,7 +118,7 @@ func copyDir(srcDir, dstDir string, skipTop map[string]struct{}) error {
 			}
 			if _, skip := skipTop[top]; skip {
 				if info.IsDir() {
-					logging.Debugf("Skipping %s under %s (not part of the packaged cache)", top, srcDir)
+					logging.Infof("Skipping %s/ under %s (runtime metadata, not packaged in cache images)", top, srcDir)
 					return filepath.SkipDir
 				}
 				return nil
@@ -320,13 +320,24 @@ func extractCacheAndManifestDirectory(
 	return extractedDirs, extractedBytes, nil
 }
 
+// VLLMRuntimeRootDirs lists top-level VLLM_CACHE_ROOT entries that are runtime
+// metadata, not compile cache — they are omitted on create and skipped on extract.
+func VLLMRuntimeRootDirs() []string {
+	return []string{
+		constants.VLLMNonCacheRootDirModelInfos,
+		constants.VLLMNonCacheRootDirDummyCache,
+	}
+}
+
 // VLLMNonCacheRootSkipSet returns top-level payload directory names under
 // VLLM_CACHE_ROOT that MCV does not restore on extract.
 func VLLMNonCacheRootSkipSet() map[string]struct{} {
-	return map[string]struct{}{
-		constants.VLLMNonCacheRootDirModelInfos:   {},
-		constants.VLLMNonCacheRootDirDummyCache: {},
+	dirs := VLLMRuntimeRootDirs()
+	out := make(map[string]struct{}, len(dirs))
+	for _, d := range dirs {
+		out[d] = struct{}{}
 	}
+	return out
 }
 
 func stringInSlice(str string, list []string) bool {

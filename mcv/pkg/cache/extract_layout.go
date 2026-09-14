@@ -9,12 +9,13 @@ import (
 )
 
 // ConfigureVLLMExtractLayout sets how vLLM payload paths map under ExtractCacheDir.
-// The primary cache root is written under the basename of the recorded VLLM_CACHE_ROOT
-// (e.g. /tmp/vllm → vllm/torch_compile_cache/…); extra --source trees stay at the
-// top level (e.g. triton/…), matching a host capture-root layout.
+// Only the primary compile tree (first segment of cache-mount-subpath, usually
+// torch_compile_cache) is placed under basename(VLLM_CACHE_ROOT) (e.g. vllm/).
+// Extra --source trees (triton/, …) and any other payload top-level dirs stay
+// directly under --dir.
 func ConfigureVLLMExtractLayout(labels map[string]string) {
 	constants.VLLMExtractPrimaryDir = ""
-	constants.VLLMExtractExtraSubpaths = nil
+	constants.VLLMExtractPrimaryTop = ""
 
 	plan, err := cacheplan.Derive(labels)
 	if err != nil {
@@ -28,35 +29,38 @@ func ConfigureVLLMExtractLayout(labels map[string]string) {
 		constants.VLLMExtractPrimaryDir = ""
 		return
 	}
-	if len(plan.Mounts) <= 1 {
-		return
+	constants.VLLMExtractPrimaryTop = primaryPayloadTop(plan.SubPath)
+}
+
+func primaryPayloadTop(mountSubpath string) string {
+	mountSubpath = strings.TrimSpace(mountSubpath)
+	if mountSubpath == "" || mountSubpath == "." {
+		return constants.TorchCompileDir
 	}
-	extras := make(map[string]struct{}, len(plan.Mounts)-1)
-	for _, m := range plan.Mounts[1:] {
-		extras[m.SubPath] = struct{}{}
+	top, _, _ := strings.Cut(mountSubpath, "/")
+	if top == "" {
+		return constants.TorchCompileDir
 	}
-	constants.VLLMExtractExtraSubpaths = extras
+	return top
 }
 
 // ResetVLLMExtractLayout clears vLLM extract layout state between operations.
 func ResetVLLMExtractLayout() {
 	constants.VLLMExtractPrimaryDir = ""
-	constants.VLLMExtractExtraSubpaths = nil
+	constants.VLLMExtractPrimaryTop = ""
 }
 
 // vllmPayloadDestRel maps a path relative to io.vllm.cache/ to a path under --dir.
 func vllmPayloadDestRel(rel string) string {
-	if constants.VLLMExtractPrimaryDir == "" {
+	if constants.VLLMExtractPrimaryDir == "" || constants.VLLMExtractPrimaryTop == "" {
 		return rel
 	}
 	top := rel
 	if i := strings.IndexByte(rel, '/'); i >= 0 {
 		top = rel[:i]
 	}
-	if constants.VLLMExtractExtraSubpaths != nil {
-		if _, extra := constants.VLLMExtractExtraSubpaths[top]; extra {
-			return rel
-		}
+	if top != constants.VLLMExtractPrimaryTop {
+		return rel
 	}
 	return filepath.Join(constants.VLLMExtractPrimaryDir, rel)
 }

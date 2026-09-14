@@ -72,12 +72,12 @@ var (
 	HasTritonCache     bool
 	HasVLLMCache       bool
 	// VLLMExtractPrimaryDir is the subdirectory under ExtractCacheDir for the
-	// primary vLLM cache payload (basename of VLLM_CACHE_ROOT from labels).
+	// primary vLLM compile tree (basename of VLLM_CACHE_ROOT from labels).
 	VLLMExtractPrimaryDir string
-	// VLLMExtractExtraSubpaths lists payload top-level dirs that stay at the
-	// root of ExtractCacheDir (extra --source trees), not under VLLMExtractPrimaryDir.
-	VLLMExtractExtraSubpaths map[string]struct{}
-	LogLevels                = []string{"debug", "info", "warning", "error"} // accepted log levels
+	// VLLMExtractPrimaryTop is the payload top-level directory that belongs under
+	// VLLMExtractPrimaryDir (usually torch_compile_cache).
+	VLLMExtractPrimaryTop string
+	LogLevels               = []string{"debug", "info", "warning", "error"} // accepted log levels
 )
 
 func init() {

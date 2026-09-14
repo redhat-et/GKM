@@ -108,11 +108,10 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 
 	copyFn := cache.CopyDir
 	if cache.HasCacheNamed(caches, constants.VLLM) {
+		skip := cache.VLLMRuntimeRootDirs()
+		logging.Infof("Omitting vLLM runtime dirs from cache image: %v", skip)
 		copyFn = func(src, dst string) error {
-			return cache.CopyDirExcludingTopLevel(src, dst,
-				constants.VLLMNonCacheRootDirModelInfos,
-				constants.VLLMNonCacheRootDirDummyCache,
-			)
+			return cache.CopyDirExcludingTopLevel(src, dst, skip...)
 		}
 	}
 	if err := copyFn(cacheDir, cacheBuildDir); err != nil {

@@ -251,6 +251,10 @@ test -d "$CAPTURE_ROOT/vllm/torch_compile_cache" && echo "vLLM tree OK"
 
 #### 3. Build the MCV cache image and export it to the host
 
+Re-run **`--create`** with an MCV build that includes runtime-dir omission (not an
+older `quay.io/gkm/mcv:unified` tag). **`modelinfos/`** and **`dummy_cache/`** are
+left out of the OCI layer; you must **rebuild `CACHE_IMAGE`** after upgrading MCV.
+
 Mount the host copies at the **same paths** used during capture, then
 `--dir` + `--source`. Export with **`buildah push`** to a tar on
 **`$CAPTURE_ROOT`**:

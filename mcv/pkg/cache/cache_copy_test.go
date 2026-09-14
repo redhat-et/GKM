@@ -17,10 +17,7 @@ func TestCopyDirExcludingTopLevelSkipsRuntimeDirs(t *testing.T) {
 	writeTestFile(t, filepath.Join(src, constants.VLLMNonCacheRootDirModelInfos, "m.json"), []byte("{}"))
 	writeTestFile(t, filepath.Join(src, constants.VLLMNonCacheRootDirDummyCache, "d"), []byte("d"))
 
-	err := CopyDirExcludingTopLevel(src, dst,
-		constants.VLLMNonCacheRootDirModelInfos,
-		constants.VLLMNonCacheRootDirDummyCache,
-	)
+	err := CopyDirExcludingTopLevel(src, dst, VLLMRuntimeRootDirs()...)
 	assert.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(dst, constants.TorchCompileDir, "hash", "file"))
