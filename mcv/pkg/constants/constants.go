@@ -72,7 +72,7 @@ var (
 	HasTritonCache     bool
 	HasVLLMCache       bool
 	// VLLMExtractPrimaryDir is the subdirectory under ExtractCacheDir for the
-	// primary vLLM compile tree (basename of VLLM_CACHE_ROOT from labels).
+	// primary compile tree when io.kserve.km/split-cache-capture is "true".
 	VLLMExtractPrimaryDir string
 	// VLLMExtractPrimaryTop is the payload top-level directory that belongs under
 	// VLLMExtractPrimaryDir (usually torch_compile_cache).

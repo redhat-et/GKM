@@ -52,6 +52,12 @@ const (
 	LabelSplitCacheCapture = constants.KMPrefix + "/split-cache-capture"
 )
 
+// IsSplitCacheCapture reports whether labels request capture-root extract layout
+// (primary tree under basename(VLLM_CACHE_ROOT)/ plus extra subtrees at --dir/<name>/).
+func IsSplitCacheCapture(labels map[string]string) bool {
+	return strings.EqualFold(strings.TrimSpace(labels[LabelSplitCacheCapture]), "true")
+}
+
 // Per-class summary labels, used to infer the cache type for older images that
 // predate the io.kserve.km/cache-type label.
 const (

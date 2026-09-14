@@ -10,15 +10,19 @@ import (
 )
 
 // ConfigureVLLMExtractLayout sets how vLLM payload paths map under ExtractCacheDir.
-// Only the primary compile tree (first segment of cache-mount-subpath, usually
-// torch_compile_cache) is placed under basename(VLLM_CACHE_ROOT) (e.g. vllm/).
-// Extra --source trees (triton/, …) and any other payload top-level dirs stay
-// directly under --dir.
+// When io.kserve.km/split-cache-capture is "true", the primary compile tree (first
+// segment of cache-mount-subpath, usually torch_compile_cache) is placed under
+// basename(VLLM_CACHE_ROOT) (e.g. vllm/). Extra --source trees stay directly under
+// --dir. Without that label, payload paths extract flat under --dir (legacy).
 func ConfigureVLLMExtractLayout(labels map[string]string) {
 	constants.VLLMExtractPrimaryDir = ""
 	constants.VLLMExtractPrimaryTop = ""
 
 	if !cacheplan.IsVLLMCacheImage(labels) {
+		return
+	}
+	if !cacheplan.IsSplitCacheCapture(labels) {
+		logging.Debugf("vLLM extract layout: flat under --dir (no %s)", cacheplan.LabelSplitCacheCapture)
 		return
 	}
 

@@ -113,7 +113,7 @@ not mount Triton at `TRITON_CACHE_DIR` in serving pods.
 | `io.kserve.km/cache-mount-subpath` | Relative path from the extracted payload root to the primary cache subtree (e.g., `torch_compile_cache` or `torch_compile_cache/torch_aot_compile`); required for vLLM/Habana serving plans |
 | `io.kserve.km/cache-root-env` | Environment variable and value for the framework's cache root directory, set to the directory the cache was captured from (e.g., `VLLM_CACHE_ROOT=/home/kserve/.cache/vllm`, or `VLLM_CACHE_ROOT=/tmp/vllm` when captured from an image that sets `VLLM_CACHE_ROOT=/tmp/vllm`). Override with `--mount-at`. |
 | `io.kserve.km/cache-mounts` | Optional JSON array of extra payload subtrees captured with `--source` (see [Extra cache trees](#extra-cache-trees)) |
-| `io.kserve.km/split-cache-capture` | `"true"` when `cache-mounts` is set (primary vLLM root plus extra `--source` trees); MCV extract uses capture-root layout under `--dir` |
+| `io.kserve.km/split-cache-capture` | `"true"` when `cache-mounts` is set (primary vLLM root plus extra `--source` trees). When present, MCV extract uses capture-root layout under `--dir` (`<basename(VLLM_CACHE_ROOT)>/torch_compile_cache/…` plus sibling extra subtrees). When absent, extract is flat under `--dir` (legacy vLLM-only behavior). |
 | `io.kserve.km/cache-type` | Type of cache packaged (e.g., `torch-compile`, `habana-recipe`) |
 | `io.kserve.km/framework` | ML framework that generated the cache (`vllm` for torch-compile caches, `habana` for recipe caches) |
 

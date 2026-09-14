@@ -30,6 +30,7 @@ func TestConfigureVLLMExtractLayout(t *testing.T) {
 		cacheplan.LabelFramework:           constants.VLLM,
 		"cache.vllm.image/summary":         `{}`,
 		cacheplan.LabelCacheMounts:         `[{"subPath":"triton","absPath":"/tmp/triton","env":"TRITON_CACHE_DIR","requiresWritable":true}]`,
+		cacheplan.LabelSplitCacheCapture:   "true",
 	}
 	ConfigureVLLMExtractLayout(labels)
 	assert.Equal(t, "vllm", constants.VLLMExtractPrimaryDir)
@@ -47,9 +48,26 @@ func TestConfigureVLLMExtractLayoutWithoutExtraMountsLabel(t *testing.T) {
 		"cache.vllm.image/summary":         `{}`,
 	}
 	ConfigureVLLMExtractLayout(labels)
-	assert.Equal(t, "vllm", constants.VLLMExtractPrimaryDir)
-	assert.Equal(t, constants.TorchCompileDir, constants.VLLMExtractPrimaryTop)
+	assert.Empty(t, constants.VLLMExtractPrimaryDir)
+	assert.Empty(t, constants.VLLMExtractPrimaryTop)
+	assert.Equal(t, "torch_compile_cache/x", vllmPayloadDestRel("torch_compile_cache/x"))
 	assert.Equal(t, "triton/x", vllmPayloadDestRel("triton/x"))
+}
+
+func TestConfigureVLLMExtractLayoutSplitWithoutSplitLabel(t *testing.T) {
+	t.Cleanup(ResetVLLMExtractLayout)
+
+	// Older split images may have cache-mounts but not split-cache-capture; stay flat.
+	labels := map[string]string{
+		cacheplan.LabelCacheRootEnv:      "VLLM_CACHE_ROOT=/tmp/vllm",
+		cacheplan.LabelCacheMountSubpath: constants.TorchCompileDir,
+		cacheplan.LabelCacheType:           constants.CacheTypeVLLMTorchCompile,
+		"cache.vllm.image/summary":         `{}`,
+		cacheplan.LabelCacheMounts:         `[{"subPath":"triton","absPath":"/tmp/triton","env":"TRITON_CACHE_DIR","requiresWritable":true}]`,
+	}
+	ConfigureVLLMExtractLayout(labels)
+	assert.Empty(t, constants.VLLMExtractPrimaryDir)
+	assert.Empty(t, constants.VLLMExtractPrimaryTop)
 }
 
 func TestConfigureVLLMExtractLayoutDeriveFallback(t *testing.T) {
@@ -57,10 +75,11 @@ func TestConfigureVLLMExtractLayoutDeriveFallback(t *testing.T) {
 
 	// Malformed cache-mounts breaks Derive; layout should still come from root-env + subpath.
 	labels := map[string]string{
-		cacheplan.LabelCacheRootEnv:      "VLLM_CACHE_ROOT=/tmp/vllm",
-		cacheplan.LabelCacheMountSubpath: constants.TorchCompileDir + "/torch_aot_compile",
-		"cache.vllm.image/summary":       `{}`,
-		cacheplan.LabelCacheMounts:       `{not valid json`,
+		cacheplan.LabelCacheRootEnv:        "VLLM_CACHE_ROOT=/tmp/vllm",
+		cacheplan.LabelCacheMountSubpath:   constants.TorchCompileDir + "/torch_aot_compile",
+		"cache.vllm.image/summary":         `{}`,
+		cacheplan.LabelCacheMounts:         `{not valid json`,
+		cacheplan.LabelSplitCacheCapture:   "true",
 	}
 	ConfigureVLLMExtractLayout(labels)
 	assert.Equal(t, "vllm", constants.VLLMExtractPrimaryDir)
@@ -71,7 +90,8 @@ func TestConfigureVLLMExtractLayoutDefaultPrimaryDir(t *testing.T) {
 	t.Cleanup(ResetVLLMExtractLayout)
 
 	labels := map[string]string{
-		"cache.vllm.image/summary": `{}`,
+		"cache.vllm.image/summary":       `{}`,
+		cacheplan.LabelSplitCacheCapture: "true",
 	}
 	ConfigureVLLMExtractLayout(labels)
 	assert.Equal(t, "vllm", constants.VLLMExtractPrimaryDir)
