@@ -165,7 +165,20 @@ default) plus a JSON `io.kserve.km/cache-mounts` label listing the extra trees:
 
 `requiresWritable` matters: a read-only Triton tree does not silently fall back to
 compiling, it fails with `PermissionError` when Triton stores a miss. `mcv extract`
-writes every tree under `--dir` and logs where each one is expected to live.
+writes every tree under `--dir` and logs where each one is expected to live
+(see `logMountTargets` in the extract path).
+
+**In-cluster serving is not implemented in this repository.** MCV **create**
+stamps `io.kserve.km/*` labels (including `cache-mounts`) and **extract** unpacks
+the payload; optional **`PlaceExtraTrees`** can relocate extra subtrees on a
+host when you opt in. There is no **`operator/`** or agent code here that reads
+those labels and configures a InferenceService pod. Until **KServe Kernel Manager**
+(or an equivalent consumer) mounts each `CachePlan.Mounts` entry at the recorded
+`absPath`, sets the per-tree environment variables (`TRITON_CACHE_DIR`, …), and
+honours **`requiresWritable`**, shipping a cache image alone does **not** warm
+Triton (or other out-of-root trees) in-cluster. Treat KM / operator integration as
+a **dependency or follow-up PR** when setting merge expectations for split
+vLLM + Triton capture.
 
 ### End-to-end: capture vLLM + Triton on a GPU node (Podman)
 
@@ -282,6 +295,14 @@ sudo mkdir -p /tmp/vllm-extracted
 sudo podman run --rm -v /tmp/vllm-extracted:/out:Z "$MCV_IMAGE" \
   --extract --image "$CACHE_IMAGE" --dir /out --no-gpu
 ls /tmp/vllm-extracted/torch_compile_cache /tmp/vllm-extracted/triton
+```
+
+To move extra trees (for example Triton) to the paths recorded in the image
+labels on the **host**, add **`--place-extra-trees`** (writes outside `--dir`):
+
+```bash
+sudo podman run --rm -v /tmp/vllm-extracted:/out:Z --entrypoint /mcv "$MCV_IMAGE" \
+  --extract --image "$CACHE_IMAGE" --dir /out --no-gpu --place-extra-trees
 ```
 
 #### 5. Serve test from host caches (cache hit)

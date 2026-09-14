@@ -122,6 +122,8 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 		}
 	}
 
+	// cache-size-bytes is computed from this staging directory after SetCachesBuildDir,
+	// so extra trees copied above are included in the label and extract validation.
 	cache.SetCachesBuildDir(caches, cacheBuildDir)
 
 	labels, err := cache.BuildLabels(caches)

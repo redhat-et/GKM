@@ -53,7 +53,7 @@ func logFatal(message string, err error, exitCode int) {
 func buildRootCommand() *cobra.Command {
 	var imageName, cacheDirName, logLevel, builder, mountAt string
 	var sources []string
-	var createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, versionFlag bool
+	var createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, versionFlag, placeExtraTreesFlag bool
 	var timeout int
 
 	cmd := &cobra.Command{
@@ -72,7 +72,7 @@ and performing hardware compatibility checks.`,
 				fmt.Printf("mcv version %s\n", version)
 				os.Exit(exitNormal)
 			}
-			handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt, sources, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, timeout)
+			handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt, sources, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, placeExtraTreesFlag, timeout)
 		},
 	}
 
@@ -81,6 +81,8 @@ and performing hardware compatibility checks.`,
 		"e.g. --source /tmp/triton; stored in the same image layer and mounted back at the same path")
 	cmd.Flags().StringVar(&mountAt, "mount-at", "", "Override the path the cache root is mounted at in the serving container "+
 		"(defaults to the --dir path it was captured from)")
+	cmd.Flags().BoolVar(&placeExtraTreesFlag, "place-extra-trees", false,
+		"After extract, move extra cache trees from --dir to the absolute paths recorded in the image (writes outside --dir)")
 	cmd.Flags().BoolVar(&versionFlag, "version", false, "Display the version of the application")
 	return cmd
 }
@@ -112,14 +114,14 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *st
 	cmd.MarkFlagsMutuallyExclusive("no-gpu", "check-compat")
 }
 
-func handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt string, sources []string, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag bool, timeout int) {
+func handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt string, sources []string, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, placeExtraTreesFlag bool, timeout int) {
 	// Validate flag combinations
 	if err := validateFlagCombinations(createFlag, extractFlag, gpuInfoFlag, checkCompatFlag, imageName, cacheDirName, stubFlag); err != nil {
 		logging.Error(err)
 		os.Exit(exitLogError)
 	}
 
-	if err := validateCaptureFlags(createFlag, mountAt, sources); err != nil {
+	if err := validateCaptureFlags(createFlag, extractFlag, mountAt, sources, placeExtraTreesFlag); err != nil {
 		logging.Error(err)
 		os.Exit(exitCreateError)
 	}
@@ -143,7 +145,7 @@ func handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt string
 	}
 
 	if extractFlag {
-		runExtract(imageName, cacheDirName, logLevel, baremetalFlag)
+		runExtract(imageName, cacheDirName, logLevel, baremetalFlag, placeExtraTreesFlag)
 		return
 	}
 
@@ -258,9 +260,12 @@ func configureBoolFlags(baremetalFlag, noGPUFlag, stub bool) {
 	}
 }
 
-func validateCaptureFlags(createFlag bool, mountAt string, sources []string) error {
+func validateCaptureFlags(createFlag, extractFlag bool, mountAt string, sources []string, placeExtraTrees bool) error {
 	if !createFlag && (mountAt != "" || len(sources) > 0) {
 		return fmt.Errorf("--source and --mount-at require --create")
+	}
+	if placeExtraTrees && !extractFlag {
+		return fmt.Errorf("--place-extra-trees requires --extract")
 	}
 	return nil
 }
@@ -282,7 +287,11 @@ func runCreate(imageName, cacheDir, builder, mountAt string, sources []string) {
 	logging.Info("OCI image created successfully.")
 }
 
-func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
+func runExtract(imageName, cacheDir, logLevel string, baremetalFlag, placeExtraTrees bool) {
+	if placeExtraTrees {
+		logging.Warn("--place-extra-trees moves cache subtrees to absolute paths outside --dir " +
+			"(for example /tmp/triton); destinations must exist and be empty unless the tree is already in place")
+	}
 	gpuEnabled := config.IsGPUEnabled()
 	opts := client.Options{
 		ImageName:       imageName,
@@ -290,6 +299,7 @@ func runExtract(imageName, cacheDir, logLevel string, baremetalFlag bool) {
 		EnableGPU:       &gpuEnabled,
 		LogLevel:        logLevel,
 		EnableBaremetal: &baremetalFlag,
+		PlaceExtraTrees: placeExtraTrees,
 	}
 	if _, _, err := client.ExtractCache(opts); err != nil {
 		logging.Errorf("Error extracting image: %v", err)

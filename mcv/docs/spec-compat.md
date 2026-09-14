@@ -83,7 +83,9 @@ on cache type:
 
 At **create** time, MCV computes `cache-size-bytes` from the **staging
 directory** copied into the image layer (the same bytes that are packaged),
-not from unrelated files elsewhere on the build host.
+not from unrelated files elsewhere on the build host. After `--source` trees
+are copied into that staging directory, the label includes their bytes as well,
+so extract size validation stays consistent with the full payload.
 
 At **extract** time, MCV validates that the number of cache bytes written
 from the layer tarball matches the label. Pre-existing files in the target
@@ -97,6 +99,13 @@ the source directory structure of the cache looked like. This provides hints
 to applications like the KServe Kernel Manager, so they can extract the cache
 in their workload pods in the same directory format they were generated from.
 This is just a hint and applications can extract anywhere they choose.
+
+**Scope:** GKM **MCV** authors these labels and unpacks cache layers; it does not
+include an in-repo operator or agent that actuates them on a cluster. End-to-end
+in-cluster warm-up requires a consumer (for example **KServe Kernel Manager**) that
+derives a `CachePlan` from the labels, mounts each payload subtree at the recorded
+paths, and sets the listed env vars. Until that exists, capture + push alone does
+not mount Triton at `TRITON_CACHE_DIR` in serving pods.
 
 | Label | Description |
 |-------|-------------|
@@ -132,7 +141,15 @@ miss.
 
 Capture aborts rather than producing a half-described image when a source lies
 inside the cache root (it is already captured), when the encoded label would
-exceed the 4 KiB per-label limit, or when `--mount-at` is not absolute.
+exceed the **4096-byte OCI per-label limit** (`MaxLabelBytes` on the JSON
+`cache-mounts` array), or when `--mount-at` is not absolute. Long absolute paths
+on several trees can hit that limit in production; a future release may split
+metadata across labels or move mount hints into manifest-side fields if needed.
+
+`--source` classification uses directory name and content heuristics
+(`looksLikeTritonCache`, basename rules, and similar). Misclassification is
+possible; MCV logs a warning when no known env variable can be inferred for a
+tree so operators can set serving env themselves.
 
 Consumers that ignore this label still get the primary mount and keep working;
 they simply restore less of the cache. Because Triton group files embed absolute
@@ -143,9 +160,17 @@ container image and environment to keep those paths valid.
 `mcv --extract` writes every tree under the requested `--dir` (extra trees as
 `<dir>/<subPath>/`) and logs each tree's intended serving path and writability,
 since it cannot move files to arbitrary absolute paths on a host unasked.
-Programmatic callers get the same information typed via
+Use **`--place-extra-trees`** on extract to opt in to relocating extra subtrees
+to the recorded absolute paths (this writes **outside** `--dir`; MCV logs a
+warning when the flag is set). Programmatic callers get the same information typed via
 `client.InspectCachePlan`, and can ask `client.ExtractCache` to place the trees
 for them with `Options.PlaceExtraTrees`.
+
+**CachePlan env vars:** `Derive` sets `CachePlan.Env` from `cache-root-env` only
+(for example `VLLM_CACHE_ROOT=/tmp/vllm`). Each extra mount in `CachePlan.Mounts`
+carries its own `env` and `absPath` (for example `TRITON_CACHE_DIR` at
+`/tmp/triton`). KServe and other consumers must apply **both** the root env and
+every mount entry when building the pod spec.
 
 ## MCV extract algorithm
 

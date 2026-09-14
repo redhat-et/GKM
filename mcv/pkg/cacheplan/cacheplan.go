@@ -99,8 +99,9 @@ type CachePlan struct {
 	// (constants.CacheTypeVLLMTorchCompile, constants.CacheTypeHabanaRecipe).
 	CacheType string
 
-	// Env is the set of environment variables to set on the serving container
-	// verbatim (e.g. PT_HPU_RECIPE_CACHE_CONFIG=/dir,false,8192).
+	// Env lists only the primary cache-root variable from cache-root-env (for example
+	// VLLM_CACHE_ROOT). Extra trees from cache-mounts appear in Mounts with their
+	// own Env fields; consumers must merge both into the pod spec, not cache-root-env alone.
 	Env []EnvVar
 
 	// MountDir is the bare directory the cache should be mounted at, with any

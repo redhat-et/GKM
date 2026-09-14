@@ -21,6 +21,16 @@ func TestVLLMCache_CacheSizeBytesPrefersTmpPath(t *testing.T) {
 	assert.Equal(t, int64(3), cache.CacheSizeBytes())
 }
 
+func TestVLLMCache_CacheSizeBytesIncludesExtraTreeInStaging(t *testing.T) {
+	staging := t.TempDir()
+	writeTestFile(t, filepath.Join(staging, "torch_compile_cache", "entry"), []byte("vllm"))
+	writeTestFile(t, filepath.Join(staging, "triton", "kernel"), []byte("jit"))
+
+	cache := &VLLMCache{rootPath: t.TempDir()}
+	cache.SetTmpPath(staging)
+	assert.Equal(t, int64(7), cache.CacheSizeBytes())
+}
+
 func TestTritonCache_CacheSizeBytesUsesTmpPath(t *testing.T) {
 	staging := t.TempDir()
 	writeTestFile(t, filepath.Join(staging, "kernel.bin"), []byte("triton"))

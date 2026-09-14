@@ -93,3 +93,17 @@ func TestConfigureBoolFlagsNoGPU(t *testing.T) {
 		t.Error("expected GPU enabled after configureBoolFlags(noGPU=false), got disabled")
 	}
 }
+
+func TestValidateCaptureFlags(t *testing.T) {
+	err := validateCaptureFlags(false, false, "", nil, true)
+	if err == nil {
+		t.Fatal("expected error when --place-extra-trees without --extract")
+	}
+	err = validateCaptureFlags(false, false, "", []string{"/tmp/triton"}, false)
+	if err == nil {
+		t.Fatal("expected error when --source without --create")
+	}
+	if err := validateCaptureFlags(false, true, "", nil, true); err != nil {
+		t.Fatalf("extract with --place-extra-trees should be valid: %v", err)
+	}
+}

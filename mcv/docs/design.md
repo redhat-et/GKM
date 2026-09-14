@@ -97,6 +97,10 @@ false when `requiresWritable` is true. `pkg/cacheplan` decodes these labels into
 a typed `CachePlan` whose `Mounts` field lists every directory to populate,
 primary first.
 
+**Out of repo:** mounting and env injection in Kubernetes is the job of KServe
+Kernel Manager (or another label consumer), not MCV. Extract only logs intended
+targets via `logMountTargets`; it does not complete in-cluster serving by itself.
+
 See [spec-compat.md](./spec-compat.md) for the full contract.
 
 <!-- markdownlint-enable MD013 -->
