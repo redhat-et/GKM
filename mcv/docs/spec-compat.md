@@ -161,8 +161,10 @@ kernel paths, extra trees must be mounted at exactly `absPath` — mounting them
 somewhere else silently misses every kernel. Capture and serve from the same
 container image and environment to keep those paths valid.
 
-`mcv --extract` writes every tree under the requested `--dir` (extra trees as
-`<dir>/<subPath>/`) and logs each tree's intended serving path and writability,
+`mcv --extract` writes the primary vLLM payload under
+`--dir/<basename(VLLM_CACHE_ROOT)>/` (for `/tmp/vllm` that is `vllm/…`) and
+extra trees under `--dir/<subPath>/` (for example `triton/`), then logs each
+tree's intended serving path and writability,
 since it cannot move files to arbitrary absolute paths on a host unasked.
 Use **`--place-extra-trees`** on extract to opt in to relocating extra subtrees
 to the recorded absolute paths (this writes **outside** `--dir`; MCV logs a

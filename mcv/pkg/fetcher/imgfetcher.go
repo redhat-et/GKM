@@ -203,6 +203,9 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 	ct = cacheType
 	logging.Infof("Detected cache type: %s", ct)
 
+	cache.ConfigureVLLMExtractLayout(labels)
+	defer cache.ResetVLLMExtractLayout()
+
 	if constants.ExtractCacheDir == "" {
 		switch cacheType {
 		case constants.Triton:
@@ -404,8 +407,8 @@ func extractCompatImg(img v1.Image, cacheType string) (extractedDirs []string, e
 
 // logMountTargets reports where the extracted payload is expected to appear in a
 // serving container. Extra trees are captured from their own absolute paths (for
-// example /tmp/triton) but land flat under the requested extract directory, so
-// the operator needs to know the intended destination and writability.
+// example /tmp/triton) and land under --dir/<subPath>/ while the primary vLLM
+// tree lands under --dir/<vllm-root-basename>/.
 func logMountTargets(labels map[string]string) {
 	plan, err := cacheplan.Derive(labels)
 	if err != nil {

@@ -297,16 +297,17 @@ serve from **`$CAPTURE_ROOT`**.
 sudo mkdir -p /tmp/vllm-extracted
 sudo podman run --rm -v /tmp/vllm-extracted:/out:Z "$MCV_IMAGE" \
   --extract --image "$CACHE_IMAGE" --dir /out --no-gpu
-ls /tmp/vllm-extracted/torch_compile_cache /tmp/vllm-extracted/triton
+ls /tmp/vllm-extracted/vllm/torch_compile_cache /tmp/vllm-extracted/triton
 ```
 
-**Layout:** `--dir` is the **cache root** (the same role as `VLLM_CACHE_ROOT` at
-capture time). Extract unpacks `torch_compile_cache/` (and extra payload subtrees
-like `triton/`) **directly under `--dir`**, not under an extra `vllm/` directory.
-For a local serve test, set `VLLM_CACHE_ROOT` to your extract path, or bind-mount
-the extract dir at the path recorded in `io.kserve.km/cache-root-env`
-(for example `/tmp/vllm`). `modelinfos/` and `dummy_cache/` are not packaged or
-restored.
+**Layout:** `--dir` is a **capture root** (like `~/vllm-capture/`). The primary vLLM
+tree is unpacked under **`--dir/<name>/`**, where `<name>` is the last path
+component of `VLLM_CACHE_ROOT` from the image labels (for example
+`VLLM_CACHE_ROOT=/tmp/vllm` → **`vllm/torch_compile_cache/`**). Extra `--source`
+trees (for example Triton) appear as siblings at **`--dir/triton/`**. For serving,
+bind **`--dir/vllm`** to `/tmp/vllm` (or set `VLLM_CACHE_ROOT` to
+`--dir/vllm`) and mount Triton at `/tmp/triton` via **`--place-extra-trees`** or
+a bind mount. `modelinfos/` and `dummy_cache/` are not packaged or restored.
 
 To move extra trees (for example Triton) to the paths recorded in the image
 labels on the **host**, add **`--place-extra-trees`** (writes outside `--dir`):

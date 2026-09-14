@@ -280,9 +280,13 @@ func extractCacheAndManifestDirectory(
 					continue
 				}
 			}
-			filePath = filepath.Join(extractCacheDir, rel)
+			destRel := rel
+			if cacheDirPrefix == constants.MCVVLLMCacheDir {
+				destRel = vllmPayloadDestRel(rel)
+			}
+			filePath = filepath.Join(extractCacheDir, destRel)
 
-			topDir := filepath.Join(extractCacheDir, filepath.Dir(rel))
+			topDir := filepath.Join(extractCacheDir, filepath.Dir(destRel))
 			if !stringInSlice(topDir, extractedDirs) {
 				extractedDirs = append(extractedDirs, topDir)
 			}

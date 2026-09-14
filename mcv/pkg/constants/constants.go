@@ -71,7 +71,13 @@ var (
 	HabanaCacheDir     string
 	HasTritonCache     bool
 	HasVLLMCache       bool
-	LogLevels          = []string{"debug", "info", "warning", "error"} // accepted log levels
+	// VLLMExtractPrimaryDir is the subdirectory under ExtractCacheDir for the
+	// primary vLLM cache payload (basename of VLLM_CACHE_ROOT from labels).
+	VLLMExtractPrimaryDir string
+	// VLLMExtractExtraSubpaths lists payload top-level dirs that stay at the
+	// root of ExtractCacheDir (extra --source trees), not under VLLMExtractPrimaryDir.
+	VLLMExtractExtraSubpaths map[string]struct{}
+	LogLevels                = []string{"debug", "info", "warning", "error"} // accepted log levels
 )
 
 func init() {
