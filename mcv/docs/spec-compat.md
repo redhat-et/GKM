@@ -135,6 +135,10 @@ layer under `io.vllm.cache/<basename>/` and records where it has to reappear:
 | `env` | Variable pointing the framework at `absPath`; absent when it cannot be derived safely (e.g. `FLASHINFER_WORKSPACE_BASE` names the workspace base, not `.cache/flashinfer`) |
 | `requiresWritable` | The runtime appends to this tree, so it must not be mounted read-only |
 
+MCV **create** omits top-level `modelinfos/` and `dummy_cache/` under
+`VLLM_CACHE_ROOT` (runtime metadata, not compile cache). **Extract** skips those
+paths if present in older images.
+
 `requiresWritable` is not an optimization: a read-only Triton tree does not fall
 back to compiling, it fails with `PermissionError` the first time Triton stores a
 miss.

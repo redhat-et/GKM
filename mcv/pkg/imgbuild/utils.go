@@ -106,7 +106,16 @@ func prepareBuildContext(buildType, cacheDir string, spec ...cache.CaptureSpec) 
 	}
 	logging.Debugf("manifest build dir: %s", manifestBuildDir)
 
-	if err := cache.CopyDir(cacheDir, cacheBuildDir); err != nil {
+	copyFn := cache.CopyDir
+	if cache.HasCacheNamed(caches, constants.VLLM) {
+		copyFn = func(src, dst string) error {
+			return cache.CopyDirExcludingTopLevel(src, dst,
+				constants.VLLMNonCacheRootDirModelInfos,
+				constants.VLLMNonCacheRootDirDummyCache,
+			)
+		}
+	}
+	if err := copyFn(cacheDir, cacheBuildDir); err != nil {
 		stagingErr = err
 		return nil, fmt.Errorf("error copying contents: %v", err)
 	}

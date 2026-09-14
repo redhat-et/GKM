@@ -370,5 +370,6 @@ func ExtractTritonCacheDirectory(r io.Reader) (extractedDirs []string, extracted
 		"io.triton.manifest/",
 		constants.ExtractCacheDir,
 		constants.ExtractManifestDir,
+		nil,
 	)
 }

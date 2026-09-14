@@ -42,6 +42,11 @@ const (
 	VLLMCacheRoot   = "VLLM_CACHE_ROOT"
 	TorchCompileDir = "torch_compile_cache"
 
+	// VLLMNonCacheRootDir* are top-level entries under VLLM_CACHE_ROOT that are
+	// runtime metadata, not compile artifacts — MCV does not package or restore them.
+	VLLMNonCacheRootDirModelInfos = "modelinfos"
+	VLLMNonCacheRootDirDummyCache = "dummy_cache"
+
 	// Cache type identifiers
 	CacheTypeVLLMTorchCompile = "torch-compile"
 	CacheTypeHabanaRecipe     = "habana-recipe"

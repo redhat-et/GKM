@@ -228,5 +228,6 @@ func ExtractHabanaCacheDirectory(r io.Reader) (dirs []string, bytesWritten int64
 		"io.habana.manifest/",
 		constants.ExtractCacheDir,
 		constants.ExtractManifestDir,
+		nil,
 	)
 }

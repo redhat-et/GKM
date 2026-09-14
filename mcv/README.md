@@ -148,7 +148,10 @@ start uncached, and the Triton cache is not path-relocatable because its group
 files record absolute kernel paths.
 
 Capture those trees with `--source`; each one is stored in the same image layer and
-recorded with the path it must reappear at:
+recorded with the path it must reappear at. On **create**, MCV copies everything
+under `--dir` except vLLM runtime-only top-level dirs (`modelinfos/`,
+`dummy_cache/`) — only compile artifacts such as `torch_compile_cache/` are
+packaged.
 
 ```bash
 mcv --create --image quay.io/myorg/cache:v1 \
@@ -296,6 +299,14 @@ sudo podman run --rm -v /tmp/vllm-extracted:/out:Z "$MCV_IMAGE" \
   --extract --image "$CACHE_IMAGE" --dir /out --no-gpu
 ls /tmp/vllm-extracted/torch_compile_cache /tmp/vllm-extracted/triton
 ```
+
+**Layout:** `--dir` is the **cache root** (the same role as `VLLM_CACHE_ROOT` at
+capture time). Extract unpacks `torch_compile_cache/` (and extra payload subtrees
+like `triton/`) **directly under `--dir`**, not under an extra `vllm/` directory.
+For a local serve test, set `VLLM_CACHE_ROOT` to your extract path, or bind-mount
+the extract dir at the path recorded in `io.kserve.km/cache-root-env`
+(for example `/tmp/vllm`). `modelinfos/` and `dummy_cache/` are not packaged or
+restored.
 
 To move extra trees (for example Triton) to the paths recorded in the image
 labels on the **host**, add **`--place-extra-trees`** (writes outside `--dir`):

@@ -951,5 +951,6 @@ func ExtractVLLMCacheDirectory(r io.Reader) (extractedDirs []string, extractedBy
 		"io.vllm.manifest/",
 		constants.ExtractCacheDir,
 		constants.ExtractManifestDir,
+		VLLMNonCacheRootSkipSet(),
 	)
 }

@@ -88,6 +88,20 @@ func WriteManifest(path string, manifest Manifest) error {
 
 // CopyDir performs a native recursive copy of srcDir into dstDir
 func CopyDir(srcDir, dstDir string) error {
+	return copyDir(srcDir, dstDir, nil)
+}
+
+// CopyDirExcludingTopLevel copies srcDir into dstDir but skips immediate
+// children of srcDir whose base names appear in skipTop.
+func CopyDirExcludingTopLevel(srcDir, dstDir string, skipTop ...string) error {
+	skip := make(map[string]struct{}, len(skipTop))
+	for _, name := range skipTop {
+		skip[name] = struct{}{}
+	}
+	return copyDir(srcDir, dstDir, skip)
+}
+
+func copyDir(srcDir, dstDir string, skipTop map[string]struct{}) error {
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -97,6 +111,20 @@ func CopyDir(srcDir, dstDir string) error {
 		if err != nil {
 			return err
 		}
+		if relPath != "." && skipTop != nil {
+			top := relPath
+			if i := strings.Index(relPath, string(os.PathSeparator)); i >= 0 {
+				top = relPath[:i]
+			}
+			if _, skip := skipTop[top]; skip {
+				if info.IsDir() {
+					logging.Debugf("Skipping %s under %s (not part of the packaged cache)", top, srcDir)
+					return filepath.SkipDir
+				}
+				return nil
+			}
+		}
+
 		target := filepath.Join(dstDir, relPath)
 
 		if info.IsDir() {
@@ -153,6 +181,16 @@ func CacheTypes(caches []Cache) []string {
 	return names
 }
 
+// HasCacheNamed reports whether any detected cache uses the given name constant.
+func HasCacheNamed(caches []Cache, name string) bool {
+	for _, c := range caches {
+		if c.Name() == name {
+			return true
+		}
+	}
+	return false
+}
+
 // GetTagsFromCaches returns the manifest and cache directory tags for the available cache type
 func GetTagsFromCaches(caches []Cache) (manifestTag, cacheTag string, err error) {
 	for _, c := range caches {
@@ -189,9 +227,12 @@ func ExtractCacheDirectory(r io.Reader, cacheType string) (extractedDirs []strin
 }
 
 // Shared extraction logic for Triton/VLLM cache and manifest directories.
+// skipPayloadTop, when non-nil, drops payload paths whose first component is a
+// key (used to omit vLLM runtime dirs such as modelinfos from older images).
 func extractCacheAndManifestDirectory(
 	r io.Reader,
 	cacheDirPrefix, manifestDirPrefix, extractCacheDir, extractManifestDir string,
+	skipPayloadTop map[string]struct{},
 ) (extractedDirs []string, extractedBytes int64, err error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
@@ -230,6 +271,15 @@ func extractCacheAndManifestDirectory(
 			if rel == "" {
 				continue
 			}
+			if skipPayloadTop != nil {
+				top := rel
+				if i := strings.IndexByte(rel, '/'); i >= 0 {
+					top = rel[:i]
+				}
+				if _, skip := skipPayloadTop[top]; skip {
+					continue
+				}
+			}
 			filePath = filepath.Join(extractCacheDir, rel)
 
 			topDir := filepath.Join(extractCacheDir, filepath.Dir(rel))
@@ -264,6 +314,15 @@ func extractCacheAndManifestDirectory(
 	}
 
 	return extractedDirs, extractedBytes, nil
+}
+
+// VLLMNonCacheRootSkipSet returns top-level payload directory names under
+// VLLM_CACHE_ROOT that MCV does not restore on extract.
+func VLLMNonCacheRootSkipSet() map[string]struct{} {
+	return map[string]struct{}{
+		constants.VLLMNonCacheRootDirModelInfos:   {},
+		constants.VLLMNonCacheRootDirDummyCache: {},
+	}
 }
 
 func stringInSlice(str string, list []string) bool {
