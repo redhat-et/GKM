@@ -203,8 +203,10 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 	ct = cacheType
 	logging.Infof("Detected cache type: %s", ct)
 
-	cache.ConfigureVLLMExtractLayout(labels)
-	defer cache.ResetVLLMExtractLayout()
+	if cacheType == constants.VLLM {
+		cache.ConfigureVLLMExtractLayout(labels)
+		defer cache.ResetVLLMExtractLayout()
+	}
 
 	if constants.ExtractCacheDir == "" {
 		switch cacheType {

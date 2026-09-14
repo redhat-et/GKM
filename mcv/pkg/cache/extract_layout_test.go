@@ -50,3 +50,29 @@ func TestConfigureVLLMExtractLayoutWithoutExtraMountsLabel(t *testing.T) {
 	assert.Equal(t, constants.TorchCompileDir, constants.VLLMExtractPrimaryTop)
 	assert.Equal(t, "triton/x", vllmPayloadDestRel("triton/x"))
 }
+
+func TestConfigureVLLMExtractLayoutDeriveFallback(t *testing.T) {
+	t.Cleanup(ResetVLLMExtractLayout)
+
+	// Malformed cache-mounts breaks Derive; layout should still come from root-env + subpath.
+	labels := map[string]string{
+		cacheplan.LabelCacheRootEnv:      "VLLM_CACHE_ROOT=/tmp/vllm",
+		cacheplan.LabelCacheMountSubpath: constants.TorchCompileDir + "/torch_aot_compile",
+		"cache.vllm.image/summary":       `{}`,
+		cacheplan.LabelCacheMounts:       `{not valid json`,
+	}
+	ConfigureVLLMExtractLayout(labels)
+	assert.Equal(t, "vllm", constants.VLLMExtractPrimaryDir)
+	assert.Equal(t, constants.TorchCompileDir, constants.VLLMExtractPrimaryTop)
+}
+
+func TestConfigureVLLMExtractLayoutDefaultPrimaryDir(t *testing.T) {
+	t.Cleanup(ResetVLLMExtractLayout)
+
+	labels := map[string]string{
+		"cache.vllm.image/summary": `{}`,
+	}
+	ConfigureVLLMExtractLayout(labels)
+	assert.Equal(t, "vllm", constants.VLLMExtractPrimaryDir)
+	assert.Equal(t, constants.TorchCompileDir, constants.VLLMExtractPrimaryTop)
+}

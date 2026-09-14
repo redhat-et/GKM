@@ -375,6 +375,18 @@ func parseRootEnv(rootEnv string) (EnvVar, string, error) {
 	return EnvVar{Name: name, Value: value}, mountDir, nil
 }
 
+// RootEnvMountDir returns the absolute mount directory from a cache-root-env label
+// value ("NAME=PATH" or "NAME=PATH,suffix,...").
+func RootEnvMountDir(rootEnv string) (string, error) {
+	_, mountDir, err := parseRootEnv(rootEnv)
+	return mountDir, err
+}
+
+// IsVLLMCacheImage reports whether labels identify a vLLM torch-compile cache image.
+func IsVLLMCacheImage(labels map[string]string) bool {
+	return detectCacheType(labels) == constants.CacheTypeVLLMTorchCompile
+}
+
 // normalizeCacheType maps the various framework/cache-type aliases callers may
 // use onto the canonical cache type identifiers. Returns "" for the empty
 // string and passes unknown values through unchanged.

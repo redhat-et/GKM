@@ -6,6 +6,7 @@ import (
 
 	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
+	logging "github.com/sirupsen/logrus"
 )
 
 // ConfigureVLLMExtractLayout sets how vLLM payload paths map under ExtractCacheDir.
@@ -17,19 +18,33 @@ func ConfigureVLLMExtractLayout(labels map[string]string) {
 	constants.VLLMExtractPrimaryDir = ""
 	constants.VLLMExtractPrimaryTop = ""
 
+	if !cacheplan.IsVLLMCacheImage(labels) {
+		return
+	}
+
+	var mountDir, subPath string
 	plan, err := cacheplan.Derive(labels)
-	if err != nil {
-		return
+	if err == nil && plan.CacheType == constants.CacheTypeVLLMTorchCompile {
+		mountDir = plan.MountDir
+		subPath = plan.SubPath
+	} else {
+		logging.Debugf("vLLM extract layout: derive mount plan failed (%v), using label fallback", err)
+		mountDir, _ = cacheplan.RootEnvMountDir(labels[cacheplan.LabelCacheRootEnv])
+		subPath = labels[cacheplan.LabelCacheMountSubpath]
 	}
-	if plan.CacheType != constants.CacheTypeVLLMTorchCompile {
-		return
+
+	applyVLLMExtractLayout(mountDir, subPath)
+}
+
+func applyVLLMExtractLayout(mountDir, mountSubpath string) {
+	primaryDir := filepath.Base(filepath.Clean(mountDir))
+	if primaryDir == "" || primaryDir == "." || primaryDir == string(filepath.Separator) {
+		primaryDir = "vllm"
 	}
-	constants.VLLMExtractPrimaryDir = filepath.Base(plan.MountDir)
-	if constants.VLLMExtractPrimaryDir == "." || constants.VLLMExtractPrimaryDir == "/" {
-		constants.VLLMExtractPrimaryDir = ""
-		return
-	}
-	constants.VLLMExtractPrimaryTop = primaryPayloadTop(plan.SubPath)
+	constants.VLLMExtractPrimaryDir = primaryDir
+	constants.VLLMExtractPrimaryTop = primaryPayloadTop(mountSubpath)
+	logging.Infof("Extract layout: primary cache under %s/%s/; other payload tops under --dir/<name>/",
+		constants.VLLMExtractPrimaryDir, constants.VLLMExtractPrimaryTop)
 }
 
 func primaryPayloadTop(mountSubpath string) string {
