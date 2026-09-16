@@ -53,6 +53,38 @@ func TestExtractVLLMCacheDirectoryLayout(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+func TestExtractVLLMCacheManifestWithDotSlashPrefix(t *testing.T) {
+	t.Cleanup(ResetVLLMExtractLayout)
+
+	constants.VLLMExtractPrimaryDir = constants.VLLM
+	constants.VLLMExtractPrimaryTop = constants.TorchCompileDir
+
+	manifestBody := []byte(`{"vllm":[]}`)
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+	assert.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: "./io.vllm.manifest/manifest.json",
+		Mode: 0644,
+		Size: int64(len(manifestBody)),
+	}))
+	_, err := tw.Write(manifestBody)
+	assert.NoError(t, err)
+	assert.NoError(t, tw.Close())
+	assert.NoError(t, gw.Close())
+
+	root := t.TempDir()
+	constants.ExtractCacheDir = root
+	constants.ExtractManifestDir = filepath.Join(root, "manifest")
+
+	_, _, err = ExtractVLLMCacheDirectory(&buf)
+	assert.NoError(t, err)
+
+	written, err := os.ReadFile(filepath.Join(root, "manifest", "manifest.json"))
+	assert.NoError(t, err)
+	assert.Equal(t, manifestBody, written)
+}
+
 func TestPayloadRelFromCachePrefix(t *testing.T) {
 	rel, ok := payloadRelFromCachePrefix("io.vllm.cache/torch_compile_cache/x", "io.vllm.cache")
 	assert.True(t, ok)

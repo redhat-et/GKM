@@ -232,7 +232,6 @@ func DetectVLLMCache(cacheDir string, spec ...CaptureSpec) *VLLMCache {
 					continue
 				}
 
-				count++
 				hashDir := filepath.Join(torchCompileCachePath, entry.Name())
 
 				// Process hash entry (binary or triton cache)
@@ -241,6 +240,7 @@ func DetectVLLMCache(cacheDir string, spec ...CaptureSpec) *VLLMCache {
 					logging.Warnf("Failed to process hash entry %s: %v", entry.Name(), err)
 					continue
 				}
+				count++
 				logging.Debugf("Adding VLLM cache metadata: %+v", vllmMetadata)
 				metadata = append(metadata, *vllmMetadata)
 			}

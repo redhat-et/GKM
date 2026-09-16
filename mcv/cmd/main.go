@@ -77,12 +77,7 @@ and performing hardware compatibility checks.`,
 	}
 
 	addFlags(cmd, &imageName, &cacheDirName, &logLevel, &builder, &createFlag, &extractFlag, &baremetalFlag, &noGPUFlag, &checkCompatFlag, &gpuInfoFlag, &stubFlag, &timeout)
-	cmd.Flags().StringArrayVar(&sources, "source", nil, "Extra cache directory to capture with the vLLM cache (repeatable), "+
-		"e.g. --source /tmp/triton; stored in the same image layer and mounted back at the same path")
-	cmd.Flags().StringVar(&mountAt, "mount-at", "", "Override the path the cache root is mounted at in the serving container "+
-		"(defaults to the --dir path it was captured from)")
-	cmd.Flags().BoolVar(&placeExtraTreesFlag, "place-extra-trees", false,
-		"After extract, move extra cache trees from --dir to the absolute paths recorded in the image (writes outside --dir)")
+	addCaptureFlags(cmd, &sources, &mountAt, &placeExtraTreesFlag)
 	cmd.Flags().BoolVar(&versionFlag, "version", false, "Display the version of the application")
 	return cmd
 }
@@ -112,6 +107,15 @@ func addFlags(cmd *cobra.Command, imageName, cacheDirName, logLevel, builder *st
 	cmd.MarkFlagsMutuallyExclusive("create", "extract")
 	cmd.MarkFlagsMutuallyExclusive("no-gpu", "gpu-info")
 	cmd.MarkFlagsMutuallyExclusive("no-gpu", "check-compat")
+}
+
+func addCaptureFlags(cmd *cobra.Command, sources *[]string, mountAt *string, placeExtraTrees *bool) {
+	cmd.Flags().StringArrayVar(sources, "source", nil, "Extra cache directory to capture with the vLLM cache (repeatable), "+
+		"e.g. --source /tmp/triton; stored in the same image layer and mounted back at the same path")
+	cmd.Flags().StringVar(mountAt, "mount-at", "", "Override the path the cache root is mounted at in the serving container "+
+		"(defaults to the --dir path it was captured from)")
+	cmd.Flags().BoolVar(placeExtraTrees, "place-extra-trees", false,
+		"After extract, move extra cache trees from --dir to the absolute paths recorded in the image (writes outside --dir)")
 }
 
 func handleRunCommand(imageName, cacheDirName, logLevel, builder, mountAt string, sources []string, createFlag, extractFlag, baremetalFlag, noGPUFlag, checkCompatFlag, gpuInfoFlag, stubFlag, placeExtraTreesFlag bool, timeout int) {

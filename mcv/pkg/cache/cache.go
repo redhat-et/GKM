@@ -258,8 +258,9 @@ func extractCacheAndManifestDirectory(
 			return nil, 0, fmt.Errorf("error reading tar archive: %w", ret)
 		}
 
+		tarName := strings.TrimPrefix(h.Name, "./")
 		cacheRel, isCache := payloadRelFromCachePrefix(h.Name, cacheDirPrefix)
-		isManifest := strings.HasPrefix(strings.TrimPrefix(h.Name, "./"), manifestDirPrefix+"manifest.json")
+		isManifest := strings.HasPrefix(tarName, manifestDirPrefix+"manifest.json")
 		if !isCache && !isManifest {
 			continue
 		}
@@ -283,8 +284,8 @@ func extractCacheAndManifestDirectory(
 			if !stringInSlice(topDir, extractedDirs) {
 				extractedDirs = append(extractedDirs, topDir)
 			}
-		} else if strings.HasPrefix(h.Name, manifestDirPrefix) {
-			rel := strings.TrimPrefix(h.Name, manifestDirPrefix)
+		} else if strings.HasPrefix(tarName, manifestDirPrefix) {
+			rel := strings.TrimPrefix(tarName, manifestDirPrefix)
 			filePath = filepath.Join(extractManifestDir, rel)
 		}
 
