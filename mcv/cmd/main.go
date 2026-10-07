@@ -11,6 +11,8 @@ import (
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/imgbuild"
 	"github.com/redhat-et/GKM/mcv/pkg/logformat"
+	"github.com/redhat-et/GKM/mcv/pkg/registryclient"
+	"github.com/redhat-et/GKM/mcv/pkg/signing"
 	logging "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.podman.io/storage/pkg/unshare"
@@ -466,7 +468,7 @@ func runPush(imageName string, signFlag bool, keyPath string, yesFlag bool, buil
 		digestRef := pushedDigestRef
 		if digestRef == "" {
 			var resolveErr error
-			digestRef, resolveErr = imgbuild.ResolveRegistryDigest(imageName)
+			digestRef, resolveErr = registryclient.ResolveRegistryDigest(imageName)
 			if resolveErr != nil || digestRef == "" {
 				if resolveErr != nil {
 					logging.Errorf("image was pushed but digest could not be resolved from registry: %v", resolveErr)
@@ -524,7 +526,7 @@ func runVerify(f *cliFlags) {
 
 // signImage resolves an image name to its digest and signs it.
 func signImage(imageName, keyPath string, yesFlag bool) error {
-	digestRef, err := imgbuild.ResolveDigest(imageName)
+	digestRef, err := signing.ResolveDigest(imageName)
 	if err != nil {
 		return fmt.Errorf("failed to resolve image digest for signing: %w", err)
 	}
@@ -535,7 +537,7 @@ func signImage(imageName, keyPath string, yesFlag bool) error {
 func signDigestRef(digestRef, keyPath string, yesFlag bool) error {
 	logging.Infof("Signing image digest: %s", digestRef)
 
-	if err := imgbuild.Sign(digestRef, keyPath, yesFlag); err != nil {
+	if err := signing.Sign(digestRef, keyPath, yesFlag); err != nil {
 		return fmt.Errorf("failed to sign the OCI image: %w", err)
 	}
 	logging.Info("OCI image signed successfully.")
@@ -544,13 +546,13 @@ func signDigestRef(digestRef, keyPath string, yesFlag bool) error {
 
 // verifyImage resolves and verifies an image signature using Cosign, returning the digest reference.
 func verifyImage(f *cliFlags) (string, error) {
-	digestRef, err := imgbuild.ResolveRegistryDigest(f.imageName)
+	digestRef, err := registryclient.ResolveRegistryDigest(f.imageName)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve image digest: %w", err)
 	}
 	logging.Infof("Resolved image to digest: %s", digestRef)
 
-	if err := imgbuild.Verify(digestRef, &imgbuild.VerifyOptions{
+	if err := signing.Verify(digestRef, &signing.VerifyOptions{
 		KeyPath:              f.keyPath,
 		CertIdentity:         f.certIdentity,
 		CertIdentityRegexp:   f.certIdentityRegexp,

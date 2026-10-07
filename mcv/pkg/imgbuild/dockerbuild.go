@@ -20,19 +20,15 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	// Import hash algorithms to register them with crypto package
 	_ "crypto/sha256" // Registers SHA256
 	_ "crypto/sha512" // Registers SHA384 and SHA512
 
-	"github.com/docker/cli/cli/config"
-	"github.com/docker/cli/cli/config/credentials"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
@@ -42,8 +38,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	"github.com/redhat-et/GKM/mcv/pkg/registryclient"
+
 	logging "github.com/sirupsen/logrus"
-	containersauth "go.podman.io/image/v5/pkg/docker/config"
 	itypes "go.podman.io/image/v5/types"
 )
 
@@ -109,115 +106,12 @@ func loadImageIntoDocker(ctx context.Context, apiClient *client.Client, tag name
 	return nil
 }
 
-// dockerConfigDir returns the Docker CLI config directory, honoring DOCKER_CONFIG
-// on every call. This avoids github.com/docker/cli's process-wide sync.Once cache
-// in config.Dir(), which ignores later DOCKER_CONFIG changes (e.g. in tests).
-func dockerConfigDir() string {
-	if dir := os.Getenv(config.EnvOverrideConfigDir); dir != "" {
-		return dir
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return ""
-	}
-	return filepath.Join(home, ".docker")
-}
-
-// dockerCLIAuthConfig loads Docker CLI credentials for the registry hosting imageRef.
-// Returns nil when no usable credentials are found so callers can fall back to
-// daemon / containers-auth defaults.
-func dockerCLIAuthConfig(imageRef string) (*registry.AuthConfig, error) {
-	ref, err := name.ParseReference(imageRef)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse image reference for auth: %w", err)
-	}
-
-	cfg, err := config.Load(dockerConfigDir())
-	if err != nil {
-		logging.Debugf("failed to load docker config: %v", err)
-		return nil, nil
-	}
-	if !cfg.ContainsAuth() {
-		cfg.CredentialsStore = credentials.DetectDefaultStore(cfg.CredentialsStore)
-	}
-
-	authConfig, err := cfg.GetAuthConfig(ref.Context().RegistryStr())
-	if err != nil {
-		logging.Debugf("no docker credentials for %s: %v", ref.Context().RegistryStr(), err)
-		return nil, nil
-	}
-
-	if authConfig.Username == "" && authConfig.Password == "" &&
-		authConfig.Auth == "" && authConfig.IdentityToken == "" && authConfig.RegistryToken == "" {
-		return nil, nil
-	}
-
-	return &registry.AuthConfig{
-		Username:      authConfig.Username,
-		Password:      authConfig.Password,
-		Auth:          authConfig.Auth,
-		IdentityToken: authConfig.IdentityToken,
-		RegistryToken: authConfig.RegistryToken,
-		ServerAddress: authConfig.ServerAddress,
-	}, nil
-}
-
-// registryAuthConfig resolves registry credentials for imageRef from:
-//  1. Docker CLI config (for parity with Docker Engine behavior), then
-//  2. containers/image default auth sources (e.g., containers/auth.json) when
-//     DOCKER_CONFIG is not set.
-//
-// When DOCKER_CONFIG is explicitly set, only that Docker config is consulted so
-// callers can isolate auth (tests) or pin a config directory without merging
-// host containers credentials. An empty result then lets the daemon / Buildah
-// fall back to their own defaults.
-func registryAuthConfig(imageRef string) (*registry.AuthConfig, error) {
-	authConfig, err := dockerCLIAuthConfig(imageRef)
-	if err != nil {
-		return nil, err
-	}
-	if authConfig != nil {
-		return authConfig, nil
-	}
-	if os.Getenv(config.EnvOverrideConfigDir) != "" {
-		return nil, nil
-	}
-
-	return containersAuthConfig(imageRef)
-}
-
-func containersAuthConfig(imageRef string) (*registry.AuthConfig, error) {
-	ref, err := name.ParseReference(imageRef)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse image reference for auth: %w", err)
-	}
-	registryStr := ref.Context().RegistryStr()
-
-	creds, err := containersauth.GetCredentials(nil, registryStr)
-	if err != nil {
-		if errors.Is(err, containersauth.ErrNotLoggedIn) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to read containers credentials for %s: %w", registryStr, err)
-	}
-	if creds.Username == "" && creds.Password == "" && creds.IdentityToken == "" {
-		return nil, nil
-	}
-
-	return &registry.AuthConfig{
-		Username:      creds.Username,
-		Password:      creds.Password,
-		IdentityToken: creds.IdentityToken,
-		ServerAddress: registryStr,
-	}, nil
-}
-
 // encodedRegistryAuth returns base64-encoded registry credentials for the Docker Engine API.
 // When no usable credentials are found, it returns an empty string so the daemon can fall
 // back to its own credential stores (important for Podman docker-compat + containers/auth.json).
 // Encoding an empty AuthConfig as "e30=" would override that lookup with anonymous auth.
 func encodedRegistryAuth(imageRef string) (string, error) {
-	authConfig, err := registryAuthConfig(imageRef)
+	authConfig, err := registryclient.AuthConfig(imageRef)
 	if err != nil {
 		return "", err
 	}
@@ -284,7 +178,7 @@ func decodeDockerAuthField(auth string) (username, password string, err error) {
 func registrySystemContext(imageRef string) (*itypes.SystemContext, error) {
 	sysCtx := &itypes.SystemContext{}
 
-	authConfig, err := registryAuthConfig(imageRef)
+	authConfig, err := registryclient.AuthConfig(imageRef)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +247,7 @@ func extractPushedDigest(raw []byte, imageRef string) (string, error) {
 func confirmPushedDigest(imageRef, streamDigestRef string) (string, error) {
 	streamDigest := digestFromReference(streamDigestRef)
 
-	registryDigestRef, err := ResolveRegistryDigest(imageRef)
+	registryDigestRef, err := registryclient.ResolveRegistryDigest(imageRef)
 	if err != nil {
 		if streamDigest != "" {
 			logging.Warnf(
