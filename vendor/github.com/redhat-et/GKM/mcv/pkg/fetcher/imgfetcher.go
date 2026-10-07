@@ -31,6 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator"
 	"github.com/redhat-et/GKM/mcv/pkg/cache"
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	"github.com/redhat-et/GKM/mcv/pkg/preflightcheck"
@@ -198,12 +199,19 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 	ct = cacheType
 	logging.Infof("Detected cache type: %s", ct)
 
+	if cacheType == constants.VLLM {
+		cache.ConfigureVLLMExtractLayout(labels)
+		defer cache.ResetVLLMExtractLayout()
+	}
+
 	if constants.ExtractCacheDir == "" {
 		switch cacheType {
 		case constants.Triton:
 			constants.ExtractCacheDir = constants.TritonCacheDir
 		case constants.VLLM:
 			constants.ExtractCacheDir = constants.VLLMCacheDir
+		case constants.Habana:
+			constants.ExtractCacheDir = constants.HabanaCacheDir
 		default:
 			return fmt.Errorf("unsupported cache type: %s", cacheType)
 		}
@@ -251,6 +259,8 @@ func (e *cacheExtractor) ExtractCache(img v1.Image) error {
 	if err := validateExtractedCacheSize(labels, ct, extractedBytes); err != nil {
 		logging.Warnf("Cache size validation: %v", err)
 	}
+
+	logMountTargets(labels)
 
 	// Full manifest compatibility check (after extraction)
 	manifestPath := filepath.Join(constants.ExtractManifestDir, constants.ManifestFileName)
@@ -393,6 +403,31 @@ func extractCompatImg(img v1.Image, cacheType string) (extractedDirs []string, e
 	return extractedDirs, extractedBytes, nil
 }
 
+// logMountTargets reports where the extracted payload is expected to appear in a
+// serving container. Extra trees are captured from their own absolute paths (for
+// example /tmp/triton) and land under --dir/<subPath>/ while the primary vLLM
+// tree lands under --dir/<vllm-root-basename>/.
+func logMountTargets(labels map[string]string) {
+	plan, err := cacheplan.Derive(labels)
+	if err != nil {
+		logging.Debugf("No serving mount plan for this image: %v", err)
+		return
+	}
+
+	for _, m := range plan.Mounts {
+		subPath := m.SubPath
+		if subPath == "" {
+			subPath = "."
+		}
+		if m.RequiresWritable {
+			logging.Warnf("Cache tree %q must be mounted writable at %s (env %s)",
+				subPath, m.AbsPath, m.Env)
+			continue
+		}
+		logging.Infof("Cache tree %q belongs at %s (env %s)", subPath, m.AbsPath, m.Env)
+	}
+}
+
 // validateExtractedCacheSize validates that the extracted cache size matches the image label.
 func validateExtractedCacheSize(labels map[string]string, cacheType string, extractedBytes int64) error {
 	var labelKey string
@@ -401,6 +436,8 @@ func validateExtractedCacheSize(labels map[string]string, cacheType string, extr
 		labelKey = "cache.triton.image/cache-size-bytes"
 	case constants.VLLM:
 		labelKey = "cache.vllm.image/cache-size-bytes"
+	case constants.Habana:
+		labelKey = "cache.habana.image/cache-size-bytes"
 	default:
 		return fmt.Errorf("unsupported cache type: %s", cacheType)
 	}

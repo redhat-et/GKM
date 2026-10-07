@@ -21,7 +21,7 @@ type Cache interface {
 	CacheSizeBytes() int64
 	Summary() string
 	Metadata() []CacheEntry
-	Labels() map[string]string
+	Labels() (map[string]string, error)
 	ManifestTag() string
 	CacheTag() string
 	SetTmpPath(path string)
@@ -32,27 +32,37 @@ type Manifest map[string][]CacheEntry
 type Labels map[string]string
 
 // DetectCaches runs detection logic and returns all valid cache backends found under a root directory
-func DetectCaches(root string) []Cache {
+func DetectCaches(root string, spec ...CaptureSpec) []Cache {
 	var caches []Cache
 
-	if vllm := DetectVLLMCache(root); vllm != nil {
+	if vllm := DetectVLLMCache(root, spec...); vllm != nil {
 		caches = append(caches, vllm)
 	} else if triton := DetectTritonCache(root); triton != nil {
 		caches = append(caches, triton)
+	} else if habana := DetectHabanaCache(root); habana != nil {
+		caches = append(caches, habana)
 	}
 
 	return caches
 }
 
-// BuildLabels combines label maps from all caches into a single set of image labels
-func BuildLabels(caches []Cache) Labels {
+// BuildLabels combines label maps from all caches into a single set of image labels.
+// A cache that cannot render its labels (for example extra cache trees whose mount
+// metadata does not fit one label) aborts the build rather than contributing a
+// partial label set, since an image carrying those trees without their mount
+// metadata would restore them nowhere.
+func BuildLabels(caches []Cache) (Labels, error) {
 	result := make(Labels)
 	for _, c := range caches {
-		for k, v := range c.Labels() {
+		labels, err := c.Labels()
+		if err != nil {
+			return nil, fmt.Errorf("%s cache: %w", c.Name(), err)
+		}
+		for k, v := range labels {
 			result[k] = v
 		}
 	}
-	return result
+	return result, nil
 }
 
 // BuildManifest collects all cache metadata grouped by backend name
@@ -78,6 +88,20 @@ func WriteManifest(path string, manifest Manifest) error {
 
 // CopyDir performs a native recursive copy of srcDir into dstDir
 func CopyDir(srcDir, dstDir string) error {
+	return copyDir(srcDir, dstDir, nil)
+}
+
+// CopyDirExcludingTopLevel copies srcDir into dstDir but skips immediate
+// children of srcDir whose base names appear in skipTop.
+func CopyDirExcludingTopLevel(srcDir, dstDir string, skipTop ...string) error {
+	skip := make(map[string]struct{}, len(skipTop))
+	for _, name := range skipTop {
+		skip[name] = struct{}{}
+	}
+	return copyDir(srcDir, dstDir, skip)
+}
+
+func copyDir(srcDir, dstDir string, skipTop map[string]struct{}) error {
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -87,6 +111,20 @@ func CopyDir(srcDir, dstDir string) error {
 		if err != nil {
 			return err
 		}
+		if relPath != "." && skipTop != nil {
+			top := relPath
+			if i := strings.Index(relPath, string(os.PathSeparator)); i >= 0 {
+				top = relPath[:i]
+			}
+			if _, skip := skipTop[top]; skip {
+				if info.IsDir() {
+					logging.Infof("Skipping %s/ under %s (runtime metadata, not packaged in cache images)", top, srcDir)
+					return filepath.SkipDir
+				}
+				return nil
+			}
+		}
+
 		target := filepath.Join(dstDir, relPath)
 
 		if info.IsDir() {
@@ -143,10 +181,20 @@ func CacheTypes(caches []Cache) []string {
 	return names
 }
 
+// HasCacheNamed reports whether any detected cache uses the given name constant.
+func HasCacheNamed(caches []Cache, name string) bool {
+	for _, c := range caches {
+		if c.Name() == name {
+			return true
+		}
+	}
+	return false
+}
+
 // GetTagsFromCaches returns the manifest and cache directory tags for the available cache type
 func GetTagsFromCaches(caches []Cache) (manifestTag, cacheTag string, err error) {
 	for _, c := range caches {
-		if c.Name() == constants.VLLM || c.Name() == constants.Triton {
+		if c.Name() == constants.VLLM || c.Name() == constants.Triton || c.Name() == constants.Habana {
 			return c.ManifestTag(), c.CacheTag(), nil
 		}
 	}
@@ -171,15 +219,20 @@ func ExtractCacheDirectory(r io.Reader, cacheType string) (extractedDirs []strin
 		return ExtractTritonCacheDirectory(r)
 	case constants.VLLM:
 		return ExtractVLLMCacheDirectory(r)
+	case constants.Habana:
+		return ExtractHabanaCacheDirectory(r)
 	default:
 		return nil, 0, fmt.Errorf("unsupported cache type: %s", cacheType)
 	}
 }
 
 // Shared extraction logic for Triton/VLLM cache and manifest directories.
+// skipPayloadTop, when non-nil, drops payload paths whose first component is a
+// key (used to omit vLLM runtime dirs such as modelinfos from older images).
 func extractCacheAndManifestDirectory(
 	r io.Reader,
 	cacheDirPrefix, manifestDirPrefix, extractCacheDir, extractManifestDir string,
+	skipPayloadTop map[string]struct{},
 ) (extractedDirs []string, extractedBytes int64, err error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
@@ -205,27 +258,34 @@ func extractCacheAndManifestDirectory(
 			return nil, 0, fmt.Errorf("error reading tar archive: %w", ret)
 		}
 
-		// Skip irrelevant files
-		if !strings.HasPrefix(h.Name, cacheDirPrefix) &&
-			!strings.HasPrefix(h.Name, manifestDirPrefix+"manifest.json") {
+		tarName := strings.TrimPrefix(h.Name, "./")
+		cacheRel, isCache := payloadRelFromCachePrefix(h.Name, cacheDirPrefix)
+		isManifest := strings.HasPrefix(tarName, manifestDirPrefix+"manifest.json")
+		if !isCache && !isManifest {
 			continue
 		}
 
 		// Determine output path
 		var filePath string
-		if strings.HasPrefix(h.Name, cacheDirPrefix) {
-			rel := strings.TrimPrefix(h.Name, cacheDirPrefix)
-			if rel == "" {
-				continue
+		if isCache {
+			rel := cacheRel
+			if skipPayloadTop != nil {
+				if _, skip := skipPayloadTop[payloadTopComponent(rel)]; skip {
+					continue
+				}
 			}
-			filePath = filepath.Join(extractCacheDir, rel)
+			destRel := rel
+			if strings.TrimSuffix(strings.TrimPrefix(cacheDirPrefix, "./"), "/") == constants.MCVVLLMCacheDir {
+				destRel = vllmPayloadDestRel(rel)
+			}
+			filePath = filepath.Join(extractCacheDir, destRel)
 
-			topDir := filepath.Join(extractCacheDir, filepath.Dir(rel))
+			topDir := filepath.Join(extractCacheDir, filepath.Dir(destRel))
 			if !stringInSlice(topDir, extractedDirs) {
 				extractedDirs = append(extractedDirs, topDir)
 			}
-		} else if strings.HasPrefix(h.Name, manifestDirPrefix) {
-			rel := strings.TrimPrefix(h.Name, manifestDirPrefix)
+		} else if strings.HasPrefix(tarName, manifestDirPrefix) {
+			rel := strings.TrimPrefix(tarName, manifestDirPrefix)
 			filePath = filepath.Join(extractManifestDir, rel)
 		}
 
@@ -243,7 +303,7 @@ func extractCacheAndManifestDirectory(
 			if err = writeFile(filePath, tr, os.FileMode(h.Mode)); err != nil {
 				return nil, 0, fmt.Errorf("failed to write file %s: %w", filePath, err)
 			}
-			if strings.HasPrefix(h.Name, cacheDirPrefix) {
+			if isCache {
 				extractedBytes += h.Size
 			}
 		default:
@@ -252,6 +312,26 @@ func extractCacheAndManifestDirectory(
 	}
 
 	return extractedDirs, extractedBytes, nil
+}
+
+// VLLMRuntimeRootDirs lists top-level VLLM_CACHE_ROOT entries that are runtime
+// metadata, not compile cache — they are omitted on create and skipped on extract.
+func VLLMRuntimeRootDirs() []string {
+	return []string{
+		constants.VLLMNonCacheRootDirModelInfos,
+		constants.VLLMNonCacheRootDirDummyCache,
+	}
+}
+
+// VLLMNonCacheRootSkipSet returns top-level payload directory names under
+// VLLM_CACHE_ROOT that MCV does not restore on extract.
+func VLLMNonCacheRootSkipSet() map[string]struct{} {
+	dirs := VLLMRuntimeRootDirs()
+	out := make(map[string]struct{}, len(dirs))
+	for _, d := range dirs {
+		out[d] = struct{}{}
+	}
+	return out
 }
 
 func stringInSlice(str string, list []string) bool {

@@ -121,7 +121,7 @@ func getTritonMetadata(root string) []TritonCacheMetadata {
 }
 
 func (t *TritonCache) Name() string {
-	return "triton"
+	return constants.Triton
 }
 
 func (t *TritonCache) ManifestTag() string {
@@ -163,12 +163,12 @@ func (t *TritonCache) Summary() string {
 	return string(jsonData)
 }
 
-func (t *TritonCache) Labels() map[string]string {
+func (t *TritonCache) Labels() (map[string]string, error) {
 	return map[string]string{
 		"cache.triton.image/entry-count":      strconv.Itoa(t.EntryCount()),
 		"cache.triton.image/summary":          t.Summary(),
 		"cache.triton.image/cache-size-bytes": strconv.FormatInt(t.CacheSizeBytes(), 10),
-	}
+	}, nil
 }
 
 func (t *TritonCache) Metadata() []CacheEntry {
@@ -229,7 +229,7 @@ func CompareTritonCacheToGPU(cacheData *TritonCacheData, acc accelerator.Acceler
 		warpMatch := cacheData.Target.WarpSize == gpu.WarpSize
 		ptxMatch := true
 
-		if gpu.Backend == "cuda" && cacheData.PtxVersion != nil {
+		if gpu.Backend == constants.BackendCUDA && cacheData.PtxVersion != nil {
 			ptxMatch = *cacheData.PtxVersion == gpu.PTXVersion
 			if !ptxMatch {
 				logging.WithFields(logging.Fields{
@@ -370,5 +370,6 @@ func ExtractTritonCacheDirectory(r io.Reader) (extractedDirs []string, extracted
 		"io.triton.manifest/",
 		constants.ExtractCacheDir,
 		constants.ExtractManifestDir,
+		nil,
 	)
 }
