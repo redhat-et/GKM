@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	testImage = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
-	unreachableImage   = "invalid.invalid/gkm/e2e-cosign:test"
+	testImage        = "quay.io/gkm/cache-examples:vector-add-cache-cuda"
+	unreachableImage = "invalid.invalid/gkm/e2e-cosign:test"
 )
 
 // TestMCVGPUInfo tests the GPU info functionality

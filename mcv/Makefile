@@ -70,7 +70,7 @@ mcv: build ## Build triton cache vault.
 build: clean_build_local _build_local  ##  Build binary and copy to $(OUTPUT_DIR)/bin
 .PHONY: build
 
-_build_local: format vet tidy-vendor ##  Build mcv binary locally.
+_build_local: vet ##  Build mcv binary locally.
 	@echo "******     build     ******"
 	@echo
 	@mkdir -p "$(BUILD_BINDIR)/$(GOOS)_$(GOARCH)"
@@ -87,6 +87,20 @@ tidy-vendor:
 	@echo
 	go mod tidy -v
 	go mod vendor
+	@echo
+	@echo
+
+.PHONY: check
+check: ## Verify code is formatted and go.mod/go.sum are tidy (no mutation).
+	@echo "******     check     ******"
+	@echo
+	@out=$$(gofmt -l . 2>/dev/null | grep -v '^_output/' | grep -v '^vendor/'); \
+	if [ -n "$$out" ]; then \
+		echo "Files need gofmt (run: make format):"; \
+		echo "$$out"; \
+		exit 1; \
+	fi
+	go mod tidy -diff
 	@echo
 	@echo
 
