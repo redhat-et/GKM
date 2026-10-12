@@ -60,9 +60,8 @@ func platformV1ToPlatformComparable(platform *imgspecv1.Platform) platformCompar
 	}
 	osFeatures := slices.Clone(platform.OSFeatures)
 	sort.Strings(osFeatures)
-	return platformComparable{
-		architecture: platform.Architecture,
-		os:           platform.OS,
+	return platformComparable{architecture: platform.Architecture,
+		os: platform.OS,
 		// This is strictly speaking ambiguous, fields of OSFeatures can contain a ','. Probably good enough for now.
 		osFeatures: strings.Join(osFeatures, ","),
 		osVersion:  platform.OSVersion,
@@ -253,8 +252,7 @@ func (c *copier) copyMultipleImages(ctx context.Context) (copiedManifest []byte,
 				UpdateDigest:                updated.manifestDigest,
 				UpdateSize:                  int64(len(updated.manifest)),
 				UpdateCompressionAlgorithms: updated.compressionAlgorithms,
-				UpdateMediaType:             updated.manifestMIMEType,
-			})
+				UpdateMediaType:             updated.manifestMIMEType})
 		case instanceCopyClone:
 			logrus.Debugf("Replicating instance %s (%d/%d)", instance.sourceDigest, i+1, len(instanceCopyList))
 			c.Printf("Replicating image %s (%d/%d)\n", instance.sourceDigest, i+1, len(instanceCopyList))
@@ -262,8 +260,7 @@ func (c *copier) copyMultipleImages(ctx context.Context) (copiedManifest []byte,
 			updated, err := c.copySingleImage(ctx, unparsedInstance, &instanceCopyList[i].sourceDigest, copySingleImageOptions{
 				requireCompressionFormatMatch: true,
 				compressionFormat:             &instance.cloneCompressionVariant.Algorithm,
-				compressionLevel:              instance.cloneCompressionVariant.Level,
-			})
+				compressionLevel:              instance.cloneCompressionVariant.Level})
 			if err != nil {
 				return nil, fmt.Errorf("replicating image %d/%d from manifest list: %w", i+1, len(instanceCopyList), err)
 			}

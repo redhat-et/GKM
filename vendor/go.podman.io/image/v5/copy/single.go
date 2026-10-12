@@ -386,14 +386,14 @@ func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context,
 
 	destImageSource, err := ic.c.dest.Reference().NewImageSource(ctx, ic.c.options.DestinationCtx)
 	if err != nil {
-		logrus.Debugf("Unable to create destination image %s source: %v", ic.c.dest.Reference(), err)
+		logrus.Debugf("Unable to create destination image %s source: %v", transports.ImageName(ic.c.dest.Reference()), err)
 		return nil, nil
 	}
 	defer destImageSource.Close()
 
 	destManifest, destManifestType, err := destImageSource.GetManifest(ctx, targetInstance)
 	if err != nil {
-		logrus.Debugf("Unable to get destination image %s/%s manifest: %v", destImageSource, targetInstance, err)
+		logrus.Debugf("Unable to get destination image %s/%s manifest: %v", transports.ImageName(destImageSource.Reference()), targetInstance, err)
 		return nil, nil
 	}
 
@@ -934,8 +934,7 @@ func updatedBlobInfoFromReuse(inputInfo types.BlobInfo, reusedBlob private.Reuse
 // perhaps (de/re/)compressing the stream,
 // and returns a complete blobInfo of the copied blob and perhaps a <-chan diffIDResult if diffIDIsNeeded, to be read by the caller.
 func (ic *imageCopier) copyLayerFromStream(ctx context.Context, srcStream io.Reader, srcInfo types.BlobInfo,
-	diffIDIsNeeded bool, toEncrypt bool, bar *progressBar, layerIndex int, emptyLayer bool,
-) (types.BlobInfo, <-chan diffIDResult, error) {
+	diffIDIsNeeded bool, toEncrypt bool, bar *progressBar, layerIndex int, emptyLayer bool) (types.BlobInfo, <-chan diffIDResult, error) {
 	var getDiffIDRecorder func(compressiontypes.DecompressorFunc) io.Writer // = nil
 	var diffIDChan chan diffIDResult
 

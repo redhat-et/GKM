@@ -82,8 +82,7 @@ func (list *Schema2ListPublic) UpdateInstances(updates []ListUpdate) error {
 			UpdateDigest:    instance.Digest,
 			UpdateSize:      instance.Size,
 			UpdateMediaType: instance.MediaType,
-			ListOperation:   ListOpUpdate,
-		})
+			ListOperation:   ListOpUpdate})
 	}
 	return list.editInstances(editInstances)
 }

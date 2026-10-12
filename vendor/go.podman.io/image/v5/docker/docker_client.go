@@ -823,8 +823,7 @@ func (c *dockerClient) obtainBearerToken(ctx context.Context, challenge challeng
 // https://github.com/distribution/distribution/blob/main/docs/spec/auth/oauth.md for challenge and scopes,
 // and writes it into dest.
 func (c *dockerClient) getBearerTokenOAuth2(ctx context.Context, dest *bearerToken, challenge challenge,
-	scopes []authScope,
-) error {
+	scopes []authScope) error {
 	realm, ok := challenge.Parameters["realm"]
 	if !ok {
 		return errors.New("missing realm in bearer auth challenge")
@@ -871,8 +870,7 @@ func (c *dockerClient) getBearerTokenOAuth2(ctx context.Context, dest *bearerTok
 // https://github.com/distribution/distribution/blob/main/docs/spec/auth/token.md for challenge and scopes,
 // and writes it into dest.
 func (c *dockerClient) getBearerToken(ctx context.Context, dest *bearerToken, challenge challenge,
-	scopes []authScope,
-) error {
+	scopes []authScope) error {
 	realm, ok := challenge.Parameters["realm"]
 	if !ok {
 		return errors.New("missing realm in bearer auth challenge")
@@ -971,6 +969,11 @@ func (c *dockerClient) detectPropertiesHelper(ctx context.Context) error {
 	// if set DockerProxyURL explicitly, use the DockerProxyURL instead of system proxy
 	if c.sys != nil && c.sys.DockerProxyURL != nil {
 		tr.Proxy = http.ProxyURL(c.sys.DockerProxyURL)
+	}
+	if c.sys != nil && c.sys.DockerProxy != nil {
+		tr.Proxy = func(request *http.Request) (*url.URL, error) {
+			return c.sys.DockerProxy(request.URL)
+		}
 	}
 	c.client = &http.Client{Transport: tr}
 
