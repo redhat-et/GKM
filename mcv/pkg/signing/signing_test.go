@@ -11,6 +11,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"github.com/redhat-et/GKM/mcv/pkg/registryclient"
+	"github.com/sigstore/sigstore/pkg/signature/kms"
 	"github.com/stretchr/testify/assert"
 	"go.podman.io/storage"
 )
@@ -74,6 +75,13 @@ func writeContainersAuthConfig(t *testing.T, homeDir string, auths map[string]an
 	data, err := json.Marshal(map[string]any{"auths": auths})
 	assert.NoError(t, err)
 	assert.NoError(t, os.WriteFile(filepath.Join(configDir, "auth.json"), data, 0o600))
+}
+
+func TestCosignKMSProvidersRegistered(t *testing.T) {
+	providers := kms.SupportedProviders()
+	for _, scheme := range []string{"awskms://", "azurekms://", "gcpkms://", "hashivault://"} {
+		assert.Contains(t, providers, scheme)
+	}
 }
 
 func TestCosignSignEmptyImageRef(t *testing.T) {

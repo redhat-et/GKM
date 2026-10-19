@@ -19,6 +19,12 @@ import (
 	// Register ambient OIDC providers (GitHub Actions, SIGSTORE_ID_TOKEN, etc.)
 	// so SignCmd/Fulcio can discover them like the cosign CLI.
 	_ "github.com/sigstore/cosign/v3/pkg/providers/all"
+
+	// Register the KMS providers used by the cosign CLI for --key URIs.
+	_ "github.com/sigstore/sigstore/pkg/signature/kms/aws"
+	_ "github.com/sigstore/sigstore/pkg/signature/kms/azure"
+	_ "github.com/sigstore/sigstore/pkg/signature/kms/gcp"
+	_ "github.com/sigstore/sigstore/pkg/signature/kms/hashivault"
 )
 
 // toAuthnAuthConfig maps Docker/containers registry credentials into the

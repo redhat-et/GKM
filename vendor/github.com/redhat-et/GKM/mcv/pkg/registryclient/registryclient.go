@@ -101,7 +101,9 @@ func containersAuthConfig(imageRef string) (*registry.AuthConfig, error) {
 	}
 	registryStr := ref.Context().RegistryStr()
 
-	creds, err := containersauth.GetCredentials(nil, registryStr)
+	// Keep the repository path so containers/image can prefer repository and
+	// namespace credentials before falling back to registry-wide credentials.
+	creds, err := containersauth.GetCredentials(nil, ref.Context().Name())
 	if err != nil {
 		if errors.Is(err, containersauth.ErrNotLoggedIn) {
 			return nil, nil
