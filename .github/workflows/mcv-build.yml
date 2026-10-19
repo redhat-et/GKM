@@ -33,11 +33,12 @@ jobs:
         run: |
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.0
 
+      - name: Verify root go.mod/vendor in sync with mcv
+        run: make verify-vendors
+
       - name: Prepare vendored dependencies
         working-directory: mcv
-        run: |
-          go mod tidy
-          go mod vendor
+        run: go mod vendor
 
       - name: Run golangci-lint
         working-directory: mcv

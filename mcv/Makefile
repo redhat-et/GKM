@@ -70,7 +70,7 @@ mcv: build ## Build triton cache vault.
 build: clean_build_local _build_local  ##  Build binary and copy to $(OUTPUT_DIR)/bin
 .PHONY: build
 
-_build_local: format vet tidy-vendor ##  Build mcv binary locally.
+_build_local: vet ##  Build mcv binary locally.
 	@echo "******     build     ******"
 	@echo
 	@mkdir -p "$(BUILD_BINDIR)/$(GOOS)_$(GOARCH)"
@@ -87,6 +87,20 @@ tidy-vendor:
 	@echo
 	go mod tidy -v
 	go mod vendor
+	@echo
+	@echo
+
+.PHONY: check
+check: ## Verify code is formatted and go.mod/go.sum are tidy (no mutation).
+	@echo "******     check     ******"
+	@echo
+	@out=$$(gofmt -l . 2>/dev/null | grep -v '^_output/' | grep -v '^vendor/'); \
+	if [ -n "$$out" ]; then \
+		echo "Files need gofmt (run: make format):"; \
+		echo "$$out"; \
+		exit 1; \
+	fi
+	go mod tidy -diff
 	@echo
 	@echo
 
@@ -113,10 +127,35 @@ lint:
 	@echo
 	@echo
 
-test:
-	@echo "******     testing     ******"
+##@ Testing
+.PHONY: test
+test: ## Run unit tests
+	@echo "******     running unit tests     ******"
 	@echo
-	go test github.com/redhat-et/GKM/mcv/...
+	go test ./... -v
+
+.PHONY: test-short
+test-short: ## Run unit tests without verbose output
+	@echo "******     running unit tests (short)     ******"
+	@echo
+	go test ./...
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage report
+	@echo "******     generating test coverage     ******"
+	@echo
+	go test ./... -coverprofile=coverage.out
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+.PHONY: test-e2e
+test-e2e: build ## Run end-to-end tests
+	@echo "******     running end-to-end tests     ******"
+	@echo
+	cd test/e2e && go test -v -tags=e2e
+
+.PHONY: test-all
+test-all: test test-e2e ## Run all tests (unit and e2e)
 
 ##@ Installation
 .PHONY: install

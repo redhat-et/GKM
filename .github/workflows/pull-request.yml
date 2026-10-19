@@ -49,6 +49,10 @@ jobs:
         if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.25' }}
         run: make fmt && git add -A && git diff --exit-code
 
+      - name: Verify go.mod/vendor in sync
+        if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.25' }}
+        run: make verify-vendors
+
       # TBD: Currently failing
       # - name: Run lint
       #   if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.25' }}
