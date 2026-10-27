@@ -29,6 +29,26 @@ func TestHasApp(t *testing.T) {
 	assert.False(t, HasApp("fake_app_that_does_not_exist"))
 }
 
+func TestNormalizeImageTag(t *testing.T) {
+	digest := "quay.io/gkm/cache-examples@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tests := []struct {
+		in, want string
+	}{
+		{"example.com/repo/image", "example.com/repo/image:latest"},
+		{"example.com/repo/image:v1", "example.com/repo/image:v1"},
+		{digest, digest},
+		{"localhost:5000/foo", "localhost:5000/foo:latest"},
+		{"localhost:5000/foo:v1", "localhost:5000/foo:v1"},
+		{"foo", "foo:latest"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			assert.Equal(t, tt.want, NormalizeImageTag(tt.in))
+		})
+	}
+}
+
 func TestSanitizeGroupJSON(t *testing.T) {
 	testDir := t.TempDir()
 	testFile := filepath.Join(testDir, "test.json")

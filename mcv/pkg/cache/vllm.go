@@ -839,7 +839,7 @@ func (v *VLLMCache) Labels() (map[string]string, error) {
 	}
 	if raw != "" {
 		labels[cacheplan.LabelCacheMounts] = raw
-	labels[cacheplan.LabelSplitCacheCapture] = cacheplan.SplitCacheCaptureValue
+		labels[cacheplan.LabelSplitCacheCapture] = cacheplan.SplitCacheCaptureValue
 	}
 
 	return labels, nil

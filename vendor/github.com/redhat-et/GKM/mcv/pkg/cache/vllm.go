@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/redhat-et/GKM/mcv/pkg/accelerator/devices"
+	"github.com/redhat-et/GKM/mcv/pkg/cacheplan"
 	"github.com/redhat-et/GKM/mcv/pkg/config"
 	"github.com/redhat-et/GKM/mcv/pkg/constants"
 	logging "github.com/sirupsen/logrus"
@@ -33,18 +34,20 @@ const (
 	kmCacheMountSubpath = constants.KMPrefix + "/cache-mount-subpath"
 	kmCacheRootEnv      = constants.KMPrefix + "/cache-root-env"
 
-	// vLLM-specific mounting defaults
-	vllmCacheRootPath       = constants.KServeHome + "/" + constants.VLLMCache
-	vllmCacheRootEnvDefault = constants.VLLMCacheRoot + "=" + vllmCacheRootPath
+	// vllmCacheRootPath is the fallback mount point for caches with no recorded
+	// capture directory.
+	vllmCacheRootPath = constants.KServeHome + "/" + constants.VLLMCache
 
 	// Cache format constants
 	BinaryCacheFormat     = "binary"
 	AOTCompileCacheFormat = "aot_compile"
 	TritonCacheFormat     = "triton"
-	CUDABackend           = "cuda"
-	ROCmBackend           = "rocm"
-	HIPBackend            = "hip"
-	UnknownBackend        = "UnknownBackend"
+	// Exported aliases of constants.Backend* — kept for callers that already
+	// reference cache.CUDABackend / cache.HIPBackend / cache.ROCmBackend.
+	CUDABackend    = constants.BackendCUDA
+	ROCmBackend    = constants.BackendROCm
+	HIPBackend     = constants.BackendHIP
+	UnknownBackend = "UnknownBackend"
 
 	// torchAOTCompileDirName is the extra directory vLLM introduces above
 	// the per-model hash dir when VLLM_USE_AOT_COMPILE is enabled.
@@ -63,6 +66,7 @@ type VLLMCache struct {
 	count       int
 	tritonCache *TritonCache
 	allMetadata []VLLMCacheMetadata
+	spec        CaptureSpec
 }
 
 type VLLMCacheMetadata struct {
@@ -171,7 +175,14 @@ func detectAndProcessAOTCache(torchCompileCachePath string) (metadata []VLLMCach
 	return metadata, count
 }
 
-func DetectVLLMCache(cacheDir string) *VLLMCache {
+// DetectVLLMCache looks for a vLLM torch compile cache under cacheDir. An
+// optional CaptureSpec carries extra cache trees captured with it and the path
+// the root should be mounted at when that differs from cacheDir.
+func DetectVLLMCache(cacheDir string, spec ...CaptureSpec) *VLLMCache {
+	var capture CaptureSpec
+	if len(spec) > 0 {
+		capture = spec[0]
+	}
 	found := false
 	var torchCompileCachePath string
 	metadata := []VLLMCacheMetadata{}
@@ -221,7 +232,6 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					continue
 				}
 
-				count++
 				hashDir := filepath.Join(torchCompileCachePath, entry.Name())
 
 				// Process hash entry (binary or triton cache)
@@ -230,6 +240,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 					logging.Warnf("Failed to process hash entry %s: %v", entry.Name(), err)
 					continue
 				}
+				count++
 				logging.Debugf("Adding VLLM cache metadata: %+v", vllmMetadata)
 				metadata = append(metadata, *vllmMetadata)
 			}
@@ -247,6 +258,7 @@ func DetectVLLMCache(cacheDir string) *VLLMCache {
 			tritonCache: tc,
 			count:       count,
 			allMetadata: metadata,
+			spec:        capture,
 		}
 	}
 	return nil
@@ -583,6 +595,13 @@ func detectActualGPUInfo() (backend, arch string, warpSize, ptxVersion int) {
 		}
 	}
 
+	// Skip GPU detection if disabled via --no-gpu flag
+	// This allows cache creation without GPU hardware by using cache metadata
+	if !config.IsGPUEnabled() {
+		logging.Info("GPU detection disabled (--no-gpu), will use cache metadata for hardware info")
+		return UnknownBackend, UnknownBackend, 0, 0
+	}
+
 	// Get device registry
 	registry := devices.GetRegistry()
 	if registry == nil {
@@ -770,7 +789,7 @@ func buildBinaryCacheSummary(metadata []VLLMCacheMetadata) (*Summary, error) {
 	return &Summary{Targets: targets}, nil
 }
 
-func (v *VLLMCache) Labels() map[string]string {
+func (v *VLLMCache) Labels() (map[string]string, error) {
 	// Determine the cache format(s) from metadata
 	// Collect all unique formats present
 	formatSet := make(map[string]bool)
@@ -805,92 +824,101 @@ func (v *VLLMCache) Labels() map[string]string {
 
 	// Add generic mounting labels for KServe Kernel Manager integration
 	if len(v.allMetadata) > 0 {
-		// 1. Framework and cache type - identifies what kind of cache this is
-		labels[kmFramework] = constants.VLLM
-		labels[kmCacheType] = constants.CacheTypeVLLMTorchCompile
-
-		// 2. Cache hash(es) - deduplicate while preserving first-seen order
-		var hashes []string
-		seen := make(map[string]bool)
-		for _, meta := range v.allMetadata {
-			if meta.VllmHash != "" && !seen[meta.VllmHash] {
-				hashes = append(hashes, meta.VllmHash)
-				seen[meta.VllmHash] = true
-			}
-		}
-		if len(hashes) > 0 {
-			labels[kmCacheHash] = strings.Join(hashes, ",")
-
-			// 3. Cache mount subpath - determines what gets mounted from the OCI image
-			//
-			// For MULTI-HASH images: Mount at parent directory to expose all hashes.
-			// This allows vLLM to discover and use any hash at runtime while still
-			// being able to write new caches to sibling directories (container FS is RW).
-			//
-			// For SINGLE-HASH images: Mount at parent directory for consistency.
-			// Previously mounted specific hash, but parent mounting is more flexible
-			// and doesn't change behavior (vLLM still sees the same cache, can still
-			// write new caches to siblings).
-			//
-			// Example multi-hash structure:
-			//   PVC: kernel-cache/<storageKey>/torch_compile_cache/torch_aot_compile/
-			//     hashA/rank_0_0/model
-			//     hashB/rank_0_0/model
-			//     hashC/rank_0_0/model
-			//
-			//   Mount: /home/kserve/.cache/vllm/torch_compile_cache/torch_aot_compile (RO from PVC)
-			//   Sibling writes: /home/kserve/.cache/vllm/torch_compile_cache/newHash/ (RW container FS)
-			//
-			// This design supports cache-miss rebuilds: vLLM reads precompiled caches
-			// from the RO mount and writes new caches to siblings in the container FS.
-
-			firstHash := hashes[0]
-
-			// Find the metadata entry that corresponds to firstHash
-			// (v.allMetadata[0] may have empty hash or different hash)
-			var firstMeta VLLMCacheMetadata
-			for _, meta := range v.allMetadata {
-				if meta.VllmHash == firstHash {
-					firstMeta = meta
-					break
-				}
-			}
-
-			// Check if this cache uses the torch_aot_compile directory structure
-			// Both AOTCompileCacheFormat and mega-AOT BinaryCacheFormat use:
-			// torch_compile_cache/torch_aot_compile/<hash>/...
-			usesTorchAOTCompile := false
-
-			if firstMeta.CacheFormat == AOTCompileCacheFormat {
-				// AOT compile caches always use torch_aot_compile directory
-				usesTorchAOTCompile = true
-			} else if firstMeta.CacheFormat == BinaryCacheFormat && len(firstMeta.BinaryCacheEntries) > 0 {
-				// Mega-AOT binary caches also use torch_aot_compile directory
-				for i := range firstMeta.BinaryCacheEntries {
-					if firstMeta.BinaryCacheEntries[i].CacheSaveFormat == megaAOTSaveFormat {
-						usesTorchAOTCompile = true
-						break
-					}
-				}
-			}
-
-			if usesTorchAOTCompile {
-				// AOT compile or Mega-AOT: Mount parent to expose all hashes
-				// torch_compile_cache/torch_aot_compile (no hash suffix)
-				labels[kmCacheMountSubpath] = filepath.Join(constants.TorchCompileDir, torchAOTCompileDirName)
-			} else {
-				// Regular torch compile: Mount at torch_compile_cache parent
-				// This exposes all hash directories for both single and multi-hash images
-				labels[kmCacheMountSubpath] = constants.TorchCompileDir
-			}
-
-			// 4. Cache root environment variable
-			// Format: "VLLM_CACHE_ROOT=/home/kserve/.cache/vllm"
-			labels[kmCacheRootEnv] = vllmCacheRootEnvDefault
-		}
+		v.stampKSMountLabels(labels)
 	}
 
-	return labels
+	// An image that carries extra trees without the label describing them would
+	// restore those trees nowhere, so an unrepresentable mount label has to abort
+	// the build rather than ship a payload whose mount metadata was dropped or
+	// truncated. This mirrors the earlier CaptureSpec.Validate gate as a final
+	// line of defense so image generation can never emit extra trees with no way
+	// to remount them.
+	raw, err := MountsLabel(v.spec.Sources)
+	if err != nil {
+		return nil, err
+	}
+	if raw != "" {
+		labels[cacheplan.LabelCacheMounts] = raw
+		labels[cacheplan.LabelSplitCacheCapture] = cacheplan.SplitCacheCaptureValue
+	}
+
+	return labels, nil
+}
+
+// stampKSMountLabels writes the io.kserve.km/* serving hints. Mount subpath and
+// cache-root-env are always stamped when metadata exists so InspectCachePlan can
+// build a pod mount list even when no vLLM hash directory was detected.
+func (v *VLLMCache) stampKSMountLabels(labels map[string]string) {
+	labels[kmFramework] = constants.VLLM
+	labels[kmCacheType] = constants.CacheTypeVLLMTorchCompile
+
+	hashes := v.uniqueVLLMHashes()
+	if len(hashes) > 0 {
+		labels[kmCacheHash] = strings.Join(hashes, ",")
+	}
+
+	firstMeta := v.metadataForMountSubpath(hashes)
+	labels[kmCacheMountSubpath] = v.cacheMountSubpath(&firstMeta)
+	labels[kmCacheRootEnv] = constants.VLLMCacheRoot + "=" + v.mountRoot()
+}
+
+func (v *VLLMCache) uniqueVLLMHashes() []string {
+	var hashes []string
+	seen := make(map[string]bool)
+	for _, meta := range v.allMetadata {
+		if meta.VllmHash != "" && !seen[meta.VllmHash] {
+			hashes = append(hashes, meta.VllmHash)
+			seen[meta.VllmHash] = true
+		}
+	}
+	return hashes
+}
+
+func (v *VLLMCache) metadataForMountSubpath(hashes []string) VLLMCacheMetadata {
+	if len(hashes) > 0 {
+		for _, meta := range v.allMetadata {
+			if meta.VllmHash == hashes[0] {
+				return meta
+			}
+		}
+	}
+	if len(v.allMetadata) > 0 {
+		return v.allMetadata[0]
+	}
+	return VLLMCacheMetadata{}
+}
+
+// cacheMountSubpath returns the payload subtree consumers should mount for the
+// primary vLLM cache. For MULTI-HASH images the parent directory exposes every
+// hash while still allowing sibling writes on the container filesystem.
+func (v *VLLMCache) cacheMountSubpath(firstMeta *VLLMCacheMetadata) string {
+	if firstMeta == nil {
+		return constants.TorchCompileDir
+	}
+	if firstMeta.CacheFormat == AOTCompileCacheFormat {
+		return filepath.Join(constants.TorchCompileDir, torchAOTCompileDirName)
+	}
+	if firstMeta.CacheFormat == BinaryCacheFormat && len(firstMeta.BinaryCacheEntries) > 0 {
+		for i := range firstMeta.BinaryCacheEntries {
+			if firstMeta.BinaryCacheEntries[i].CacheSaveFormat == megaAOTSaveFormat {
+				return filepath.Join(constants.TorchCompileDir, torchAOTCompileDirName)
+			}
+		}
+	}
+	return constants.TorchCompileDir
+}
+
+// mountRoot returns where the payload root has to be mounted in the serving
+// container: the explicit override, otherwise the directory it was captured
+// from, falling back to the KServe default for synthetic caches.
+func (v *VLLMCache) mountRoot() string {
+	if v.spec.MountAt != "" {
+		return filepath.Clean(v.spec.MountAt)
+	}
+	if v.rootPath != "" {
+		return filepath.Clean(v.rootPath)
+	}
+	return vllmCacheRootPath
 }
 
 func (v *VLLMCache) Metadata() []CacheEntry {
@@ -924,5 +952,6 @@ func ExtractVLLMCacheDirectory(r io.Reader) (extractedDirs []string, extractedBy
 		"io.vllm.manifest/",
 		constants.ExtractCacheDir,
 		constants.ExtractManifestDir,
+		VLLMNonCacheRootSkipSet(),
 	)
 }

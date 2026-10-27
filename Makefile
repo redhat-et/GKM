@@ -171,9 +171,24 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: vendors
-vendors: ## Refresh vendors directory.
+vendors: ## Refresh vendors directory (mcv first so the replace stays in sync).
 	@echo "### Checking vendors"
+	$(MAKE) -C mcv tidy-vendor
 	go mod tidy && go mod vendor
+
+.PHONY: verify-vendors
+verify-vendors: ## Verify go.mod/go.sum/vendor are in sync at root and mcv (no mutation).
+	@echo "### Verifying vendors"
+	$(MAKE) -C mcv check
+	go mod tidy -diff
+	@tmp=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	cp go.mod go.sum "$$tmp/"; \
+	go mod vendor -modfile="$$tmp/go.mod" -o "$$tmp/vendor"; \
+	if ! diff -qr vendor/ "$$tmp/vendor/"; then \
+		echo "### vendor is out of sync; run 'make vendors' and commit the result"; \
+		exit 1; \
+	fi
 
 .PHONY: explain
 explain: ## Run "kubectl explain" on all CRDs.

@@ -2,6 +2,7 @@ package imgbuild
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/redhat-et/GKM/mcv/pkg/cache"
 	"github.com/redhat-et/GKM/mcv/pkg/utils"
@@ -11,10 +12,16 @@ import (
 const (
 	Buildah = "buildah"
 	Docker  = "docker"
+
+	// DefaultPushPullTimeout bounds Docker/Buildah registry push and pull.
+	DefaultPushPullTimeout = 10 * time.Minute
 )
 
 type ImageBuilder interface {
 	CreateImage(imgName string, cacheDir string, spec ...cache.CaptureSpec) error
+	// PushImage pushes imageRef and returns an immutable digest reference when available.
+	PushImage(imageRef string) (string, error)
+	PullImage(imageRef string) error
 }
 
 var HasApp = utils.HasApp

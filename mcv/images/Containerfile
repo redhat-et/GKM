@@ -38,11 +38,18 @@ RUN go version
 
 COPY mcv/go.mod mcv/go.sum /usr/src/mcv/
 WORKDIR /usr/src/mcv
+# Warm the module cache only. Do NOT run `go mod tidy`/`go mod vendor` here:
+# with no .go files present, tidy strips all requires and vendor writes a
+# bogus modules.txt, which makes Go auto-select -mod=vendor after COPY.
 RUN --mount=type=cache,target=/root/go/pkg/mod \
-    go mod tidy -v && go mod vendor
+    go mod download -x
 
 COPY mcv/ /usr/src/mcv/
-RUN make build
+# Defense in depth: fail clearly if a stale vendor tree ever bypasses .dockerignore.
+RUN test ! -e /usr/src/mcv/vendor/modules.txt
+RUN --mount=type=cache,target=/root/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    make build
 
 # ============================================================================
 # MINIMAL TARGET: For cache creation/extraction with --no-gpu

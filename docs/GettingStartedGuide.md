@@ -5,7 +5,7 @@ building GKM and description of how to deploy GKM.
 
 ## Prerequisites
 
-- go version v1.25.0+
+- go version v1.25.7+
 - podman version 5.3.1+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.

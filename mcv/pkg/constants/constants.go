@@ -77,7 +77,7 @@ var (
 	// VLLMExtractPrimaryTop is the payload top-level directory that belongs under
 	// VLLMExtractPrimaryDir (usually torch_compile_cache).
 	VLLMExtractPrimaryTop string
-	LogLevels               = []string{"debug", "info", "warning", "error"} // accepted log levels
+	LogLevels             = []string{"debug", "info", "warning", "error"} // accepted log levels
 )
 
 func init() {

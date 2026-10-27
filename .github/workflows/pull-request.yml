@@ -14,12 +14,11 @@ on: # yamllint disable-line rule:truthy
 
 jobs:
   build-lint-test:
-    name: Build (Go ${{ matrix.go }} - ${{ matrix.arch.arch }})
+    name: Build (${{ matrix.arch.arch }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        go: ["1.25"]
         arch:
           - arch: amd64
             filename: linux-x86_64
@@ -30,10 +29,13 @@ jobs:
             # - arch: s390x
             #   filename: linux-s390x
     steps:
+      - name: Checkout GKM
+        uses: actions/checkout@v7
+
       - name: Install go
         uses: actions/setup-go@v7
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: go.mod
 
       - name: Install dependencies
         run: |
@@ -42,21 +44,22 @@ jobs:
             libgpgme-dev \
             libbtrfs-dev \
 
-      - name: Checkout GKM
-        uses: actions/checkout@v7
-
       - name: Check format
-        if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.25' }}
+        if: ${{ matrix.arch.arch == 'amd64' }}
         run: make fmt && git add -A && git diff --exit-code
+
+      - name: Verify go.mod/vendor in sync
+        if: ${{ matrix.arch.arch == 'amd64' }}
+        run: make verify-vendors
 
       # TBD: Currently failing
       # - name: Run lint
-      #   if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.25' }}
+      #   if: ${{ matrix.arch.arch == 'amd64' }}
       #   run: make lint
 
       - name: Build Operator, Agent and CSI-Plugin
         run: GOARCH=${{ matrix.arch.arch }} make build
 
       - name: Unit Tests
-        if: ${{ matrix.arch.arch == 'amd64' && matrix.go == '1.25' }}
+        if: ${{ matrix.arch.arch == 'amd64' }}
         run: sudo env "PATH=$PATH" make test

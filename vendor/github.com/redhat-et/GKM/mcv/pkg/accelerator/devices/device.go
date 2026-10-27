@@ -35,11 +35,7 @@ const (
 	AMD
 	NVML
 	ROCM
-
-	// GPU architecture and backend constants
-	gfxArchMI210   = "gfx90a"
-	hipBackend     = "hip"
-	stubbedAMDName = "STUBBED AMD"
+	GAUDI
 )
 
 var (
@@ -76,7 +72,7 @@ type CachedDevice struct {
 }
 
 func (d DeviceType) String() string {
-	return [...]string{"MOCK", "AMD", "NVML", "ROCM"}[d]
+	return [...]string{"MOCK", "AMD", "NVML", "ROCM", "GAUDI"}[d]
 }
 
 type Device interface {
@@ -160,6 +156,7 @@ func registerDevices(r *Registry) {
 		amdCheck(r)
 		rocmCheck(r)
 		nvmlCheck(r)
+		gaudiCheck(r)
 	}
 }
 
@@ -301,6 +298,8 @@ func Startup(a string, registry *Registry) Device {
 					device = &gpuNvml{}
 				case ROCM:
 					device = &gpuROCm{}
+				case GAUDI:
+					device = &gpuGaudi{}
 				default:
 					logging.Errorf("Unsupported device type %s", cachedDevice.DeviceType.String())
 					return nil

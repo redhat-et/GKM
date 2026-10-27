@@ -15,6 +15,9 @@ Containerfile.cross
 
 # Go workspace file
 go.work
+# Vendored modules ship their own go.work; `go mod vendor` copies them.
+# Re-include so a clean checkout matches fresh vendoring (see verify-vendors).
+!vendor/**/go.work
 
 # Kubernetes Generated files - skip generated files, except for vendored files
 !vendor/**/zz_generated.*

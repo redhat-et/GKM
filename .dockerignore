@@ -1,3 +1,9 @@
 # More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
 # Ignore build and test binaries.
 bin/
+
+# Keep the build context aligned with a clean CI checkout and small.
+# No Containerfile copies these trees.
+.git/
+mcv/vendor/
+mcv/_output/
